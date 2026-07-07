@@ -64,5 +64,12 @@ aDFsB: { label:"aDF#B · D-tuning", strings:["a","D","F#","B"], pitches:[9,2,6,1
 
 ## Deploy on Render
 
-Push this repo and create a **Blueprint** instance from `render.yaml`, or create a
-Static Site by hand (publish directory `.`, no build command). Any static host works.
+Push this repo and create a **Blueprint** instance from `render.yaml`. Its build
+command stamps the git commit SHA over `__BUILD__` in `index.html` and `sw.js` —
+that versions the service-worker cache per deploy (forcing the update cycle and
+purging stale copies) and shows as `BUILD://<sha>` at the bottom of the chord
+grid, so you can always check which version a device is running.
+
+Any other static host works too — replicate the one-line sed from `render.yaml`,
+or don't: the app still updates via its network-first shell, just without the
+visible build tag.

@@ -4,7 +4,9 @@ services:
   - type: web
     name: chordware
     runtime: static
-    buildCommand: ""          # no build step — plain static files
+    # not a build — just stamps the commit SHA into the SW cache name and
+    # the UI build tag, so every deploy triggers the SW update cycle
+    buildCommand: sed -i "s/__BUILD__/$(echo "${RENDER_GIT_COMMIT:-dev}" | cut -c1-7)/g" index.html sw.js
     staticPublishPath: .
     headers:
       # "/" is served via the rewrite but needs its own header rule —

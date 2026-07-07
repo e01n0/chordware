@@ -6,7 +6,11 @@
      refresh.
    The app itself is a single index.html; this sidecar exists only
    because browsers won't load a SW from an inline/blob source. */
-const CACHE = "chordware-v2";
+/* __BUILD__ is replaced with the git commit SHA by the Render build
+   command (see render.yaml), so every deploy changes this file's bytes,
+   forcing the browser's SW update cycle and a fresh cache. Locally it
+   stays as-is, which is still a valid (constant) cache name. */
+const CACHE = "chordware-__BUILD__";
 
 self.addEventListener("install", e => {
   e.waitUntil(
