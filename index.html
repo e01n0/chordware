@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a12">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="CHORDWARE // banjolele chord chart terminal — reentrant gCEA, hammer-on & pull-off ornament overlays">
+<title>CHORDWARE // gCEA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:      #0a0a12;
+    --bg2:     #10101c;
+    --panel:   #0e0e1a;
+    --line:    #1f3a44;
+    --line2:   #29505c;
+    --yellow:  #fcee0a;
+    --cyan:    #00f0ff;
+    --red:     #ff003c;
+    --dim:     #5a7a86;
+    --text:    #c8e5ec;
+    --font-h:  'Rajdhani', 'Arial Narrow', sans-serif;
+    --font-m:  'Share Tech Mono', 'Courier New', monospace;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; }
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-m);
+    overflow-x:hidden;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+
+  /* ── scanline / noise overlay ─────────────────────────────── */
+  body::after{
+    content:"";
+    position:fixed; inset:0; z-index:9000; pointer-events:none;
+    background:
+      repeating-linear-gradient(0deg,
+        rgba(0,0,0,0)   0px,
+        rgba(0,0,0,0)   2px,
+        rgba(0,0,0,.14) 3px,
+        rgba(0,0,0,0)   4px);
+    mix-blend-mode:multiply;
+  }
+  body::before{
+    content:"";
+    position:fixed; inset:0; z-index:9001; pointer-events:none;
+    background:radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,.35) 100%);
+  }
+
+  /* ── header ───────────────────────────────────────────────── */
+  header{
+    position:sticky; top:0; z-index:100;
+    background:linear-gradient(180deg, #0a0a12 82%, rgba(10,10,18,0));
+    padding:10px 14px 4px;
+  }
+  .hbar{
+    display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+    border-bottom:1px solid var(--yellow);
+    padding-bottom:6px;
+    position:relative;
+  }
+  .hbar::after{ /* corner cut, Arasaka-terminal style */
+    content:""; position:absolute; right:0; bottom:-1px;
+    width:0; height:0;
+    border-bottom:10px solid var(--yellow);
+    border-left:10px solid transparent;
+  }
+  h1.glitch{
+    font-family:var(--font-h);
+    font-weight:700; font-size:clamp(24px, 6vw, 38px);
+    letter-spacing:.14em; color:var(--yellow);
+    text-transform:uppercase; position:relative; line-height:1;
+  }
+  h1.glitch::before, h1.glitch::after{
+    content:attr(data-text);
+    position:absolute; left:0; top:0; width:100%; overflow:hidden;
+  }
+  h1.glitch::before{ color:var(--cyan);  clip-path:inset(0 0 62% 0); animation:gl1 3.1s infinite steps(1); }
+  h1.glitch::after { color:var(--red);   clip-path:inset(64% 0 0 0); animation:gl2 2.7s infinite steps(1); }
+  @keyframes gl1{ 0%,93%{transform:none;opacity:0} 94%{transform:translate(-3px,-1px);opacity:.9}
+                  96%{transform:translate(2px,1px);opacity:.9} 98%{transform:translate(-1px,0);opacity:.7} 99%,100%{transform:none;opacity:0} }
+  @keyframes gl2{ 0%,89%{transform:none;opacity:0} 90%{transform:translate(3px,1px);opacity:.9}
+                  93%{transform:translate(-2px,-1px);opacity:.8} 95%,100%{transform:none;opacity:0} }
+  .sub{
+    display:flex; align-items:center; gap:8px;
+    color:var(--dim); font-size:11px; letter-spacing:.12em; white-space:nowrap;
+  }
+  select#tuning{
+    background:var(--bg2); color:var(--cyan);
+    border:1px solid var(--line2); border-radius:0;
+    font-family:var(--font-m); font-size:12px;
+    padding:6px 8px; min-height:32px;
+  }
+
+  /* ── controls ─────────────────────────────────────────────── */
+  .controls{ padding:8px 14px 2px; display:flex; flex-direction:column; gap:8px; }
+  .row1{ display:flex; gap:8px; }
+  #search{
+    flex:1; min-height:44px;
+    background:var(--bg2); color:var(--yellow);
+    border:1px solid var(--line2);
+    font-family:var(--font-m); font-size:15px; letter-spacing:.08em;
+    padding:0 12px; outline:none;
+  }
+  #search::placeholder{ color:var(--dim); }
+  #search:focus{ border-color:var(--cyan); box-shadow:0 0 8px rgba(0,240,255,.35); }
+  #ornToggle{
+    min-height:44px; padding:0 14px;
+    background:var(--bg2); color:var(--red);
+    border:1px solid var(--red);
+    font-family:var(--font-h); font-weight:600; font-size:13px; letter-spacing:.1em;
+    cursor:pointer; white-space:nowrap; text-transform:uppercase;
+  }
+  #ornToggle.on{
+    background:var(--red); color:#0a0a12;
+    box-shadow:0 0 12px rgba(255,0,60,.55);
+  }
+  .chips{ display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; }
+  .chips::-webkit-scrollbar{ display:none; }
+  .chip{
+    min-height:44px; padding:0 16px; flex:0 0 auto;
+    background:transparent; color:var(--cyan);
+    border:1px solid var(--line2);
+    font-family:var(--font-h); font-weight:600; font-size:13px; letter-spacing:.1em;
+    cursor:pointer; text-transform:uppercase;
+  }
+  .chip.on{
+    background:var(--cyan); color:#0a0a12; border-color:var(--cyan);
+    box-shadow:0 0 10px rgba(0,240,255,.5);
+  }
+  .row2{ display:flex; gap:8px; }
+  .row2 select{
+    flex:1; min-width:0; min-height:44px;
+    background:var(--bg2); color:var(--cyan);
+    border:1px solid var(--line2); border-radius:0;
+    font-family:var(--font-m); font-size:13px; padding:0 8px;
+  }
+  #saveSong, #delSong{
+    min-height:44px; padding:0 14px; flex:0 0 auto;
+    background:transparent; border:1px solid var(--cyan); color:var(--cyan);
+    font-family:var(--font-h); font-weight:600; font-size:13px; letter-spacing:.1em;
+    text-transform:uppercase; cursor:pointer;
+  }
+  #saveSong:active{ background:var(--cyan); color:#0a0a12; }
+  #delSong{ border-color:var(--red); color:var(--red); }
+  #delSong:active{ background:var(--red); color:#0a0a12; }
+
+  /* ── chord grid ───────────────────────────────────────────── */
+  main{ padding:10px 14px 96px; max-width:1100px; margin:0 auto; }
+  #grid{
+    display:grid; gap:10px;
+    grid-template-columns:repeat(2, 1fr);   /* mobile portrait: 2×3 */
+  }
+  @media (orientation:landscape), (min-width:820px){
+    #grid{ grid-template-columns:repeat(3, 1fr); }  /* landscape/desktop: 3×2 */
+  }
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    position:relative; cursor:pointer;
+    padding:8px 6px 4px;
+    transition:border-color .15s, box-shadow .15s;
+    min-height:44px;
+  }
+  .card:hover, .card:active{
+    border-color:var(--yellow);
+    box-shadow:0 0 14px rgba(252,238,10,.22);
+  }
+  .card::before{
+    content:""; position:absolute; left:-1px; top:-1px;
+    width:14px; height:14px;
+    border-top:2px solid var(--cyan); border-left:2px solid var(--cyan);
+  }
+  .card h2{
+    font-family:var(--font-h); font-weight:700;
+    font-size:clamp(17px, 4.5vw, 22px); letter-spacing:.08em;
+    color:var(--yellow); text-align:center; text-transform:none;
+  }
+  .card .cat{
+    text-align:center; font-size:9px; letter-spacing:.22em;
+    color:var(--dim); text-transform:uppercase; margin-bottom:2px;
+  }
+  .card svg{ display:block; width:100%; height:auto; }
+  .noresults{
+    grid-column:1/-1; text-align:center; color:var(--dim);
+    padding:48px 0; letter-spacing:.15em; font-size:13px;
+  }
+
+  /* ── pager ────────────────────────────────────────────────── */
+  .pager{
+    position:fixed; left:0; right:0; bottom:0; z-index:90;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+    background:linear-gradient(0deg, #0a0a12 78%, rgba(10,10,18,0));
+  }
+  .pager button{
+    min-height:48px; min-width:96px;
+    background:var(--bg2); color:var(--yellow);
+    border:1px solid var(--yellow);
+    font-family:var(--font-h); font-weight:700; font-size:14px; letter-spacing:.14em;
+    cursor:pointer; text-transform:uppercase;
+  }
+  .pager button:disabled{ opacity:.25; cursor:default; }
+  .pager button:not(:disabled):active{ background:var(--yellow); color:#0a0a12; }
+  #pageInfo{
+    color:var(--cyan); font-size:13px; letter-spacing:.2em; text-align:center;
+    text-shadow:0 0 8px rgba(0,240,255,.6);
+  }
+
+  /* ── fullscreen modal ─────────────────────────────────────── */
+  #modal{
+    position:fixed; inset:0; z-index:8000;
+    background:rgba(6,6,12,.97);
+    display:none; overflow-y:auto;
+    padding:14px 14px calc(20px + env(safe-area-inset-bottom));
+  }
+  #modal.open{ display:block; }
+  .mwrap{ max-width:520px; margin:0 auto; }
+  .mhead{
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid var(--red); padding-bottom:8px; margin-bottom:8px;
+  }
+  .mhead h2{
+    font-family:var(--font-h); font-weight:700;
+    font-size:clamp(30px, 9vw, 44px); letter-spacing:.1em; color:var(--yellow);
+    line-height:1;
+  }
+  .mhead .mfull{ color:var(--dim); font-size:11px; letter-spacing:.2em; text-transform:uppercase; }
+  #mclose{
+    min-width:48px; min-height:48px;
+    background:transparent; color:var(--red); border:1px solid var(--red);
+    font-family:var(--font-m); font-size:20px; cursor:pointer;
+  }
+  #mclose:active{ background:var(--red); color:#0a0a12; }
+  .mdiag svg{ display:block; width:100%; max-width:420px; height:auto; margin:0 auto; }
+  .msec{
+    margin-top:14px; border:1px solid var(--line);
+    background:var(--panel); padding:10px 12px;
+  }
+  .msec h3{
+    font-family:var(--font-h); font-size:14px; font-weight:700;
+    letter-spacing:.22em; color:var(--red); text-transform:uppercase;
+    margin-bottom:8px;
+  }
+  .msec h3.cy{ color:var(--cyan); }
+  .orn-line{
+    display:flex; gap:10px; align-items:baseline;
+    padding:7px 0; border-top:1px dashed #23232f; font-size:13px; line-height:1.45;
+  }
+  .orn-line:first-of-type{ border-top:none; }
+  .orn-badge{
+    flex:0 0 auto; font-family:var(--font-h); font-weight:700; font-size:11px;
+    letter-spacing:.1em; padding:2px 7px; border:1px solid var(--red); color:var(--red);
+  }
+  .orn-badge.h{ background:var(--red); color:#0a0a12; }
+  .orn-none{ color:var(--dim); font-size:12px; letter-spacing:.1em; }
+  .mnotes{ color:var(--text); font-size:13px; line-height:1.5; }
+  .kbd-hint{ text-align:center; color:#333644; font-size:10px; letter-spacing:.2em; margin-top:18px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hbar">
+    <h1 class="glitch" data-text="CHORDWARE">CHORDWARE</h1>
+    <div class="sub">
+      <span>TUNING://</span>
+      <select id="tuning" aria-label="Tuning"></select>
+    </div>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="row1">
+    <input id="search" type="search" placeholder="&gt; QUERY CHORD DB… (Am · or: Am F C G)"
+           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <button id="ornToggle" aria-pressed="false">Show Ornaments</button>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="row2">
+    <select id="keySel" aria-label="Song key"></select>
+    <select id="songSel" aria-label="Saved songs"></select>
+    <button id="saveSong" title="Save the chord list in the search bar as a song">Save</button>
+    <button id="delSong" style="display:none" title="Delete selected song">Del</button>
+  </div>
+</div>
+
+<main>
+  <div id="grid" aria-live="polite"></div>
+</main>
+
+<div class="pager">
+  <button id="prevBtn">◄ Prev</button>
+  <div id="pageInfo">PAGE 1/1</div>
+  <button id="nextBtn">Next ►</button>
+</div>
+
+<div id="modal" role="dialog" aria-modal="true">
+  <div class="mwrap">
+    <div class="mhead">
+      <div>
+        <h2 id="mname"></h2>
+        <div class="mfull" id="mfull"></div>
+      </div>
+      <button id="mclose" aria-label="Close">✕</button>
+    </div>
+    <div class="mdiag" id="mdiag"></div>
+    <div class="msec">
+      <h3>// Ornament Protocols</h3>
+      <div id="mornaments"></div>
+    </div>
+    <div class="msec" id="mnotesec" style="display:none">
+      <h3 class="cy">// Field Notes</h3>
+      <div class="mnotes" id="mnotes"></div>
+    </div>
+    <div class="kbd-hint">TAP ✕ / ESC TO DISCONNECT</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ═══════════════════════════════════════════════════════════════
+   TUNINGS — add alternate uke tunings here. `pitches` are semitone
+   offsets from C, used to name the note an ornament resolves to.
+   Add a matching key to CHORD_LIBRARY and it appears in the picker.
+   ═══════════════════════════════════════════════════════════════ */
+const TUNINGS = {
+  gCEA: { label: "gCEA · reentrant", strings: ["g","C","E","A"], pitches: [7,0,4,9] },
+  // DGBE: { label: "DGBE · baritone", strings: ["D","G","B","E"], pitches: [2,7,11,4] },
+  // aDFsB:{ label: "aDF#B · D-tuning", strings: ["a","D","F#","B"], pitches: [9,2,6,11] },
+};
+
+const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+
+/* ═══════════════════════════════════════════════════════════════
+   CHORD LIBRARY
+   frets/fingers: [g, C, E, A] · 0 = open · fingers 0 = none
+   cats: major | minor | seventh | darkfolk
+   ornaments: { s: string index 0–3, from: source fret (must match
+     the chord's fret on that string), to: target fret (0 = open),
+     type: "hammer" | "pull", label: resulting colour tone }
+   ═══════════════════════════════════════════════════════════════ */
+const CHORD_LIBRARY = {
+  gCEA: [
+    { name:"C", full:"C major", frets:[0,0,0,3], fingers:[0,0,0,3], cats:["major"],
+      ornaments:[
+        { s:2, from:0, to:1, type:"hammer", label:"sus4" },
+        { s:1, from:0, to:2, type:"hammer", label:"add9" },
+        { s:3, from:3, to:0, type:"pull",   label:"6th"  },
+        { s:3, from:3, to:2, type:"pull",   label:"maj7" },
+      ]},
+    { name:"G", full:"G major", frets:[0,2,3,2], fingers:[0,1,3,2], cats:["major"],
+      ornaments:[
+        { s:1, from:2, to:0, type:"pull",   label:"sus4" },
+        { s:3, from:2, to:0, type:"pull",   label:"add9" },
+        { s:3, from:2, to:3, type:"hammer", label:"sus4" },
+        { s:2, from:3, to:2, type:"pull",   label:"maj7" },
+        { s:2, from:3, to:5, type:"hammer", label:"add9" },
+      ]},
+    { name:"F", full:"F major", frets:[2,0,1,0], fingers:[2,0,1,0], cats:["major"],
+      ornaments:[
+        { s:2, from:1, to:0, type:"pull",   label:"maj7" },
+        { s:1, from:0, to:2, type:"hammer", label:"6th"  },
+        { s:3, from:0, to:1, type:"hammer", label:"sus4" },
+        { s:0, from:2, to:0, type:"pull",   label:"add9" },
+      ]},
+    { name:"Am", full:"A minor", frets:[2,0,0,0], fingers:[2,0,0,0], cats:["minor"],
+      ornaments:[
+        { s:0, from:2, to:0, type:"pull",   label:"min7" },
+        { s:1, from:0, to:2, type:"hammer", label:"sus4" },
+        { s:2, from:0, to:1, type:"hammer", label:"b6"   },
+        { s:3, from:0, to:2, type:"hammer", label:"add9" },
+      ]},
+    { name:"Dm", full:"D minor", frets:[2,2,1,0], fingers:[2,3,1,0], cats:["minor"],
+      ornaments:[
+        { s:2, from:1, to:0, type:"pull",   label:"sus2" },
+        { s:2, from:1, to:3, type:"hammer", label:"sus4" },
+        { s:1, from:2, to:0, type:"pull",   label:"min7" },
+        { s:3, from:0, to:1, type:"hammer", label:"b6"   },
+      ]},
+    { name:"Em", full:"E minor", frets:[0,4,3,2], fingers:[0,3,2,1], cats:["minor"],
+      ornaments:[
+        { s:1, from:4, to:2, type:"pull",   label:"min7"  },
+        { s:3, from:2, to:0, type:"pull",   label:"add11" },
+        { s:3, from:2, to:3, type:"hammer", label:"b6"    },
+        { s:2, from:3, to:5, type:"hammer", label:"sus4"  },
+      ]},
+    { name:"E", full:"E major", frets:[4,4,4,2], fingers:[2,3,4,1], cats:["major"], ornaments:[] },
+    { name:"A", full:"A major", frets:[2,1,0,0], fingers:[2,1,0,0], cats:["major"],
+      ornaments:[
+        { s:0, from:2, to:0, type:"pull",   label:"7th"  },
+        { s:3, from:0, to:2, type:"hammer", label:"add9" },
+        { s:2, from:0, to:2, type:"hammer", label:"6th"  },
+        { s:1, from:1, to:0, type:"pull",   label:"min3" },
+      ]},
+    { name:"D", full:"D major", frets:[2,2,2,0], fingers:[1,2,3,0], cats:["major"],
+      ornaments:[
+        { s:1, from:2, to:0, type:"pull",   label:"7th"  },
+        { s:2, from:2, to:0, type:"pull",   label:"sus2" },
+        { s:2, from:2, to:3, type:"hammer", label:"sus4" },
+        { s:3, from:0, to:2, type:"hammer", label:"6th"  },
+      ]},
+    { name:"G7", full:"G dominant 7", frets:[0,2,1,2], fingers:[0,2,1,3], cats:["seventh"], ornaments:[] },
+    { name:"C7", full:"C dominant 7", frets:[0,0,0,1], fingers:[0,0,0,1], cats:["seventh"], ornaments:[] },
+    { name:"D7", full:"D dominant 7", frets:[2,2,2,3], fingers:[1,1,1,2], cats:["seventh"], ornaments:[] },
+    { name:"A7", full:"A dominant 7", frets:[0,1,0,0], fingers:[0,1,0,0], cats:["seventh"], ornaments:[] },
+    { name:"E7", full:"E dominant 7", frets:[1,2,0,2], fingers:[1,2,0,3], cats:["seventh"], ornaments:[] },
+    { name:"Am7", full:"A minor 7", frets:[0,0,0,0], fingers:[0,0,0,0], cats:["minor","seventh"],
+      notes:"All four strings open — the freebie chord. Identical shape to C6; context decides its name." , ornaments:[] },
+    { name:"Dm7", full:"D minor 7", frets:[2,2,1,3], fingers:[2,3,1,4], cats:["minor","seventh"], ornaments:[] },
+    { name:"Fmaj7", full:"F major 7", frets:[2,4,1,0], fingers:[2,4,1,0], cats:["seventh"], ornaments:[] },
+    { name:"Cmaj7", full:"C major 7", frets:[0,0,0,2], fingers:[0,0,0,2], cats:["seventh"], ornaments:[] },
+    { name:"Gmaj7", full:"G major 7", frets:[0,2,2,2], fingers:[0,1,1,1], cats:["seventh"], ornaments:[] },
+    { name:"Asus2", full:"A suspended 2", frets:[2,4,0,2], fingers:[1,3,0,2], cats:["darkfolk"],
+      notes:"Rootless shimmer — the open E against the fretted B gives it that hollow drone." , ornaments:[] },
+    { name:"Dsus2", full:"D suspended 2", frets:[2,2,0,0], fingers:[1,2,0,0], cats:["darkfolk"],
+      notes:"Neither major nor minor. Let the open E and A ring against each other." , ornaments:[] },
+    { name:"Bm", full:"B minor", frets:[4,2,2,2], fingers:[3,1,1,1], cats:["minor"],
+      notes:"Barre index across fret 2, ring on the g-string." , ornaments:[] },
+    { name:"B7", full:"B dominant 7", frets:[2,3,2,2], fingers:[1,2,1,1], cats:["seventh"],
+      notes:"Barre index across fret 2, middle on the C-string." , ornaments:[] },
+    { name:"Bb", full:"B♭ major", frets:[3,2,1,1], fingers:[3,2,1,1], cats:["major"],
+      notes:"Barre index across fret 1 on the E and A strings." , ornaments:[] },
+    { name:"Am(add9)", full:"A minor add 9", frets:[2,0,0,2], fingers:[1,0,0,2], cats:["minor","darkfolk"],
+      notes:"The B on top turns Am into cold moonlight. Core dark-folk voicing." ,
+      ornaments:[
+        { s:2, from:0, to:1, type:"hammer", label:"b6" },
+      ]},
+    { name:"C6", full:"C major 6", frets:[0,0,0,0], fingers:[0,0,0,0], cats:["major","darkfolk"],
+      notes:"All open. Same shape as Am7 — call it C6 when C is home." , ornaments:[] },
+    { name:"Fadd9", full:"F add 9", frets:[0,0,1,0], fingers:[0,0,1,0], cats:["major","darkfolk"],
+      notes:"One finger. The open g-string is the 9 — pure drone material." , ornaments:[] },
+    { name:"Gm", full:"G minor", frets:[0,2,3,1], fingers:[0,2,3,1], cats:["minor","darkfolk"],
+      ornaments:[
+        { s:3, from:1, to:0, type:"pull",   label:"sus2" },
+        { s:1, from:2, to:3, type:"hammer", label:"b6"   },
+      ]},
+    { name:"Cm", full:"C minor", frets:[0,3,3,3], fingers:[0,1,1,1], cats:["minor","darkfolk"],
+      notes:"Barre index across fret 3. The open g on top keeps it luminous-dark." ,
+      ornaments:[
+        { s:1, from:3, to:2, type:"pull", label:"add9" },
+        { s:3, from:3, to:1, type:"pull", label:"min7" },
+      ]},
+  ],
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   SVG CHORD RENDERER — pure function of (chord, tuning, options)
+   ═══════════════════════════════════════════════════════════════ */
+let svgUid = 0;
+
+function noteAt(tuning, stringIdx, fret){
+  return NOTE_NAMES[(tuning.pitches[stringIdx] + fret) % 12];
+}
+
+function renderChordSVG(chord, tuning, opts = {}){
+  const showOrn = !!opts.ornaments;
+  const showLabels = !!opts.labels;   // colour-tone tags are optional — grid stays clean without them
+  const uid = "cw" + (++svgUid);
+
+  const NSTR = tuning.strings.length;
+  const NFRETS = 5;
+  // side margins exist to hold ornament labels — reclaim them when labels are off
+  const W = showLabels ? 192 : 148, H = 176;
+  const LEFT = showLabels ? 48 : 34, TOP = 42, GAP = 27, FRETH = 25;
+  const sx = i => LEFT + i * GAP;                       // string x
+  const fy = f => TOP + f * FRETH;                      // fret-line y
+  const dy = f => TOP + (f - 0.5) * FRETH;              // dot y (relative fret)
+  const OPENY = TOP - 13;                               // open-marker row
+
+  // Position logic: shift window when the shape lives above fret 5
+  const fretted = chord.frets.filter(f => f > 0);
+  const maxF = Math.max(0, ...fretted);
+  const baseFret = maxF > NFRETS ? Math.min(...fretted) : 1;
+  const rel = f => f - baseFret + 1;                    // absolute → displayed fret
+
+  const P = [];  // svg parts
+  P.push(`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'Share Tech Mono',monospace">`);
+  P.push(`<defs><marker id="${uid}-arr" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0 0 L8 4 L0 8 z" fill="var(--red)"/></marker></defs>`);
+
+  // string labels
+  tuning.strings.forEach((s,i) =>
+    P.push(`<text x="${sx(i)}" y="14" fill="var(--cyan)" font-size="11" text-anchor="middle">${s}</text>`));
+
+  // frets (horizontal) + nut
+  for(let f=0; f<=NFRETS; f++){
+    const y = fy(f);
+    if(f===0 && baseFret===1){
+      P.push(`<rect x="${sx(0)-1.5}" y="${y-3.5}" width="${GAP*(NSTR-1)+3}" height="5" fill="var(--yellow)"/>`);
+    }else{
+      P.push(`<line x1="${sx(0)}" y1="${y}" x2="${sx(NSTR-1)}" y2="${y}" stroke="var(--line2)" stroke-width="1"/>`);
+    }
+  }
+  // strings (vertical)
+  for(let i=0; i<NSTR; i++)
+    P.push(`<line x1="${sx(i)}" y1="${fy(0)}" x2="${sx(i)}" y2="${fy(NFRETS)}" stroke="var(--line2)" stroke-width="1"/>`);
+
+  // base fret marker
+  if(baseFret > 1)
+    P.push(`<text x="${LEFT-12}" y="${dy(1)+4}" fill="var(--dim)" font-size="11" text-anchor="middle">${baseFret}</text>`);
+
+  // fingered dots + open markers
+  chord.frets.forEach((f,i) => {
+    if(f === 0){
+      P.push(`<circle cx="${sx(i)}" cy="${OPENY}" r="5" fill="none" stroke="var(--cyan)" stroke-width="1.6"/>`);
+    }else{
+      const y = dy(rel(f));
+      P.push(`<circle cx="${sx(i)}" cy="${y}" r="8.5" fill="var(--yellow)"/>`);
+      const fin = chord.fingers && chord.fingers[i];
+      if(fin) P.push(`<text x="${sx(i)}" y="${y+3.6}" fill="#0a0a12" font-size="10.5" font-weight="bold" text-anchor="middle">${fin}</text>`);
+    }
+  });
+
+  // ── ORNAMENT OVERLAY ──────────────────────────────────────────
+  if(showOrn && chord.ornaments && chord.ornaments.length){
+    const usedLabelY = { left:[], right:[] };
+    chord.ornaments.forEach(o => {
+      const x = sx(o.s);
+      const srcY = o.from === 0 ? OPENY : dy(rel(o.from));
+      const tgtY = o.to   === 0 ? OPENY : dy(rel(o.to));
+
+      // source highlight ring
+      P.push(`<circle cx="${x}" cy="${srcY}" r="${o.from===0?7:10.5}" fill="none" stroke="var(--red)" stroke-width="1" opacity=".45"/>`);
+
+      // target circle: filled = hammer-on target, hollow = pull-off target
+      if(o.to === 0){
+        P.push(`<circle cx="${x}" cy="${tgtY}" r="6.5" fill="none" stroke="var(--red)" stroke-width="1.8"/>`);
+        P.push(`<text x="${x}" y="${tgtY+3.2}" fill="var(--red)" font-size="8.5" text-anchor="middle">O</text>`);
+      }else if(o.type === "hammer"){
+        P.push(`<circle cx="${x}" cy="${tgtY}" r="6.5" fill="var(--red)"/>`);
+      }else{
+        P.push(`<circle cx="${x}" cy="${tgtY}" r="6.5" fill="var(--bg)" fill-opacity=".6" stroke="var(--red)" stroke-width="1.8"/>`);
+      }
+
+      // connecting arc with arrowhead (bows toward the label margin)
+      const side = o.s < NSTR/2 ? "left" : "right";
+      const bow = side === "left" ? -13 : 13;
+      const gap = tgtY > srcY ? 8 : -8;
+      P.push(`<path d="M ${x} ${srcY+gap} Q ${x+bow} ${(srcY+tgtY)/2} ${x} ${tgtY-gap}"
+        fill="none" stroke="var(--red)" stroke-width="1.1" marker-end="url(#${uid}-arr)" opacity=".9"/>`);
+
+      // label lives in the diagram margin (one x-column per side, so
+      // vertical nudging fully resolves collisions), with a dotted
+      // leader back to its target circle
+      if(!showLabels) return;
+      let ly = tgtY + 3;
+      const pool = usedLabelY[side];
+      while(pool.some(v => Math.abs(v - ly) < 10)) ly += 10;
+      pool.push(ly);
+      const tag = (o.type === "hammer" ? "H: " : "P: ") + o.label;
+      if(side === "left"){
+        P.push(`<text x="2" y="${ly}" fill="var(--red)" font-size="8">${tag}</text>`);
+        if(x - 9 - 42 > 6)
+          P.push(`<line x1="42" y1="${ly-3}" x2="${x-9}" y2="${tgtY}" stroke="var(--red)" stroke-width=".7" stroke-dasharray="2 2" opacity=".5"/>`);
+      }else{
+        P.push(`<text x="${W-2}" y="${ly}" fill="var(--red)" font-size="8" text-anchor="end">${tag}</text>`);
+        if(W - 42 - (x + 9) > 6)
+          P.push(`<line x1="${x+9}" y1="${tgtY}" x2="${W-42}" y2="${ly-3}" stroke="var(--red)" stroke-width=".7" stroke-dasharray="2 2" opacity=".5"/>`);
+      }
+    });
+  }
+
+  P.push(`</svg>`);
+  return P.join("");
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   APP STATE + UI
+   ═══════════════════════════════════════════════════════════════ */
+const PAGE_SIZE = 6;
+const CATS = [
+  { id:"all",      label:"All"       },
+  { id:"major",    label:"Major"     },
+  { id:"minor",    label:"Minor"     },
+  { id:"seventh",  label:"7th"       },
+  { id:"darkfolk", label:"Dark Folk" },
+];
+
+/* Song keys: a chord is "in key" when every note of the voicing sits in
+   the key's scale — computed from the actual frets, so chords you add to
+   the library get key-filtered automatically. Minor keys use the natural
+   minor (relative major) scale. */
+const MAJOR_SCALE = [0,2,4,5,7,9,11];
+const KEYS = {};
+NOTE_NAMES.forEach((n,i) => { KEYS[n + " major"] = MAJOR_SCALE.map(x => (x + i) % 12); });
+NOTE_NAMES.forEach((n,i) => { KEYS[n + " minor"] = MAJOR_SCALE.map(x => (x + i + 3) % 12); });
+
+const state = {
+  tuning: "gCEA",
+  query: "",
+  cat: "all",
+  key: "all",
+  song: "",
+  page: 0,
+  orn: 0,   // 0 = off · 1 = ornament dots/arcs · 2 = dots/arcs + colour-tone labels
+};
+
+const $ = sel => document.querySelector(sel);
+const grid = $("#grid"), pageInfo = $("#pageInfo");
+
+function chordList(){
+  return CHORD_LIBRARY[state.tuning] || [];
+}
+
+const normName = s => s.toLowerCase().replace(/[()\s]/g,"");
+
+function queryTokens(){
+  return state.query.trim().split(/\s+/).filter(Boolean);
+}
+
+function filtered(){
+  const list = chordList();
+  const toks = queryTokens();
+
+  // multi-token query = a song's chord list: exact matches, in order
+  if(toks.length > 1){
+    const out = [], seen = new Set();
+    toks.forEach(tk => {
+      const c = list.find(c => normName(c.name) === normName(tk));
+      if(c && !seen.has(c.name)){ seen.add(c.name); out.push(c); }
+    });
+    return out;
+  }
+
+  const q = normName(state.query.trim());
+  const keyPCs = state.key !== "all" ? KEYS[state.key] : null;
+  const tuning = TUNINGS[state.tuning];
+  return list.filter(c => {
+    if(state.cat !== "all" && !c.cats.includes(state.cat)) return false;
+    if(keyPCs && !c.frets.every((f,i) => keyPCs.includes((tuning.pitches[i] + f) % 12))) return false;
+    if(q && !normName(c.name).includes(q) && !normName(c.full).includes(q)) return false;
+    return true;
+  });
+}
+
+/* ── saved songs (localStorage) ───────────────────────────────── */
+const SONG_STORE = "chordware.songs";
+function loadSongs(){
+  try{ return JSON.parse(localStorage.getItem(SONG_STORE)) || {}; }
+  catch(e){ return {}; }
+}
+function storeSongs(s){
+  try{ localStorage.setItem(SONG_STORE, JSON.stringify(s)); }catch(e){/* private mode */}
+}
+function refreshSongSel(){
+  const sel = $("#songSel");
+  const names = Object.keys(loadSongs()).sort();
+  sel.innerHTML = `<option value="">SONG:// —</option>` +
+    names.map(n => `<option value="${n.replace(/"/g,"&quot;")}">♪ ${n}</option>`).join("");
+  sel.value = state.song;
+  $("#delSong").style.display = state.song ? "" : "none";
+}
+
+function render(){
+  const list = filtered();
+  const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  state.page = Math.min(state.page, pages - 1);
+  const slice = list.slice(state.page * PAGE_SIZE, state.page * PAGE_SIZE + PAGE_SIZE);
+  const tuning = TUNINGS[state.tuning];
+
+  grid.innerHTML = slice.length
+    ? slice.map(c => `
+        <div class="card" data-chord="${c.name}" role="button" tabindex="0" aria-label="${c.full}">
+          <h2>${c.name}</h2>
+          <div class="cat">${c.cats.join(" / ")}</div>
+          ${renderChordSVG(c, tuning, { ornaments: state.orn > 0, labels: state.orn === 2 })}
+        </div>`).join("")
+    : `<div class="noresults">// NO MATCH IN CHORD DB — 0 RECORDS //</div>`;
+
+  const tag = state.song ? `♪ ${state.song.toUpperCase()} · ` :
+              state.key !== "all" ? `KEY ${state.key.toUpperCase()} · ` : "";
+  pageInfo.textContent = `${tag}PAGE ${state.page + 1}/${pages} · ${list.length} CHORDS`;
+  $("#prevBtn").disabled = state.page <= 0;
+  $("#nextBtn").disabled = state.page >= pages - 1;
+}
+
+/* ── fullscreen modal ─────────────────────────────────────────── */
+function ordinalFret(f){ return f === 0 ? "OPEN" : "fret " + f; }
+
+function openModal(chord){
+  const tuning = TUNINGS[state.tuning];
+  $("#mname").textContent = chord.name;
+  $("#mfull").textContent = chord.full + "  ·  " + tuning.label;
+  $("#mdiag").innerHTML = renderChordSVG(chord, tuning, { ornaments: true, labels: true });
+
+  const box = $("#mornaments");
+  if(chord.ornaments && chord.ornaments.length){
+    box.innerHTML = chord.ornaments.map(o => {
+      const sName = tuning.strings[o.s];
+      const fromNote = noteAt(tuning, o.s, o.from);
+      const toNote   = noteAt(tuning, o.s, o.to);
+      const verb = o.type === "hammer" ? "HAMMER-ON" : "PULL-OFF";
+      return `<div class="orn-line">
+        <span class="orn-badge ${o.type === "hammer" ? "h" : ""}">${o.type === "hammer" ? "H" : "P"}</span>
+        <span><b style="color:var(--yellow)">${sName}</b>-string · ${verb} ${ordinalFret(o.from)} (${fromNote})
+          → ${ordinalFret(o.to)} (${toNote}) — resolves the voicing toward
+          <b style="color:var(--red)">${o.label}</b> colour.</span>
+      </div>`;
+    }).join("");
+  }else{
+    box.innerHTML = `<div class="orn-none">// NO ORNAMENT DATA LOGGED FOR THIS SHAPE — EXTEND CHORD_LIBRARY //</div>`;
+  }
+
+  const noteSec = $("#mnotesec");
+  if(chord.notes){ noteSec.style.display = ""; $("#mnotes").textContent = chord.notes; }
+  else noteSec.style.display = "none";
+
+  $("#modal").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+function closeModal(){
+  $("#modal").classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+/* ── wire up controls ─────────────────────────────────────────── */
+const tuningSel = $("#tuning");
+Object.keys(TUNINGS).forEach(k => {
+  if(!CHORD_LIBRARY[k]) return;
+  const opt = document.createElement("option");
+  opt.value = k; opt.textContent = TUNINGS[k].label;
+  tuningSel.appendChild(opt);
+});
+tuningSel.value = state.tuning;
+tuningSel.addEventListener("change", () => { state.tuning = tuningSel.value; state.page = 0; render(); });
+
+$("#chips").innerHTML = CATS.map(c =>
+  `<button class="chip${c.id === state.cat ? " on" : ""}" data-cat="${c.id}">${c.label}</button>`).join("");
+$("#chips").addEventListener("click", e => {
+  const b = e.target.closest(".chip"); if(!b) return;
+  state.cat = b.dataset.cat; state.page = 0;
+  document.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === b));
+  render();
+});
+
+$("#search").addEventListener("input", e => {
+  state.query = e.target.value; state.page = 0;
+  if(state.song){ state.song = ""; refreshSongSel(); }  // editing the list detaches it from the saved song
+  render();
+});
+
+/* key selector */
+const keySel = $("#keySel");
+keySel.innerHTML = `<option value="all">KEY:// —</option>` +
+  `<optgroup label="MAJOR">${NOTE_NAMES.map(n => `<option value="${n} major">${n} major</option>`).join("")}</optgroup>` +
+  `<optgroup label="MINOR">${NOTE_NAMES.map(n => `<option value="${n} minor">${n} minor</option>`).join("")}</optgroup>`;
+keySel.addEventListener("change", () => { state.key = keySel.value; state.page = 0; render(); });
+
+/* songs: a song is a saved space-separated chord list */
+$("#songSel").addEventListener("change", e => {
+  const name = e.target.value;
+  state.song = name;
+  if(name){
+    const songs = loadSongs();
+    state.query = songs[name] || "";
+    $("#search").value = state.query;
+  }
+  state.page = 0;
+  refreshSongSel();
+  render();
+});
+
+$("#saveSong").addEventListener("click", () => {
+  const toks = queryTokens();
+  const valid = toks.filter(tk => chordList().some(c => normName(c.name) === normName(tk)));
+  if(!valid.length){
+    alert("Type a space-separated chord list in the search bar first, e.g.\n\nAm F C G");
+    return;
+  }
+  const unknown = toks.filter(tk => !chordList().some(c => normName(c.name) === normName(tk)));
+  const name = prompt(
+    (unknown.length ? `// WARNING: unknown chords skipped: ${unknown.join(" ")}\n\n` : "") +
+    "Save song as:", state.song || valid.slice(0,3).join(" "));
+  if(!name) return;
+  const songs = loadSongs();
+  songs[name.trim()] = valid.join(" ");
+  storeSongs(songs);
+  state.song = name.trim();
+  state.query = valid.join(" ");
+  $("#search").value = state.query;
+  refreshSongSel();
+  render();
+});
+
+$("#delSong").addEventListener("click", () => {
+  if(!state.song) return;
+  if(!confirm(`Delete song “${state.song}”?`)) return;
+  const songs = loadSongs();
+  delete songs[state.song];
+  storeSongs(songs);
+  state.song = ""; state.query = ""; $("#search").value = "";
+  refreshSongSel();
+  render();
+});
+
+refreshSongSel();
+
+const ORN_MODES = ["Show Ornaments", "Ornaments: On", "Orn + Labels"];
+$("#ornToggle").addEventListener("click", () => {
+  state.orn = (state.orn + 1) % 3;
+  const b = $("#ornToggle");
+  b.classList.toggle("on", state.orn > 0);
+  b.textContent = ORN_MODES[state.orn];
+  b.setAttribute("aria-pressed", String(state.orn > 0));
+  render();
+});
+
+$("#prevBtn").addEventListener("click", () => { if(state.page > 0){ state.page--; render(); } });
+$("#nextBtn").addEventListener("click", () => { state.page++; render(); });
+
+grid.addEventListener("click", e => {
+  const card = e.target.closest(".card"); if(!card) return;
+  const chord = chordList().find(c => c.name === card.dataset.chord);
+  if(chord) openModal(chord);
+});
+grid.addEventListener("keydown", e => {
+  if(e.key !== "Enter" && e.key !== " ") return;
+  const card = e.target.closest(".card"); if(!card) return;
+  e.preventDefault();
+  const chord = chordList().find(c => c.name === card.dataset.chord);
+  if(chord) openModal(chord);
+});
+
+$("#mclose").addEventListener("click", closeModal);
+$("#modal").addEventListener("click", e => { if(e.target === e.currentTarget) closeModal(); });
+
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape") return closeModal();
+  if(document.activeElement === $("#search")) return;
+  if($("#modal").classList.contains("open")) return;
+  if(e.key === "ArrowLeft"  && state.page > 0){ state.page--; render(); }
+  if(e.key === "ArrowRight"){ const pages = Math.ceil(filtered().length / PAGE_SIZE); if(state.page < pages - 1){ state.page++; render(); } }
+});
+
+/* swipe paging */
+let touchX = null, touchY = null;
+grid.addEventListener("touchstart", e => { touchX = e.touches[0].clientX; touchY = e.touches[0].clientY; }, { passive:true });
+grid.addEventListener("touchend", e => {
+  if(touchX === null) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  const dy = e.changedTouches[0].clientY - touchY;
+  touchX = touchY = null;
+  if(Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+  const pages = Math.ceil(filtered().length / PAGE_SIZE);
+  if(dx < 0 && state.page < pages - 1){ state.page++; render(); }
+  if(dx > 0 && state.page > 0){ state.page--; render(); }
+}, { passive:true });
+
+render();
+
+/* ═══════════════════════════════════════════════════════════════
+   PWA — runtime-built manifest (absolute start_url via blob) +
+   canvas-drawn icons, so nothing external is required.
+   Offline caching is handled by sw.js (service workers are the one
+   thing browsers refuse to load from an inline/blob source).
+   ═══════════════════════════════════════════════════════════════ */
+(function installPWA(){
+  function icon(size){
+    const c = document.createElement("canvas");
+    c.width = c.height = size;
+    const g = c.getContext("2d");
+    g.fillStyle = "#0a0a12"; g.fillRect(0,0,size,size);
+    g.strokeStyle = "#fcee0a"; g.lineWidth = size * .045;
+    g.strokeRect(size*.08, size*.08, size*.84, size*.84);
+    g.fillStyle = "#fcee0a";
+    g.font = `bold ${size*.42}px monospace`;
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText("C//", size/2, size*.44);
+    g.fillStyle = "#00f0ff";
+    g.font = `bold ${size*.14}px monospace`;
+    g.fillText("gCEA", size/2, size*.74);
+    return c.toDataURL("image/png");
+  }
+  const manifest = {
+    name: "CHORDWARE", short_name: "CHORDWARE",
+    description: "Banjolele chord chart terminal — gCEA reentrant",
+    start_url: location.href.split("#")[0],
+    scope: location.href.replace(/[^/]*$/, ""),
+    display: "standalone", orientation: "any",
+    background_color: "#0a0a12", theme_color: "#0a0a12",
+    icons: [
+      { src: icon(192), sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: icon(512), sizes: "512x512", type: "image/png", purpose: "any" },
+    ],
+  };
+  const link = document.createElement("link");
+  link.rel = "manifest";
+  link.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" }));
+  document.head.appendChild(link);
+
+  if("serviceWorker" in navigator && location.protocol === "https:"){
+    navigator.serviceWorker.register("sw.js").catch(() => {/* offline support degrades gracefully */});
+  }
+})();
+</script>
+</body>
+</html>
