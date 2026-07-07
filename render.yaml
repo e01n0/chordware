@@ -7,6 +7,11 @@ services:
     buildCommand: ""          # no build step — plain static files
     staticPublishPath: .
     headers:
+      # "/" is served via the rewrite but needs its own header rule —
+      # a stale CDN copy of the shell would defeat the SW's network-first
+      - path: /
+        name: Cache-Control
+        value: public, max-age=0, must-revalidate
       - path: /index.html
         name: Cache-Control
         value: public, max-age=0, must-revalidate

@@ -1506,7 +1506,15 @@ render();
   link.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" }));
   document.head.appendChild(link);
 
-  if("serviceWorker" in navigator && location.protocol === "https:"){
+  if("serviceWorker" in navigator && (location.protocol === "https:" || ["localhost","127.0.0.1"].includes(location.hostname))){
+    // When an updated worker takes control (deploy rolled out), reload once
+    // so the fresh version applies immediately. hadController distinguishes
+    // an update from the very first install, which must not reload.
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if(hadController && !reloaded){ reloaded = true; location.reload(); }
+    });
     navigator.serviceWorker.register("sw.js").catch(() => {/* offline support degrades gracefully */});
   }
 })();
