@@ -3,7 +3,9 @@
 Cyberpunk-terminal chord chart reference for **banjolele / ukulele**.
 Single-file PWA — the entire app lives in `index.html` (no build step, no framework).
 
-Three tunings ship with full 29-chord libraries:
+Three tunings ship with full 145-chord libraries — a hand-curated core (with
+hammer-on/pull-off ornament data) plus machine-searched voicings covering all
+12 roots × major, minor, 7, m7, maj7, 6, m6, sus2, sus4, add9, dim7 and aug:
 
 - **gCEA** — standard reentrant uke
 - **DGBE** — baritone uke (top four guitar strings)
