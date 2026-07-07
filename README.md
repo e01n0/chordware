@@ -1,7 +1,13 @@
 # CHORDWARE //
 
-Cyberpunk-terminal chord chart reference for **banjolele / ukulele in reentrant gCEA**.
+Cyberpunk-terminal chord chart reference for **banjolele / ukulele**.
 Single-file PWA — the entire app lives in `index.html` (no build step, no framework).
+
+Three tunings ship with full 29-chord libraries:
+
+- **gCEA** — standard reentrant uke
+- **DGBE** — baritone uke (top four guitar strings)
+- **DGBD** — open G (banjo); the open strings are a G chord and any straight barre is a major chord
 
 ## Files
 
@@ -37,11 +43,11 @@ Everything is data-driven. In `index.html`, edit `CHORD_LIBRARY.gCEA`:
 ## Alternate tunings
 
 Add an entry to `TUNINGS` (string names + semitone offsets from C) and a matching
-key in `CHORD_LIBRARY` — the tuning picker, string labels, and ornament note-naming
-all follow automatically:
+key in `CHORD_LIBRARY` — the tuning picker, string labels, key filter, and ornament
+note-naming all follow automatically:
 
 ```js
-DGBE: { label:"DGBE · baritone", strings:["D","G","B","E"], pitches:[2,7,11,4] },
+aDFsB: { label:"aDF#B · D-tuning", strings:["a","D","F#","B"], pitches:[9,2,6,11] },
 ```
 
 ## Deploy on Render
