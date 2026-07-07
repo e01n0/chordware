@@ -18,12 +18,13 @@ hammer-on/pull-off ornament data) plus machine-searched voicings covering all
 | `index.html` | The whole app: styles, SVG chord renderer, chord library, PWA manifest (built at runtime) |
 | `sw.js` | Tiny cache-first service worker for offline use (browsers refuse inline service workers — this is the only sidecar) |
 | `render.yaml` | Render blueprint: deploys as a zero-build static site |
+| `tools/generate-voicings.mjs` | Voicing generator: fills any missing root × quality combos per tuning (dry run by default, `--write` to insert) |
 
 ## Features
 
 - **Chord grid** — 6 SVG diagrams per page (2×3 portrait, 3×2 landscape/desktop), swipe or arrow-key paging
-- **Ornament overlay** — hammer-ons (red filled dots) and pull-offs (red hollow dots, red O for open-string targets) with connecting arcs. The toggle cycles **OFF → dots/arcs → dots/arcs + colour-tone labels** (`H: sus4`, `P: maj7`, …); the fullscreen view always shows labels
-- **Search + category chips** — Major / Minor / 7th / Dark Folk
+- **Ornament overlay** — hammer-ons (red filled dots) and pull-offs (red hollow dots, red O for open-string targets) with connecting arcs. The toggle cycles **OFF → dots/arcs → dots/arcs + colour-tone labels** (`H: sus4`, `P: maj7`, …); the fullscreen view always shows labels. Chords without hand-curated ornament data get **auto-derived** ornaments computed from the voicing (marked as such in the fullscreen view) — a hand-written `ornaments` array always wins
+- **Search + category chips** — Major / Minor / 7th / Colour (sus, add9, 6ths, dim7, aug)
 - **Key filter** — pick a key and only chords whose voicings sit inside that scale remain (computed from the actual frets, so your own chords are key-filtered automatically)
 - **Songs** — type a space-separated chord list (`Am F C G`) to see exactly those chords in order, then **SAVE** it as a named song (persisted in localStorage); reload it any time from the SONG selector
 - **Fullscreen detail view** — tap any card for a large diagram and prose descriptions of every ornament
@@ -35,11 +36,20 @@ Everything is data-driven. In `index.html`, edit `CHORD_LIBRARY.gCEA`:
 
 ```js
 { name:"Csus4", full:"C suspended 4", frets:[0,0,1,3], fingers:[0,0,1,3],
-  cats:["darkfolk"],
+  cats:["colour"],
   ornaments:[
     // s: string index (0=g … 3=A), from: fret in the shape, to: target fret (0 = open)
     { s:2, from:1, to:0, type:"pull", label:"maj3" },
   ]},
+```
+
+Leave `ornaments` empty and the app derives sensible hammer/pull colour tones
+automatically. To bulk-add every missing root × quality combo (for a new tuning,
+or after adding a quality to the tool's table):
+
+```sh
+node tools/generate-voicings.mjs          # dry run — prints what it would add
+node tools/generate-voicings.mjs --write  # inserts into index.html
 ```
 
 ## Alternate tunings
