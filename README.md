@@ -36,7 +36,16 @@ guitar tuning is just another `TUNINGS` + `CHORD_LIBRARY` entry away.
 - **Performance mode** — ▶ goes fullscreen for playing live: current chord huge with its diagram, next chord on deck, and if the lyrics carry `[Chord]` tags the words scroll with you, highlighting the active change. Advance by tapping the chord, arrow keys, space or PageDown — so Bluetooth page-turner pedals just work. Keeps the screen awake (Wake Lock) while you play
 - **Fullscreen detail view** — tap any card for a large diagram and prose descriptions of every ornament, plus a **voicing pager**: up to two alternate shapes per chord, machine-searched on the spot at positions at least two frets from the shapes already shown (◄ ► buttons, arrow keys or swipe; alternates get auto-derived ornaments)
 - **Colour schemes** — the SKIN button cycles Night City (default), Amber Term, Phosphor, Synthwave and Field Mode (high-contrast light, for playing in the sun). Pure CSS-variable swaps — even the SVG diagrams re-theme — and the choice persists
-- **Offline PWA** — installable, works with no connection once loaded
+- **Sound** — tap any chord's fullscreen diagram (or switch voicings) to hear it: Karplus–Strong plucked-string synthesis, no samples, works offline. Notes on the fretboard map are tappable too, and performance mode strums each change (♫ toggles it)
+- **Auto-advance** — performance mode can drive itself: set a tempo (40–240 BPM) and AUTO steps one chord every four beats with a visual pulse
+- **Transpose** — T± in performance mode shifts the whole song (chord list, lyric tags, diagrams) by semitones, respelled to match the chord DB
+- **Tuner** — the TUNER chip listens on the mic (autocorrelation pitch detection, all client-side) and shows note, cents needle, and the nearest string of the current tuning
+- **Set lists** — build named, ordered sets of saved songs; performance mode plays through the whole set, rolling from one song into the next
+- **Backup** — export every song + set list as one JSON file and import it on any device (merge, imported entries win)
+- **Print** — a black-on-white print sheet for any song: used-chord diagrams plus lyrics with boxed chord tags
+- **Left-handed mode** — LH mirrors every diagram and the fretboard map (labels move with their strings; persisted)
+- **Animated ornaments** — in the fullscreen view a dot travels each hammer/pull arc, so the move reads at a glance (honours reduced-motion)
+- **Offline PWA** — installable, works with no connection once loaded (the tuner and mic are the only features that need permissions)
 
 ## Extending the chord library
 

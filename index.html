@@ -510,16 +510,138 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
   }
   .pfoot button:disabled{ opacity:.25; cursor:default; }
   .pfoot button:not(:disabled):active{ background:var(--yellow); color:var(--ink); }
-  .phint{ color:var(--dim); opacity:.7; font-size:10px; letter-spacing:.18em; text-align:center; }
+  .pctl{ display:flex; flex-direction:column; gap:5px; align-items:center; }
+  .pcrow{ display:flex; gap:5px; align-items:center; }
+  .pcrow button{
+    min-width:34px; min-height:30px; padding:0 7px;
+    background:var(--bg2); color:var(--cyan); border:1px solid var(--line2);
+    font-family:var(--font-m); font-size:11px; letter-spacing:.06em; cursor:pointer;
+  }
+  .pcrow button.on{ background:var(--cyan); color:var(--ink); border-color:var(--cyan); }
+  #ptVal{ color:var(--yellow); font-size:12px; letter-spacing:.08em; min-width:30px; text-align:center; }
+  #pcur.pulse{ animation:beat .16s ease-out; }
+  @keyframes beat{ from{ transform:scale(1.05); } to{ transform:scale(1); } }
+  @media (prefers-reduced-motion: reduce){ #pcur.pulse{ animation:none; } }
   @media (orientation:landscape) and (min-width:640px){
     .pbody{ flex-direction:row; align-items:stretch; }
     .pchord{ flex:0 0 44%; justify-content:center; }
     .plyr{ flex:1; }
   }
 
+  /* ── left-hand toggle ─────────────────────────────────────────── */
+  #lhBtn{
+    min-height:32px; padding:0 9px;
+    background:var(--bg2); color:var(--dim);
+    border:1px solid var(--line2); cursor:pointer;
+    font-family:var(--font-m); font-size:11px; letter-spacing:.12em; line-height:1;
+  }
+  #lhBtn.on{ color:var(--ink); background:var(--cyan); border-color:var(--cyan); }
+
+  /* ── set list editor ──────────────────────────────────────────── */
+  #setEd{
+    position:fixed; inset:0; z-index:8300;
+    background:var(--overlay); display:none; overflow-y:auto;
+    padding:calc(14px + env(safe-area-inset-top, 0px)) 14px calc(20px + env(safe-area-inset-bottom));
+  }
+  #setEd.open{ display:block; }
+  #stClose{
+    min-width:48px; min-height:48px; flex:0 0 auto;
+    background:transparent; color:var(--red); border:1px solid var(--red);
+    font-family:var(--font-m); font-size:20px; cursor:pointer;
+  }
+  #stClose:active{ background:var(--red); color:var(--ink); }
+  .stlist{
+    border:1px solid var(--line); background:var(--panel);
+    min-height:52px; max-height:200px; overflow-y:auto; padding:6px;
+    display:flex; flex-direction:column; gap:4px;
+  }
+  .stlist .strow{ display:flex; gap:4px; }
+  .stlist button{
+    min-height:40px; text-align:left; padding:0 10px; flex:1;
+    background:var(--bg2); color:var(--text); border:1px solid var(--line2);
+    font-family:var(--font-m); font-size:13px; cursor:pointer;
+  }
+  .stlist button.stup{ flex:0 0 44px; color:var(--cyan); text-align:center; }
+  .stlist .stEmpty{ color:var(--dim); font-size:11px; letter-spacing:.14em; padding:10px 6px; }
+  #stSave{ border-color:var(--yellow); color:var(--yellow); }
+  #stSave:active{ background:var(--yellow); color:var(--ink); }
+  #stCancel:active{ background:var(--cyan); color:var(--ink); }
+  .sesec{ margin-top:10px; }
+  .sesec button{ border-color:var(--line2); color:var(--dim); }
+  .sesec button:active{ background:var(--line2); color:var(--ink); }
+
+  /* ── tuner ────────────────────────────────────────────────────── */
+  #tuner{
+    position:fixed; inset:0; z-index:8400;
+    background:var(--overlay); display:none; overflow-y:auto;
+    padding:calc(14px + env(safe-area-inset-top, 0px)) 14px calc(20px + env(safe-area-inset-bottom));
+  }
+  #tuner.open{ display:block; }
+  #tclose{
+    min-width:48px; min-height:48px; flex:0 0 auto;
+    background:transparent; color:var(--red); border:1px solid var(--red);
+    font-family:var(--font-m); font-size:20px; cursor:pointer;
+  }
+  #tclose:active{ background:var(--red); color:var(--ink); }
+  .tundial{ text-align:center; padding-top:8px; }
+  #tnote{
+    font-family:var(--font-h); font-weight:700; line-height:1;
+    font-size:clamp(64px, 20vw, 110px); color:var(--dim);
+    transition:color .15s;
+  }
+  #tnote.hot{ color:var(--red); }
+  #tnote.lock{ color:var(--cyan); text-shadow:0 0 24px color-mix(in srgb, var(--cyan) 55%, transparent); }
+  #tfreq{ color:var(--dim); font-size:12px; letter-spacing:.18em; min-height:18px; }
+  .tmeter{
+    position:relative; height:46px; margin:14px 0 4px;
+    background:var(--panel); border:1px solid var(--line); overflow:hidden;
+  }
+  .tzero{ position:absolute; left:50%; top:0; bottom:0; width:2px; background:var(--yellow); }
+  #tneedle{
+    position:absolute; left:50%; top:4px; bottom:4px; width:4px; margin-left:-2px;
+    background:var(--red); transition:left .12s linear, background .12s;
+  }
+  #tneedle.lock{ background:var(--cyan); }
+  .tscale{ display:flex; justify-content:space-between; color:var(--dim); font-size:10px; letter-spacing:.14em; }
+  #tstrings{ display:flex; justify-content:center; gap:8px; margin:16px 0 8px; flex-wrap:wrap; }
+  #tstrings span{
+    min-width:44px; padding:8px 0; border:1px solid var(--line2); color:var(--cyan);
+    font-family:var(--font-h); font-weight:600; font-size:15px;
+  }
+  #tstrings span.near{ background:var(--cyan); color:var(--ink); border-color:var(--cyan); }
+  #tstart{
+    margin-top:10px; min-height:48px; padding:0 22px;
+    background:transparent; border:1px solid var(--cyan); color:var(--cyan);
+    font-family:var(--font-h); font-weight:600; font-size:14px; letter-spacing:.14em;
+    text-transform:uppercase; cursor:pointer;
+  }
+  #tstart:active{ background:var(--cyan); color:var(--ink); }
+
+  /* ── print sheet — black on white, diagrams + lyrics only ─────── */
+  #printsheet{ display:none; }
+  @media print{
+    :root, html[data-theme]{
+      --bg:#fff; --bg2:#fff; --panel:#fff; --line:#999; --line2:#777;
+      --yellow:#000; --cyan:#222; --red:#555; --dim:#666; --text:#000; --ink:#fff;
+    }
+    body::before, body::after{ display:none !important; }
+    body > *{ display:none !important; }
+    body > #printsheet{ display:block !important; }
+    #printsheet{ color:#000; font-family:Georgia, serif; }
+    #printsheet h1{ font-family:Arial, sans-serif; letter-spacing:.06em; margin-bottom:2mm; }
+    #printsheet .psub{ color:#555; font-family:Arial, sans-serif; font-size:11px; letter-spacing:.2em; text-transform:uppercase; margin-bottom:6mm; }
+    #printsheet .pgrid{ display:flex; flex-wrap:wrap; gap:4mm; margin-bottom:6mm; }
+    #printsheet .pgrid figure{ width:32mm; text-align:center; page-break-inside:avoid; }
+    #printsheet .pgrid figcaption{ font-family:Arial, sans-serif; font-weight:bold; font-size:13px; }
+    #printsheet .pgrid svg{ width:100%; height:auto; }
+    #printsheet .plyrics{ white-space:pre-wrap; font-size:13px; line-height:1.9; }
+    #printsheet .plyrics b{ font-family:Arial, sans-serif; font-size:11px; border:1px solid #000; padding:0 3px; }
+    #printsheet .plyrics i{ display:block; font-style:normal; font-family:Arial, sans-serif; font-weight:bold; letter-spacing:.15em; text-transform:uppercase; font-size:11px; margin-top:4mm; }
+  }
+
   /* notch clearance when rotated */
   @supports (padding: env(safe-area-inset-left)){
-    header, .controls, main, .pager, #modal, #mapov, #songEd, #perf{
+    header, .controls, main, .pager, #modal, #mapov, #songEd, #setEd, #tuner, #perf{
       padding-left:calc(14px + env(safe-area-inset-left));
       padding-right:calc(14px + env(safe-area-inset-right));
     }
@@ -535,6 +657,7 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
       <span>TUNING://</span>
       <select id="tuning" aria-label="Tuning"></select>
       <button id="themeBtn" aria-label="Cycle colour scheme">SKIN</button>
+      <button id="lhBtn" aria-label="Toggle left-handed diagrams" title="Left-handed mode — mirror all diagrams">LH</button>
     </div>
   </div>
 </header>
@@ -637,6 +760,56 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
       <button id="seCancel">Cancel</button>
       <button id="seSave">Save Song</button>
     </div>
+    <div class="sebtns sesec">
+      <button id="sePrint" title="Print this song — diagrams + lyrics, black on white">Print</button>
+      <button id="seExport" title="Download every song and set list as a JSON file">Export All</button>
+      <button id="seImport" title="Load songs + set lists from an exported JSON file">Import</button>
+      <input id="seFile" type="file" accept=".json,application/json" style="display:none">
+    </div>
+  </div>
+</div>
+
+<div id="setEd" role="dialog" aria-modal="true" aria-label="Set list editor">
+  <div class="sewrap">
+    <div class="sehead">
+      <h2>SET LIST://</h2>
+      <button id="stClose" aria-label="Close">✕</button>
+    </div>
+    <label for="stName">Name</label>
+    <input id="stName" type="text" autocomplete="off" autocorrect="off" spellcheck="false"
+           placeholder="friday open mic">
+    <label>In this set · ▲ moves up · tap a song to remove it</label>
+    <div class="stlist" id="stIn"></div>
+    <label>Saved songs · tap to add</label>
+    <div class="stlist" id="stAvail"></div>
+    <div class="sebtns">
+      <button id="stCancel">Cancel</button>
+      <button id="stSave">Save Set</button>
+    </div>
+  </div>
+</div>
+
+<div id="tuner" role="dialog" aria-modal="true" aria-label="Tuner">
+  <div class="sewrap">
+    <div class="maphead">
+      <div>
+        <h2 style="color:var(--cyan)">TUNER://</h2>
+        <div class="mfull" id="tuntun"></div>
+      </div>
+      <button id="tclose" aria-label="Close">✕</button>
+    </div>
+    <div class="tundial">
+      <div id="tnote">—</div>
+      <div id="tfreq">&nbsp;</div>
+      <div class="tmeter">
+        <div class="tzero"></div>
+        <div id="tneedle"></div>
+      </div>
+      <div class="tscale"><span>−50¢</span><span>0</span><span>+50¢</span></div>
+      <div id="tstrings"></div>
+      <div id="tmsg" class="orn-none">// MIC ACCESS NEEDED — TAP START //</div>
+      <button id="tstart">Start Listening</button>
+    </div>
   </div>
 </div>
 
@@ -658,10 +831,24 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
   </div>
   <div class="pfoot">
     <button id="pprev">◄ Back</button>
-    <div class="phint">TAP CHORD / → / SPACE<br>TO ADVANCE</div>
+    <div class="pctl">
+      <div class="pcrow">
+        <button id="ptDown" title="Transpose down a semitone">T−</button>
+        <span id="ptVal">T0</span>
+        <button id="ptUp" title="Transpose up a semitone">T+</button>
+        <button id="pSnd" class="on" title="Strum each chord change">♫</button>
+      </div>
+      <div class="pcrow">
+        <button id="pbDown" title="Slower">−</button>
+        <button id="pAuto" title="Auto-advance every 4 beats">AUTO 80</button>
+        <button id="pbUp" title="Faster">+</button>
+      </div>
+    </div>
     <button id="pnextBtn">Next ►</button>
   </div>
 </div>
+
+<div id="printsheet" aria-hidden="true"></div>
 
 <div id="toast" aria-live="polite"></div>
 
@@ -673,12 +860,14 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
    offsets from C, used to name the note an ornament resolves to.
    Add a matching key to CHORD_LIBRARY and it appears in the picker.
    ═══════════════════════════════════════════════════════════════ */
+/* `open` = MIDI note of each open string, so audio plays real octaves
+   (pitches are the same values mod 12 — kept separate for clarity) */
 const TUNINGS = {
-  gCEA:   { label: "gCEA · uke standard",  group: "UKULELE · BANJOLELE", strings: ["g","C","E","A"], pitches: [7,0,4,9] },
-  DGBE:   { label: "DGBE · uke baritone",  group: "UKULELE · BANJOLELE", strings: ["D","G","B","E"], pitches: [2,7,11,4] },
-  DGBD:   { label: "DGBD · banjo open G",  group: "UKULELE · BANJOLELE", strings: ["D","G","B","D"], pitches: [2,7,11,2] },
-  EADGBE: { label: "EADGBE · guitar",      group: "GUITAR",              strings: ["E","A","D","G","B","e"], pitches: [4,9,2,7,11,4] },
-  // aDFsB:{ label: "aDF#B · D-tuning", group: "UKULELE · BANJOLELE", strings: ["a","D","F#","B"], pitches: [9,2,6,11] },
+  gCEA:   { label: "gCEA · uke standard",  group: "UKULELE · BANJOLELE", strings: ["g","C","E","A"], pitches: [7,0,4,9],  open: [67,60,64,69] },
+  DGBE:   { label: "DGBE · uke baritone",  group: "UKULELE · BANJOLELE", strings: ["D","G","B","E"], pitches: [2,7,11,4], open: [50,55,59,64] },
+  DGBD:   { label: "DGBD · banjo open G",  group: "UKULELE · BANJOLELE", strings: ["D","G","B","D"], pitches: [2,7,11,2], open: [50,55,59,62] },
+  EADGBE: { label: "EADGBE · guitar",      group: "GUITAR",              strings: ["E","A","D","G","B","e"], pitches: [4,9,2,7,11,4], open: [40,45,50,55,59,64] },
+  // aDFsB:{ label: "aDF#B · D-tuning", group: "UKULELE · BANJOLELE", strings: ["a","D","F#","B"], pitches: [9,2,6,11], open: [69,62,66,71] },
 };
 
 const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -1626,7 +1815,12 @@ function altVoicings(chord, tuning, tuningKey){
 
 /* ═══════════════════════════════════════════════════════════════
    SVG CHORD RENDERER — pure function of (chord, tuning, options)
+   LEFTY mirrors the string order (labels move with their strings,
+   text stays readable) in diagrams and the fretboard map.
    ═══════════════════════════════════════════════════════════════ */
+let LEFTY = false;
+try{ LEFTY = localStorage.getItem("chordware.lefty") === "1"; }catch(e){}
+const REDUCED_MOTION = matchMedia("(prefers-reduced-motion: reduce)").matches;
 let svgUid = 0;
 
 function noteAt(tuning, stringIdx, fret){
@@ -1644,7 +1838,8 @@ function renderChordSVG(chord, tuning, opts = {}){
   // width tracks the string count so 6-string diagrams get room
   const LEFT = showLabels ? 48 : 34, TOP = 42, GAP = 27, FRETH = 25;
   const W = LEFT + GAP * (NSTR - 1) + (showLabels ? 63 : 33), H = 176;
-  const sx = i => LEFT + i * GAP;                       // string x
+  const mi = i => LEFTY ? NSTR - 1 - i : i;             // mirrored string index
+  const sx = i => LEFT + mi(i) * GAP;                   // string x
   const fy = f => TOP + f * FRETH;                      // fret-line y
   const dy = f => TOP + (f - 0.5) * FRETH;              // dot y (relative fret)
   const OPENY = TOP - 13;                               // open-marker row
@@ -1718,11 +1913,19 @@ function renderChordSVG(chord, tuning, opts = {}){
       }
 
       // connecting arc with arrowhead (bows toward the label margin)
-      const side = o.s < NSTR/2 ? "left" : "right";
+      const side = mi(o.s) < NSTR/2 ? "left" : "right";
       const bow = side === "left" ? -13 : 13;
       const gap = tgtY > srcY ? 8 : -8;
-      P.push(`<path d="M ${x} ${srcY+gap} Q ${x+bow} ${(srcY+tgtY)/2} ${x} ${tgtY-gap}"
+      const arc = `M ${x} ${srcY+gap} Q ${x+bow} ${(srcY+tgtY)/2} ${x} ${tgtY-gap}`;
+      P.push(`<path d="${arc}"
         fill="none" stroke="var(--red)" stroke-width="1.1" marker-end="url(#${uid}-arr)" opacity=".9"/>`);
+      // fullscreen view: a dot travels the arc so the move reads at a glance
+      if(opts.animate && !REDUCED_MOTION){
+        P.push(`<circle r="3.4" fill="var(--red)"><animateMotion dur="1.5s" begin="${(orns.indexOf(o) * .25).toFixed(2)}s"
+          repeatCount="indefinite" path="${arc}" keyPoints="0;1;1" keyTimes="0;.55;1" calcMode="linear"/>
+          <animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;.1;.5;.62;1" dur="1.5s"
+          begin="${(orns.indexOf(o) * .25).toFixed(2)}s" repeatCount="indefinite"/></circle>`);
+      }
 
       // label lives in the diagram margin (one x-column per side, so
       // vertical nudging fully resolves collisions), with a dotted
@@ -1756,9 +1959,10 @@ function renderChordSVG(chord, tuning, opts = {}){
    Landscape/desktop lie the neck on its side; portrait hangs it
    nut-up like the chord diagrams, so nothing scrolls sideways.
    ═══════════════════════════════════════════════════════════════ */
-function fretMapNote(P, x, y, pc, rootPC){
+function fretMapNote(P, x, y, pc, rootPC, midi){
   const iv = (pc - rootPC + 12) % 12;
   const name = NOTE_NAMES[pc];
+  P.push(`<g data-midi="${midi}" style="cursor:pointer">`);   // tap a note to hear it
   if(iv === 0){
     P.push(`<circle cx="${x}" cy="${y}" r="13" fill="var(--yellow)"/>`);
     P.push(`<text x="${x}" y="${y + 3.8}" fill="var(--ink)" font-size="10.5" font-weight="bold" text-anchor="middle">${name}</text>`);
@@ -1769,6 +1973,7 @@ function fretMapNote(P, x, y, pc, rootPC){
     P.push(`<circle cx="${x}" cy="${y}" r="11.5" fill="var(--bg)" stroke="var(--red)" stroke-width="1.6"/>`);
     P.push(`<text x="${x}" y="${y + 3.8}" fill="var(--red)" font-size="10" text-anchor="middle">${name}</text>`);
   }
+  P.push(`</g>`);
 }
 
 function renderFretMap(tuningKey, keyName, vertical){
@@ -1783,7 +1988,7 @@ function renderFretMap(tuningKey, keyName, vertical){
     const GAP = 56, FH = 46, LEFT = 46, TOP = 56;
     const W = LEFT + (NSTR - 1) * GAP + 30;
     const H = TOP + NFRETS * FH + 14;
-    const sx = i => LEFT + i * GAP;
+    const sx = i => LEFT + (LEFTY ? NSTR - 1 - i : i) * GAP;
     const fy = f => TOP + (f - .5) * FH;                // note centre inside fret f (f ≥ 1)
     const OPENY = TOP - 20;                             // open notes above the nut
     const midX = LEFT + (NSTR - 1) * GAP / 2;
@@ -1813,7 +2018,7 @@ function renderFretMap(tuningKey, keyName, vertical){
       for(let f = 0; f <= NFRETS; f++){
         const pc = (tuning.pitches[i] + f) % 12;
         if(!scale.includes(pc)) continue;
-        fretMapNote(P, sx(i), f === 0 ? OPENY : fy(f), pc, rootPC);
+        fretMapNote(P, sx(i), f === 0 ? OPENY : fy(f), pc, rootPC, tuning.open[i] + f);
       }
     }
   }else{
@@ -1821,7 +2026,7 @@ function renderFretMap(tuningKey, keyName, vertical){
     const X0 = 66;                                      // nut x — open column sits left of it
     const W = X0 + NFRETS * FW + 12;
     const H = TOP + (NSTR - 1) * SG + 44;
-    const sy = i => TOP + i * SG;
+    const sy = i => TOP + (LEFTY ? NSTR - 1 - i : i) * SG;
     const fx = f => X0 + (f - .5) * FW;                 // note centre inside fret f (f ≥ 1)
     const midY = TOP + (NSTR - 1) * SG / 2;
 
@@ -1851,13 +2056,71 @@ function renderFretMap(tuningKey, keyName, vertical){
       for(let f = 0; f <= NFRETS; f++){
         const pc = (tuning.pitches[i] + f) % 12;
         if(!scale.includes(pc)) continue;
-        fretMapNote(P, f === 0 ? X0 - 26 : fx(f), sy(i), pc, rootPC);
+        fretMapNote(P, f === 0 ? X0 - 26 : fx(f), sy(i), pc, rootPC, tuning.open[i] + f);
       }
     }
   }
 
   P.push(`</svg>`);
   return P.join("");
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   AUDIO — Karplus-Strong plucked strings, no samples, works offline.
+   A pluck is a noise burst run through a delay-line averaging loop;
+   a strum is one pluck per sounding string, slightly staggered.
+   ═══════════════════════════════════════════════════════════════ */
+let AC = null;
+function audioCtx(){
+  if(!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+  if(AC.state === "suspended") AC.resume();
+  return AC;
+}
+const midiHz = m => 440 * Math.pow(2, (m - 69) / 12);
+
+function pluck(midi, when = 0, gain = .3){
+  try{
+    const ctx = audioCtx();
+    const sr = ctx.sampleRate;
+    const N = Math.max(2, Math.round(sr / midiHz(midi)));
+    const len = Math.round(sr * 1.8);
+    const buf = ctx.createBuffer(1, len, sr);
+    const d = buf.getChannelData(0);
+    for(let i = 0; i < N; i++) d[i] = Math.random() * 2 - 1;
+    for(let i = N; i < len; i++) d[i] = (d[i - N] + d[i - N + 1]) * .4975;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.value = gain;
+    g.gain.setTargetAtTime(0, ctx.currentTime + when + 1.2, .12);
+    src.connect(g); g.connect(ctx.destination);
+    src.start(ctx.currentTime + when);
+  }catch(e){/* no audio available — stay silent */}
+}
+
+function strumChord(chord, tuning){
+  let k = 0;
+  chord.frets.forEach((f,i) => {
+    if(f < 0) return;
+    pluck(tuning.open[i] + f, k * .035, .26);
+    k++;
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TRANSPOSE — shift every root in a chord name (incl. slash bass)
+   by n semitones, respelled to the library's names (Eb/Ab/Bb flats,
+   sharps elsewhere) so transposed chords still match the chord DB.
+   ═══════════════════════════════════════════════════════════════ */
+const SPELL = ["C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"];
+
+function transposeChordName(name, n){
+  return name.replace(/[A-G][b#]?/g, r =>
+    ROOT_PC[r] === undefined ? r : SPELL[(ROOT_PC[r] + n % 12 + 12) % 12]);
+}
+function transposeLyrics(text, n){
+  return text.replace(/\[([^\]\r\n]{1,12})\]/g, (m, tag) =>
+    isChordTag(tag) ? "[" + transposeChordName(tag, n) + "]" : m);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1887,6 +2150,7 @@ const state = {
   cat: "all",
   key: "all",
   song: "",
+  setlist: "",   // selected set list name (mutually exclusive with song)
   page: 0,
   orn: 0,   // 0 = off · 1 = ornament dots/arcs · 2 = dots/arcs + colour-tone labels
 };
@@ -1946,13 +2210,36 @@ function songData(v){
     : { chords: (v && v.chords) || "", lyrics: (v && v.lyrics) || "" };
 }
 const LYRIC_TAG = /\[([^\]\r\n]{1,12})\]/g;
+
+/* set lists: name → ordered array of song names */
+const SET_STORE = "chordware.setlists";
+function loadSets(){
+  try{ return JSON.parse(localStorage.getItem(SET_STORE)) || {}; }
+  catch(e){ return {}; }
+}
+function storeSets(s){
+  try{ localStorage.setItem(SET_STORE, JSON.stringify(s)); }catch(e){/* private mode */}
+}
+/* every chord a song steps through (list + lyric tags), in order, deduped */
+function songChordNames(name){
+  const d = songData(loadSongs()[name]);
+  const toks = d.chords.split(/\s+/).filter(Boolean);
+  const tags = [...d.lyrics.matchAll(LYRIC_TAG)].map(m => m[1]).filter(isChordTag);
+  return [...new Set(toks.length ? toks : tags)];
+}
 function refreshSongSel(){
   const sel = $("#songSel");
+  const esc = n => n.replace(/"/g, "&quot;");
   const names = Object.keys(loadSongs()).sort();
+  const sets = Object.keys(loadSets()).sort();
   sel.innerHTML = `<option value="">SONG:// —</option>` +
-    names.map(n => `<option value="${n.replace(/"/g,"&quot;")}">♪ ${n}</option>`).join("");
-  sel.value = state.song;
-  $("#delSong").style.display = state.song ? "" : "none";
+    (names.length ? `<optgroup label="SONGS">${names.map(n => `<option value="song:${esc(n)}">♪ ${n}</option>`).join("")}</optgroup>` : "") +
+    `<optgroup label="SET LISTS">` +
+      sets.map(n => `<option value="set:${esc(n)}">≡ ${n}</option>`).join("") +
+      `<option value="__newset__">+ NEW SET LIST…</option>` +
+    `</optgroup>`;
+  sel.value = state.setlist ? "set:" + state.setlist : state.song ? "song:" + state.song : "";
+  $("#delSong").style.display = (state.song || state.setlist) ? "" : "none";
 }
 
 function render(){
@@ -1971,7 +2258,8 @@ function render(){
         </div>`).join("")
     : `<div class="noresults">// NO MATCH IN CHORD DB — 0 RECORDS //</div>`;
 
-  const tag = state.song ? `♪ ${state.song.toUpperCase()} · ` :
+  const tag = state.setlist ? `≡ ${state.setlist.toUpperCase()} · ` :
+              state.song ? `♪ ${state.song.toUpperCase()} · ` :
               state.key !== "all" ? `KEY ${state.key.toUpperCase()} · ` : "";
   pageInfo.textContent = `${tag}PAGE ${state.page + 1}/${pages} · ${list.length} CHORDS`;
   $("#prevBtn").disabled = state.page <= 0;
@@ -2007,7 +2295,8 @@ function renderModalView(){
 
   $("#mname").textContent = chord.name;
   $("#mfull").textContent = chord.full + "  ·  " + tuning.label;
-  $("#mdiag").innerHTML = renderChordSVG(view, tuning, { ornaments: true, labels: true });
+  $("#mdiag").innerHTML = renderChordSVG(view, tuning, { ornaments: true, labels: true, animate: true });
+  strumChord(view, tuning);
 
   const bar = $("#vbar");
   if(voicings.length > 1){
@@ -2093,10 +2382,12 @@ tuningSel.addEventListener("change", () => { state.tuning = tuningSel.value; sta
 
 $("#chips").innerHTML = CATS.map(c =>
   `<button class="chip${c.id === state.cat ? " on" : ""}" data-cat="${c.id}">${c.label}</button>`).join("") +
-  `<button class="chip act" id="mapChip" title="Fretboard map — every in-key note on the neck">Map</button>`;
+  `<button class="chip act" id="mapChip" title="Fretboard map — every in-key note on the neck">Map</button>` +
+  `<button class="chip act" id="tunChip" title="Tune up — mic pitch detection">Tuner</button>`;
 $("#chips").addEventListener("click", e => {
   const b = e.target.closest(".chip"); if(!b) return;
   if(b.id === "mapChip"){ openMap(); return; }
+  if(b.id === "tunChip"){ openTuner(); return; }
   state.cat = b.dataset.cat; state.page = 0;
   document.querySelectorAll(".chip[data-cat]").forEach(x => x.classList.toggle("on", x === b));
   render();
@@ -2104,7 +2395,7 @@ $("#chips").addEventListener("click", e => {
 
 $("#search").addEventListener("input", e => {
   state.query = e.target.value; state.page = 0;
-  if(state.song){ state.song = ""; refreshSongSel(); }  // editing the list detaches it from the saved song
+  if(state.song || state.setlist){ state.song = ""; state.setlist = ""; refreshSongSel(); }  // editing detaches the selection
   render();
 });
 
@@ -2117,10 +2408,17 @@ keySel.addEventListener("change", () => { state.key = keySel.value; state.page =
 
 /* songs: a saved chord list, optionally with lyrics ([Am] tags inside) */
 $("#songSel").addEventListener("change", e => {
-  const name = e.target.value;
-  state.song = name;
-  if(name){
-    state.query = songData(loadSongs()[name]).chords;
+  const v = e.target.value;
+  if(v === "__newset__"){ openSetEditor(""); refreshSongSel(); return; }
+  state.song = ""; state.setlist = "";
+  if(v.startsWith("song:")){
+    state.song = v.slice(5);
+    state.query = songData(loadSongs()[state.song]).chords;
+    $("#search").value = state.query;
+  }else if(v.startsWith("set:")){
+    state.setlist = v.slice(4);
+    // the grid shows every chord used across the set, in set order
+    state.query = [...new Set((loadSets()[state.setlist] || []).flatMap(songChordNames))].join(" ");
     $("#search").value = state.query;
   }
   state.page = 0;
@@ -2205,7 +2503,7 @@ function closeSongEditor(){
   document.body.style.overflow = "";
 }
 
-$("#saveSong").addEventListener("click", openSongEditor);
+$("#saveSong").addEventListener("click", () => state.setlist ? openSetEditor(state.setlist) : openSongEditor());
 $("#seClose").addEventListener("click", closeSongEditor);
 $("#seCancel").addEventListener("click", closeSongEditor);
 
@@ -2238,12 +2536,20 @@ $("#seSave").addEventListener("click", () => {
 });
 
 $("#delSong").addEventListener("click", () => {
-  if(!state.song) return;
-  if(!confirm(`Delete song “${state.song}”?`)) return;
-  const songs = loadSongs();
-  delete songs[state.song];
-  storeSongs(songs);
-  state.song = ""; state.query = ""; $("#search").value = "";
+  if(state.setlist){
+    if(!confirm(`Delete set list “${state.setlist}”? (Its songs stay saved.)`)) return;
+    const sets = loadSets();
+    delete sets[state.setlist];
+    storeSets(sets);
+    state.setlist = "";
+  }else if(state.song){
+    if(!confirm(`Delete song “${state.song}”?`)) return;
+    const songs = loadSongs();
+    delete songs[state.song];
+    storeSongs(songs);
+    state.song = "";
+  }else return;
+  state.query = ""; $("#search").value = "";
   refreshSongSel();
   render();
 });
@@ -2281,16 +2587,22 @@ $("#modal").addEventListener("click", e => { if(e.target === e.currentTarget) cl
 $("#vprev").addEventListener("click", () => stepVoicing(-1));
 $("#vnext").addEventListener("click", () => stepVoicing(1));
 
-/* swipe between voicings on the modal diagram */
-let mTouchX = null;
+/* swipe between voicings on the modal diagram; tap replays the strum */
+let mTouchX = null, mSwiped = false;
 $("#mdiag").addEventListener("touchstart", e => { mTouchX = e.touches[0].clientX; }, { passive:true });
 $("#mdiag").addEventListener("touchend", e => {
   if(mTouchX === null) return;
   const dx = e.changedTouches[0].clientX - mTouchX;
   mTouchX = null;
-  if(Math.abs(dx) < 50) return;
-  stepVoicing(dx < 0 ? 1 : -1);
+  mSwiped = Math.abs(dx) >= 50;
+  if(mSwiped) stepVoicing(dx < 0 ? 1 : -1);
 }, { passive:true });
+$("#mdiag").addEventListener("click", () => {
+  if(mSwiped){ mSwiped = false; return; }     // the click that trails a swipe
+  if(!modalState) return;
+  const v = modalState.voicings[modalState.idx];
+  strumChord({ frets: v.frets }, TUNINGS[state.tuning]);
+});
 
 /* ── fretboard heat map ───────────────────────────────────────── */
 const mapKeySel = $("#mapKey");
@@ -2322,22 +2634,31 @@ function closeMap(){
 mapKeySel.addEventListener("change", drawMap);
 $("#mapclose").addEventListener("click", closeMap);
 $("#mapov").addEventListener("click", e => { if(e.target === e.currentTarget) closeMap(); });
+$("#mapdiag").addEventListener("click", e => {          // tap a note to hear it
+  const g = e.target.closest("[data-midi]");
+  if(g) pluck(+g.dataset.midi, 0, .32);
+});
 
 /* ── performance view — big chord + lyric autoscroll, for playing live.
    [Chord] tags in the lyrics drive the sequence; otherwise the chord
    list does. Keyboard arrows / space / page keys advance, so Bluetooth
    page-turner pedals work out of the box. ─────────────────────── */
 const escHTML = s => s.replace(/[&<>"]/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[ch]));
-let perf = null;   // { seq: [{name, chord}], idx, ... }
+let perf = null;   // { queue:[songName|null], qi, seq:[{name,chord}], idx, tr, snd, auto, bpm, beat, timer }
 
-function buildPerf(){
+/* build one song's sequence + lyric html (tr = semitones of transpose) */
+function buildPerfFor(songName, tr){
   // slash chords (G/B) fall back to the root's diagram
   const find = n => chordList().find(c => normName(c.name) === normName(n))
     || (n.includes("/") ? chordList().find(c => normName(c.name) === normName(n.split("/")[0])) || null : null);
-  let name = state.song || "AD-HOC SET", chords = state.query.trim(), lyrics = "";
-  if(state.song){
-    const d = songData(loadSongs()[state.song]);
+  let name = songName || "AD-HOC SET", chords = state.query.trim(), lyrics = "";
+  if(songName){
+    const d = songData(loadSongs()[songName]);
     chords = d.chords; lyrics = d.lyrics;
+  }
+  if(tr){
+    chords = chords.split(/\s+/).filter(Boolean).map(t => transposeChordName(t, tr)).join(" ");
+    lyrics = transposeLyrics(lyrics, tr);
   }
   const tags = [...lyrics.matchAll(LYRIC_TAG)];
   if(tags.some(m => isChordTag(m[1]))){
@@ -2354,23 +2675,38 @@ function buildPerf(){
       last = m.index + m[0].length;
     }
     html += escHTML(lyrics.slice(last));
-    return { name, seq, idx: 0, lyricHTML: html };
+    return { name, seq, lyricHTML: html };
   }
   const seq = chords.split(/\s+/).filter(Boolean).map(t => ({ name: t, chord: find(t) }));
-  return seq.length ? { name, seq, idx: 0, lyricHTML: lyrics ? escHTML(lyrics) : "" } : null;
+  return seq.length ? { name, seq, lyricHTML: lyrics ? escHTML(lyrics) : "" } : null;
+}
+
+function loadPerfSong(qi, atEnd){
+  const built = buildPerfFor(perf.queue[qi], perf.tr);
+  if(!built) return false;
+  perf.qi = qi;
+  perf.seq = built.seq;
+  perf.idx = atEnd ? built.seq.length - 1 : 0;
+  const qinfo = perf.queue.length > 1 ? `  ·  ${qi + 1}/${perf.queue.length}` : "";
+  $("#pname").textContent = "♪ " + built.name + qinfo;
+  $("#plyr").innerHTML = built.lyricHTML;
+  renderPerf();
+  return true;
 }
 
 function renderPerf(){
-  const { seq, idx } = perf;
+  const { seq, idx, queue, qi } = perf;
   const cur = seq[idx], nxt = seq[idx + 1];
   $("#pcur").textContent = cur.name;
   $("#pdiag").innerHTML = cur.chord
     ? renderChordSVG(cur.chord, TUNINGS[state.tuning], { ornaments: state.orn > 0, labels: false })
     : `<div class="pnodiag">// NO DIAGRAM IN DB //</div>`;
-  $("#pnext").textContent = nxt ? "NEXT// " + nxt.name : "— END —";
+  $("#pnext").textContent = nxt ? "NEXT// " + nxt.name
+    : qi < queue.length - 1 ? "NEXT// ♪ " + queue[qi + 1]
+    : "— END —";
   $("#pprog").textContent = `${idx + 1} / ${seq.length}`;
-  $("#pprev").disabled = idx === 0;
-  $("#pnextBtn").disabled = idx >= seq.length - 1;
+  $("#pprev").disabled = idx === 0 && qi === 0;
+  $("#pnextBtn").disabled = idx >= seq.length - 1 && qi >= queue.length - 1;
   document.querySelectorAll("#plyr .ltag").forEach(el => {
     const on = +el.dataset.i === idx;
     el.classList.toggle("cur", on);
@@ -2378,25 +2714,101 @@ function renderPerf(){
   });
 }
 
+function playCur(){
+  const c = perf && perf.seq[perf.idx];
+  if(perf && perf.snd && c && c.chord) strumChord(c.chord, TUNINGS[state.tuning]);
+}
+
 function openPerf(){
-  const p = buildPerf();
-  if(!p){ toast("LOAD A SONG OR TYPE A CHORD LIST"); return; }
-  perf = p;
-  $("#pname").textContent = "♪ " + p.name;
-  $("#plyr").innerHTML = p.lyricHTML;
+  let queue;
+  if(state.setlist){
+    const songs = loadSongs();
+    queue = (loadSets()[state.setlist] || []).filter(n => songs[n] !== undefined);
+    if(!queue.length){ toast("SET LIST HAS NO SAVED SONGS"); return; }
+  }else{
+    queue = [state.song || null];
+  }
+  perf = { queue, qi: 0, seq: [], idx: 0, tr: 0, snd: true, auto: false, bpm: 80, beat: 0, timer: null };
+  if(!loadPerfSong(0, false)){
+    perf = null;
+    toast("LOAD A SONG OR TYPE A CHORD LIST");
+    return;
+  }
+  updatePerfCtl();
   $("#perf").classList.add("open");
   document.body.style.overflow = "hidden";
-  renderPerf();
   requestWakeLock();
 }
+
 function perfStep(d){
   if(!perf) return;
   const n = perf.idx + d;
-  if(n < 0 || n >= perf.seq.length) return;
+  if(n < 0){
+    if(perf.qi > 0 && loadPerfSong(perf.qi - 1, true)) playCur();
+    return;
+  }
+  if(n >= perf.seq.length){
+    if(perf.qi < perf.queue.length - 1){
+      if(loadPerfSong(perf.qi + 1, false)) playCur();
+    }else{
+      stopAuto();                                        // set is done
+    }
+    return;
+  }
   perf.idx = n;
   renderPerf();
+  playCur();
 }
+
+/* transpose the running song — the sequence, lyric tags and diagrams all follow */
+function perfTranspose(d){
+  if(!perf) return;
+  perf.tr += d;
+  const keep = perf.idx;
+  if(loadPerfSong(perf.qi, false)){
+    perf.idx = Math.min(keep, perf.seq.length - 1);
+    renderPerf();
+  }
+  updatePerfCtl();
+}
+
+/* auto-advance: one chord every 4 beats at the chosen tempo */
+function startAuto(){
+  if(!perf) return;
+  perf.auto = true;
+  perf.beat = 0;
+  clearInterval(perf.timer);
+  perf.timer = setInterval(() => {
+    perf.beat++;
+    pulseBeat();
+    if(perf.beat >= 4){ perf.beat = 0; perfStep(1); }
+  }, 60000 / perf.bpm);
+  updatePerfCtl();
+}
+function stopAuto(){
+  if(!perf) return;
+  clearInterval(perf.timer);
+  perf.timer = null;
+  perf.auto = false;
+  updatePerfCtl();
+}
+function pulseBeat(){
+  const el = $("#pcur");
+  el.classList.remove("pulse");
+  void el.offsetWidth;                                   // restart the animation
+  el.classList.add("pulse");
+}
+
+function updatePerfCtl(){
+  if(!perf) return;
+  $("#ptVal").textContent = "T" + (perf.tr > 0 ? "+" + perf.tr : perf.tr);
+  $("#pAuto").textContent = "AUTO " + perf.bpm;
+  $("#pAuto").classList.toggle("on", perf.auto);
+  $("#pSnd").classList.toggle("on", perf.snd);
+}
+
 function closePerf(){
+  stopAuto();
   perf = null;
   $("#perf").classList.remove("open");
   document.body.style.overflow = "";
@@ -2424,6 +2836,226 @@ $("#plyr").addEventListener("click", e => {
   const t = e.target.closest(".ltag"); if(!t || !perf) return;
   perf.idx = +t.dataset.i;
   renderPerf();
+  playCur();
+});
+$("#ptDown").addEventListener("click", () => perfTranspose(-1));
+$("#ptUp").addEventListener("click", () => perfTranspose(1));
+$("#pSnd").addEventListener("click", () => { if(perf){ perf.snd = !perf.snd; if(perf.snd) audioCtx(); updatePerfCtl(); } });
+$("#pAuto").addEventListener("click", () => { if(perf){ perf.auto ? stopAuto() : startAuto(); } });
+$("#pbDown").addEventListener("click", () => { if(perf){ perf.bpm = Math.max(40, perf.bpm - 5); if(perf.auto) startAuto(); updatePerfCtl(); } });
+$("#pbUp").addEventListener("click", () => { if(perf){ perf.bpm = Math.min(240, perf.bpm + 5); if(perf.auto) startAuto(); updatePerfCtl(); } });
+
+/* ── set list editor ──────────────────────────────────────────── */
+let stWorking = null;   // { orig, songs: [] } while the editor is open
+
+function openSetEditor(name){
+  stWorking = { orig: name, songs: name ? (loadSets()[name] || []).slice() : [] };
+  $("#stName").value = name || "";
+  renderSetEditor();
+  $("#setEd").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+function closeSetEditor(){
+  stWorking = null;
+  $("#setEd").classList.remove("open");
+  document.body.style.overflow = "";
+}
+function renderSetEditor(){
+  const songs = Object.keys(loadSongs()).sort();
+  $("#stIn").innerHTML = stWorking.songs.length
+    ? stWorking.songs.map((n,i) =>
+        `<div class="strow"><button class="stup" data-up="${i}" aria-label="Move up">▲</button>` +
+        `<button data-rm="${i}">${i + 1}. ♪ ${escHTML(n)}</button></div>`).join("")
+    : `<div class="stEmpty">// EMPTY — TAP SONGS BELOW TO BUILD THE SET //</div>`;
+  $("#stAvail").innerHTML = songs.length
+    ? songs.map(n => `<button data-add="${escHTML(n)}">♪ ${escHTML(n)}</button>`).join("")
+    : `<div class="stEmpty">// NO SAVED SONGS YET — SAVE SOME FIRST //</div>`;
+}
+$("#stIn").addEventListener("click", e => {
+  const up = e.target.closest("[data-up]"), rm = e.target.closest("[data-rm]");
+  if(up){
+    const i = +up.dataset.up, s = stWorking.songs;
+    if(i > 0){ [s[i-1], s[i]] = [s[i], s[i-1]]; renderSetEditor(); }
+  }else if(rm){
+    stWorking.songs.splice(+rm.dataset.rm, 1);
+    renderSetEditor();
+  }
+});
+$("#stAvail").addEventListener("click", e => {
+  const b = e.target.closest("[data-add]"); if(!b) return;
+  stWorking.songs.push(b.dataset.add);
+  renderSetEditor();
+});
+$("#stClose").addEventListener("click", closeSetEditor);
+$("#stCancel").addEventListener("click", closeSetEditor);
+$("#stSave").addEventListener("click", () => {
+  const name = $("#stName").value.trim();
+  if(!name){ alert("Name the set list first."); return; }
+  if(!stWorking.songs.length){ alert("Add at least one song to the set."); return; }
+  const sets = loadSets();
+  if(stWorking.orig && stWorking.orig !== name) delete sets[stWorking.orig];
+  sets[name] = stWorking.songs.slice();
+  storeSets(sets);
+  state.setlist = name; state.song = "";
+  state.query = [...new Set(sets[name].flatMap(songChordNames))].join(" ");
+  $("#search").value = state.query;
+  state.page = 0;
+  closeSetEditor();
+  refreshSongSel();
+  render();
+});
+
+/* ── song backup — export/import everything as one JSON file ──── */
+$("#seExport").addEventListener("click", () => {
+  const data = { app: "chordware", version: 1, songs: loadSongs(), setlists: loadSets() };
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+  a.download = "chordware-songs.json";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast("EXPORTED " + Object.keys(data.songs).length + " SONGS · " + Object.keys(data.setlists).length + " SETS");
+});
+$("#seImport").addEventListener("click", () => $("#seFile").click());
+$("#seFile").addEventListener("change", e => {
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const d = JSON.parse(r.result);
+      if(!d || typeof d !== "object" || (!d.songs && !d.setlists)) throw new Error("shape");
+      storeSongs({ ...loadSongs(), ...(d.songs || {}) });      // imported entries win on name clash
+      storeSets({ ...loadSets(), ...(d.setlists || {}) });
+      refreshSongSel();
+      toast("IMPORTED " + Object.keys(d.songs || {}).length + " SONGS · " + Object.keys(d.setlists || {}).length + " SETS");
+    }catch(err){
+      alert("That doesn't look like a CHORDWARE export file.");
+    }
+  };
+  r.readAsText(f);
+  e.target.value = "";
+});
+
+/* ── print sheet — current editor content, black on white ─────── */
+$("#sePrint").addEventListener("click", () => {
+  const name = $("#seName").value.trim() || "UNTITLED";
+  const lyrics = $("#seLyrics").value;
+  const tags = [...lyrics.matchAll(LYRIC_TAG)].map(m => m[1]).filter(isChordTag);
+  const names = [...new Set($("#seChords").value.trim().split(/\s+/).filter(Boolean).concat(tags))];
+  const tuning = TUNINGS[state.tuning];
+  const findC = n => chordList().find(c => normName(c.name) === normName(n))
+    || (n.includes("/") ? chordList().find(c => normName(c.name) === normName(n.split("/")[0])) : null);
+  const figs = names.map(n => {
+    const c = findC(n);
+    return c ? `<figure>${renderChordSVG(c, tuning, {})}<figcaption>${escHTML(n)}</figcaption></figure>` : "";
+  }).join("");
+  const lyr = escHTML(lyrics).replace(/\[([^\]\r\n]{1,12})\]/g, (m, t) =>
+    isChordTag(t) ? `<b>${t}</b>` : `<i>${t}</i>`);
+  $("#printsheet").innerHTML =
+    `<h1>♪ ${escHTML(name)}</h1><div class="psub">${tuning.label} · CHORDWARE</div>` +
+    `<div class="pgrid">${figs}</div>` +
+    (lyrics.trim() ? `<div class="plyrics">${lyr}</div>` : "");
+  window.print();
+});
+
+/* ── tuner — mic + autocorrelation pitch detection ────────────── */
+let tunStream = null, tunTimer = null, tunAnalyser = null, tunBuf = null;
+
+function openTuner(){
+  $("#tuntun").textContent = TUNINGS[state.tuning].label;
+  $("#tstrings").innerHTML = TUNINGS[state.tuning].strings.map(s => `<span>${s}</span>`).join("");
+  $("#tuner").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+function closeTuner(){
+  stopTunerMic();
+  $("#tuner").classList.remove("open");
+  document.body.style.overflow = "";
+}
+async function startTunerMic(){
+  try{
+    tunStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+    });
+  }catch(e){
+    $("#tmsg").textContent = "// MIC BLOCKED — ALLOW ACCESS AND TAP START AGAIN //";
+    return;
+  }
+  const ctx = audioCtx();
+  tunAnalyser = ctx.createAnalyser();
+  tunAnalyser.fftSize = 2048;
+  ctx.createMediaStreamSource(tunStream).connect(tunAnalyser);
+  tunBuf = new Float32Array(tunAnalyser.fftSize);
+  $("#tmsg").textContent = "// LISTENING — PLAY ONE STRING //";
+  $("#tstart").style.display = "none";
+  clearInterval(tunTimer);
+  tunTimer = setInterval(tunerTick, 90);
+}
+function stopTunerMic(){
+  clearInterval(tunTimer); tunTimer = null;
+  if(tunStream){ tunStream.getTracks().forEach(t => t.stop()); tunStream = null; }
+  $("#tstart").style.display = "";
+  $("#tmsg").textContent = "// MIC ACCESS NEEDED — TAP START //";
+}
+function tunerTick(){
+  tunAnalyser.getFloatTimeDomainData(tunBuf);
+  const f = detectPitch(tunBuf, AC.sampleRate);
+  const note = $("#tnote"), needle = $("#tneedle");
+  if(f < 0){ note.classList.remove("hot", "lock"); return; }   // too quiet — hold last reading
+  const midi = 69 + 12 * Math.log2(f / 440);
+  const nearest = Math.round(midi);
+  const cents = Math.max(-50, Math.min(50, (midi - nearest) * 100));
+  note.textContent = NOTE_NAMES[((nearest % 12) + 12) % 12];
+  $("#tfreq").textContent = f.toFixed(1) + " HZ · " + (cents >= 0 ? "+" : "") + cents.toFixed(0) + "¢";
+  needle.style.left = (50 + cents) + "%";
+  const lock = Math.abs(cents) < 5;
+  note.classList.toggle("lock", lock);
+  note.classList.toggle("hot", !lock);
+  needle.classList.toggle("lock", lock);
+  const open = TUNINGS[state.tuning].open;
+  let bi = 0;
+  open.forEach((m, i) => { if(Math.abs(m - midi) < Math.abs(open[bi] - midi)) bi = i; });
+  document.querySelectorAll("#tstrings span").forEach((el, i) => el.classList.toggle("near", i === bi));
+}
+/* autocorrelation with edge-trim + parabolic peak interpolation */
+function detectPitch(buf, sr){
+  let SIZE = buf.length, rms = 0;
+  for(let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+  if(Math.sqrt(rms / SIZE) < .008) return -1;                 // silence
+  let r1 = 0, r2 = SIZE - 1;
+  for(let i = 0; i < SIZE / 2; i++) if(Math.abs(buf[i]) < .2){ r1 = i; break; }
+  for(let i = 1; i < SIZE / 2; i++) if(Math.abs(buf[SIZE - i]) < .2){ r2 = SIZE - i; break; }
+  const b = buf.slice(r1, r2);
+  SIZE = b.length;
+  const c = new Float32Array(SIZE);
+  for(let lag = 0; lag < SIZE; lag++)
+    for(let j = 0; j < SIZE - lag; j++) c[lag] += b[j] * b[j + lag];
+  let d = 0;
+  while(d < SIZE - 1 && c[d] > c[d + 1]) d++;
+  let maxv = -1, maxp = -1;
+  for(let i = d; i < SIZE; i++) if(c[i] > maxv){ maxv = c[i]; maxp = i; }
+  if(maxp <= 0) return -1;
+  let T = maxp;
+  const x1 = c[T - 1], x2 = c[T], x3 = c[T + 1] || 0;
+  const a = (x1 + x3 - 2 * x2) / 2, bb = (x3 - x1) / 2;
+  if(a) T = T - bb / (2 * a);
+  const f = sr / T;
+  return (f > 40 && f < 2000) ? f : -1;
+}
+$("#tclose").addEventListener("click", closeTuner);
+$("#tstart").addEventListener("click", startTunerMic);
+$("#tuner").addEventListener("click", e => { if(e.target === e.currentTarget) closeTuner(); });
+
+/* ── left-handed mode ─────────────────────────────────────────── */
+$("#lhBtn").classList.toggle("on", LEFTY);
+$("#lhBtn").addEventListener("click", () => {
+  LEFTY = !LEFTY;
+  try{ localStorage.setItem("chordware.lefty", LEFTY ? "1" : "0"); }catch(e){}
+  $("#lhBtn").classList.toggle("on", LEFTY);
+  render();
+  if(modalState) renderModalView();
+  if($("#mapov").classList.contains("open")) drawMap();
+  if(perf) renderPerf();
+  toast(LEFTY ? "LEFT-HANDED MODE" : "RIGHT-HANDED MODE");
 });
 
 /* ── colour schemes ───────────────────────────────────────────── */
@@ -2461,6 +3093,8 @@ applyTheme(document.documentElement.dataset.theme || "", false);
 document.addEventListener("keydown", e => {
   if(e.key === "Escape"){
     if($("#perf").classList.contains("open")) return closePerf();
+    if($("#tuner").classList.contains("open")) return closeTuner();
+    if($("#setEd").classList.contains("open")) return closeSetEditor();
     if($("#songEd").classList.contains("open")) return closeSongEditor();
     if($("#mapov").classList.contains("open")) return closeMap();
     return closeModal();
@@ -2477,7 +3111,8 @@ document.addEventListener("keydown", e => {
     if(e.key === "ArrowRight") stepVoicing(1);
     return;
   }
-  if($("#songEd").classList.contains("open") || $("#mapov").classList.contains("open")) return;
+  if($("#songEd").classList.contains("open") || $("#setEd").classList.contains("open") ||
+     $("#tuner").classList.contains("open") || $("#mapov").classList.contains("open")) return;
   if(e.key === "ArrowLeft"  && state.page > 0){ state.page--; render(); }
   if(e.key === "ArrowRight"){ const pages = Math.ceil(filtered().length / PAGE_SIZE); if(state.page < pages - 1){ state.page++; render(); } }
 });
