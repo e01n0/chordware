@@ -24,11 +24,12 @@ guitar tuning is just another `TUNINGS` + `CHORD_LIBRARY` entry away.
 | `sw.js` | Tiny cache-first service worker for offline use (browsers refuse inline service workers — this is the only sidecar) |
 | `render.yaml` | Render blueprint: deploys as a zero-build static site |
 | `tools/generate-voicings.mjs` | Voicing generator: fills any missing root × quality combos per tuning (dry run by default, `--write` to insert) |
+| `tools/validate-chords.mjs` | Library linter: checks every voicing spells its named chord and every ornament's frets, direction and colour-tone label against chord theory |
 
 ## Features
 
 - **Chord grid** — 6 SVG diagrams per page (2×3 portrait, 3×2 landscape/desktop), swipe or arrow-key paging
-- **Ornament overlay** — hammer-ons (red filled dots) and pull-offs (red hollow dots, red O for open-string targets) with connecting arcs. The toggle cycles **OFF → dots/arcs → dots/arcs + colour-tone labels** (`H: sus4`, `P: maj7`, …); the fullscreen view always shows labels. Chords without hand-curated ornament data get **auto-derived** ornaments computed from the voicing (marked as such in the fullscreen view) — a hand-written `ornaments` array always wins
+- **Ornament overlay** — hammer-ons (red filled dots) and pull-offs (red hollow dots, red O for open-string targets) with connecting arcs. The toggle cycles **OFF → dots/arcs → dots/arcs + colour-tone labels** (`H: sus4`, `P: maj7`, …); the fullscreen view always shows labels. Chords without hand-curated ornament data get **auto-derived** ornaments computed from the voicing — a hand-written `ornaments` array always wins
 - **Search + category chips** — Major / Minor / 7th / Colour (sus, add9, 6ths, dim7, aug)
 - **Key filter** — pick a key and only chords whose voicings sit inside that scale remain (computed from the actual frets, so your own chords are key-filtered automatically)
 - **Fretboard map** — the MAP chip opens the whole neck (frets 0–12) with every in-key note plotted and coloured by degree: root (yellow), chord tones 3rd/5th (cyan), colour tones (red outline). A scale selector swaps the key scale for major/minor pentatonic, country (maj pent + ♭3) or blues (min pent + ♭5). Landscape/desktop lie the neck on its side; portrait hangs it nut-up like the chord diagrams (and it redraws live when you rotate)
@@ -68,6 +69,13 @@ or after adding a quality to the tool's table):
 ```sh
 node tools/generate-voicings.mjs          # dry run — prints what it would add
 node tools/generate-voicings.mjs --write  # inserts into index.html
+```
+
+After editing the library, lint it — every voicing must spell its named chord
+and every ornament label must match the note it lands on:
+
+```sh
+node tools/validate-chords.mjs
 ```
 
 ## Alternate tunings

@@ -1049,8 +1049,7 @@ const CHORD_LIBRARY = {
         { s:1, from:3, to:2, type:"pull", label:"add9" },
         { s:3, from:3, to:1, type:"pull", label:"min7" },
       ]},
-    /* ── generated voicings ── machine-searched for playability, validated
-       against chord theory. Edit freely — same format as the curated set. */
+    /* ── generated voicings — validated against chord theory ── */
     { name:"Cm7", full:"C minor 7", frets:[3,3,3,3], fingers:[1,1,1,1], cats:["minor","seventh"], ornaments:[] },
     { name:"Cm6", full:"C minor 6", frets:[2,3,3,3], fingers:[1,2,2,2], cats:["minor","colour"], ornaments:[] },
     { name:"Csus2", full:"C suspended 2", frets:[0,2,3,3], fingers:[0,1,2,2], cats:["colour"], ornaments:[] },
@@ -1253,16 +1252,15 @@ const CHORD_LIBRARY = {
     { name:"Gm", full:"G minor", frets:[0,3,3,3], fingers:[0,1,1,1], cats:["minor"],
       notes:"Barre a finger across fret 3, open D on the bottom." ,
       ornaments:[
-        { s:3, from:3, to:2, type:"pull",   label:"sus2" },
+        { s:1, from:3, to:2, type:"pull",   label:"sus2" },
         { s:0, from:0, to:1, type:"hammer", label:"b6"   },
       ]},
     { name:"Cm", full:"C minor", frets:[1,0,1,3], fingers:[1,0,2,3], cats:["minor"],
       ornaments:[
-        { s:1, from:0, to:2, type:"hammer", label:"add9" },
-        { s:3, from:3, to:1, type:"pull",   label:"min7" },
+        { s:1, from:0, to:2, type:"hammer", label:"6th"   },
+        { s:3, from:3, to:1, type:"pull",   label:"add11" },
       ]},
-    /* ── generated voicings ── machine-searched for playability, validated
-       against chord theory. Edit freely — same format as the curated set. */
+    /* ── generated voicings — validated against chord theory ── */
     { name:"Cm7", full:"C minor 7", frets:[1,3,1,3], fingers:[1,3,1,3], cats:["minor","seventh"], ornaments:[] },
     { name:"Cm6", full:"C minor 6", frets:[1,2,1,3], fingers:[1,2,1,3], cats:["minor","colour"], ornaments:[] },
     { name:"Csus2", full:"C suspended 2", frets:[0,0,1,3], fingers:[0,0,1,3], cats:["colour"], ornaments:[] },
@@ -1465,8 +1463,7 @@ const CHORD_LIBRARY = {
     { name:"Gm", full:"G minor", frets:[5,3,3,5], fingers:[3,1,1,4], cats:["minor"],
       notes:"Partial barre at 3, ring and pinky at 5 — the movable minor shape." , ornaments:[] },
     { name:"Cm", full:"C minor", frets:[1,0,1,1], fingers:[1,0,2,3], cats:["minor"], ornaments:[] },
-    /* ── generated voicings ── machine-searched for playability, validated
-       against chord theory. Edit freely — same format as the curated set. */
+    /* ── generated voicings — validated against chord theory ── */
     { name:"Cm7", full:"C minor 7", frets:[1,3,1,1], fingers:[1,3,1,1], cats:["minor","seventh"], ornaments:[] },
     { name:"Cm6", full:"C minor 6", frets:[1,2,1,1], fingers:[1,2,1,1], cats:["minor","colour"], ornaments:[] },
     { name:"Csus2", full:"C suspended 2", frets:[0,0,1,0], fingers:[0,0,1,0], cats:["colour"], ornaments:[] },
@@ -2437,14 +2434,9 @@ function renderModalView(){
   }
 
   const orns = effectiveOrnaments(view, tuning);
-  const isAuto = orns.length && !(view.ornaments && view.ornaments.length);
-  const autoNote = idx > 0
-    ? `// ALT VOICING — machine-searched shape, ornaments auto-derived`
-    : `// AUTO-DERIVED FROM VOICING — no hand-curated data yet`;
   const box = $("#mornaments");
   if(orns.length){
-    box.innerHTML = (isAuto ? `<div class="orn-none" style="padding-bottom:6px">${autoNote}</div>` : "") +
-    orns.map(o => {
+    box.innerHTML = orns.map(o => {
       const sName = tuning.strings[o.s];
       const fromNote = noteAt(tuning, o.s, o.from);
       const toNote   = noteAt(tuning, o.s, o.to);
@@ -2457,9 +2449,7 @@ function renderModalView(){
       </div>`;
     }).join("");
   }else{
-    box.innerHTML = idx > 0
-      ? `<div class="orn-none">// ALT VOICING — machine-searched shape, no ornaments derivable //</div>`
-      : `<div class="orn-none">// NO ORNAMENT DATA LOGGED FOR THIS SHAPE — EXTEND CHORD_LIBRARY //</div>`;
+    box.innerHTML = `<div class="orn-none">// NO ORNAMENTS FOR THIS SHAPE //</div>`;
   }
 
   // field notes describe the primary shape — hide them on alternates
