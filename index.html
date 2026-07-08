@@ -492,6 +492,12 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
     background:var(--yellow); color:var(--ink); border-color:var(--yellow);
     box-shadow:0 0 10px color-mix(in srgb, var(--yellow) 45%, transparent);
   }
+  .lsec{ /* [Verse] / [Chorus] section headers inside lyrics */
+    display:inline-block; padding:0 8px; margin:2px 0;
+    border-left:3px solid var(--red); color:var(--dim);
+    font-family:var(--font-h); font-weight:600; font-size:12px;
+    letter-spacing:.22em; text-transform:uppercase; line-height:1.7;
+  }
   .pfoot{
     flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
     gap:8px; padding-top:10px;
@@ -623,8 +629,10 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
     <label for="seLyrics">Lyrics · optional</label>
     <textarea id="seLyrics" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
               placeholder="[C]Heading down south to the [G]land of the pines&#10;I'm [Am]thumbing my way into [F]North Caroline"></textarea>
-    <div class="sehint">Tag chord changes inline as <b>[Am]</b> — performance mode then steps
-      tag to tag, highlighting the lyric line as you play. No tags? It steps through the chord list instead.</div>
+    <div class="sehint"><b>Paste a song straight from a tab/chord site</b> — chord lines sitting
+      above the lyrics convert to inline tags automatically, and <b>[Verse]</b>/<b>[Chorus]</b> headers
+      are kept as section labels. Or tag changes by hand as <b>[Am]</b>. Performance mode steps
+      tag to tag, highlighting the lyric as you play; with no tags it steps through the chord list instead.</div>
     <div class="sebtns">
       <button id="seCancel">Cancel</button>
       <button id="seSave">Save Song</button>
@@ -2109,6 +2117,61 @@ $("#songSel").addEventListener("change", e => {
 
 /* ── song editor ──────────────────────────────────────────────── */
 const knownChord = t => chordList().some(c => normName(c.name) === normName(t));
+/* chord-shaped names: root + optional quality + optional slash bass.
+   Used to tell chords apart from words — [Am7] is a chord, [Chorus]
+   is not, even though it starts with a note letter. */
+const TAB_CHORD_RE = /^[A-G][b#]?(?:maj|min|m|dim|aug|sus|add)?(?:[0-9]{1,2})?(?:sus[24]|add[0-9]{1,2}|dim7?|[b#][0-9]{1,2})?(?:\/[A-G][b#]?)?$/;
+/* a [tag] is a chord (steppable in performance mode) when the whole tag
+   is chord-shaped; anything else — [Verse], [Chorus 2] — is a section label */
+const isChordTag = t => TAB_CHORD_RE.test(t.trim());
+
+/* ── tab-site import — chord sites put chords on their own line ABOVE
+   the lyric; convert a pasted song to inline [Chord] tags, keeping each
+   chord at the syllable its column pointed at ────────────────────── */
+
+function parseChordLine(line){
+  if(!line.trim()) return null;
+  const chords = [];
+  for(const m of line.matchAll(/\S+/g)){
+    if(TAB_CHORD_RE.test(m[0])) chords.push({ name: m[0], col: m.index });
+    else if(!/^(x[0-9]+|\|+|-+|n\.?c\.?)$/i.test(m[0])) return null;   // any other word → it's a lyric line
+  }
+  return chords.length ? chords : null;
+}
+
+function tabToTags(text){
+  const lines = text.split(/\r?\n/);
+  const out = [];
+  let converted = 0;
+  for(let i = 0; i < lines.length; i++){
+    const chords = parseChordLine(lines[i]);
+    if(!chords){ out.push(lines[i]); continue; }
+    const next = lines[i + 1];
+    if(next !== undefined && next.trim() && !parseChordLine(next)){
+      let merged = next;                        // insert right-to-left so columns hold
+      for(let k = chords.length - 1; k >= 0; k--){
+        const pos = Math.min(chords[k].col, merged.length);
+        merged = merged.slice(0, pos) + "[" + chords[k].name + "]" + merged.slice(pos);
+      }
+      out.push(merged);
+      i++;
+    }else{
+      out.push(chords.map(c => "[" + c.name + "]").join(" "));   // instrumental line
+    }
+    converted++;
+  }
+  return { text: out.join("\n"), converted };
+}
+
+$("#seLyrics").addEventListener("paste", () => {
+  setTimeout(() => {                            // run after the paste lands
+    const r = tabToTags($("#seLyrics").value);
+    if(r.converted){
+      $("#seLyrics").value = r.text;
+      toast("TAB FORMAT → INLINE TAGS · " + r.converted + " LINES");
+    }
+  }, 0);
+});
 
 function openSongEditor(){
   const cur = state.song ? songData(loadSongs()[state.song]) : null;
@@ -2132,12 +2195,14 @@ $("#seSave").addEventListener("click", () => {
   if(!name){ alert("Name the song first."); return; }
   const toks = $("#seChords").value.trim().split(/\s+/).filter(Boolean);
   const lyrics = $("#seLyrics").value.replace(/\s+$/, "");
-  const tagged = [...lyrics.matchAll(LYRIC_TAG)].map(m => m[1]);
+  const tagged = [...lyrics.matchAll(LYRIC_TAG)].map(m => m[1]).filter(isChordTag);
   if(!toks.some(knownChord) && !tagged.some(knownChord)){
-    alert("Add a space-separated chord list (e.g. Am F C G)\nor tag chords in the lyrics like [Am].");
+    alert("Add a space-separated chord list (e.g. Am F C G)\nor tag chords in the lyrics like [Am] —\nor just paste a song from a tab/chord site into the lyrics box.");
     return;
   }
-  const unknown = [...new Set(toks.concat(tagged).filter(t => !knownChord(t)))];
+  // slash chords (G/B) fall back to their root diagram, so don't warn on them
+  const knownish = t => knownChord(t) || (t.includes("/") && knownChord(t.split("/")[0]));
+  const unknown = [...new Set(toks.concat(tagged).filter(t => !knownish(t)))];
   if(unknown.length &&
      !confirm(`// WARNING: not in the ${state.tuning} chord DB (kept, but no diagram):\n\n${unknown.join(" ")}\n\nSave anyway?`)) return;
   const songs = loadSongs();
@@ -2247,21 +2312,28 @@ const escHTML = s => s.replace(/[&<>"]/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":
 let perf = null;   // { seq: [{name, chord}], idx, ... }
 
 function buildPerf(){
-  const find = n => chordList().find(c => normName(c.name) === normName(n)) || null;
+  // slash chords (G/B) fall back to the root's diagram
+  const find = n => chordList().find(c => normName(c.name) === normName(n))
+    || (n.includes("/") ? chordList().find(c => normName(c.name) === normName(n.split("/")[0])) || null : null);
   let name = state.song || "AD-HOC SET", chords = state.query.trim(), lyrics = "";
   if(state.song){
     const d = songData(loadSongs()[state.song]);
     chords = d.chords; lyrics = d.lyrics;
   }
   const tags = [...lyrics.matchAll(LYRIC_TAG)];
-  if(tags.length){
+  if(tags.some(m => isChordTag(m[1]))){
     let html = "", last = 0;
-    const seq = tags.map((m, i) => {
+    const seq = [];
+    for(const m of tags){
       html += escHTML(lyrics.slice(last, m.index));
-      html += `<span class="ltag" data-i="${i}">${escHTML(m[1])}</span>`;
+      if(isChordTag(m[1])){
+        html += `<span class="ltag" data-i="${seq.length}">${escHTML(m[1])}</span>`;
+        seq.push({ name: m[1], chord: find(m[1]) });
+      }else{
+        html += `<span class="lsec">${escHTML(m[1])}</span>`;   // [Verse] / [Chorus] header
+      }
       last = m.index + m[0].length;
-      return { name: m[1], chord: find(m[1]) };
-    });
+    }
     html += escHTML(lyrics.slice(last));
     return { name, seq, idx: 0, lyricHTML: html };
   }
