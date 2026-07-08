@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="description" content="CHORDWARE // banjolele chord chart terminal — reentrant gCEA, hammer-on & pull-off ornament overlays">
+<meta name="description" content="CHORDWARE // chord chart terminal for ukulele, banjolele & guitar — hammer-on & pull-off ornament overlays, fretboard maps, performance mode">
 <title>CHORDWARE // gCEA</title>
 <script>/* restore saved colour scheme before first paint */
 try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentElement.dataset.theme = _t; }catch(e){}</script>
@@ -666,9 +666,10 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
    Add a matching key to CHORD_LIBRARY and it appears in the picker.
    ═══════════════════════════════════════════════════════════════ */
 const TUNINGS = {
-  gCEA: { label: "gCEA · reentrant", strings: ["g","C","E","A"], pitches: [7,0,4,9] },
-  DGBE: { label: "DGBE · baritone",  strings: ["D","G","B","E"], pitches: [2,7,11,4] },
-  DGBD: { label: "DGBD · open G",    strings: ["D","G","B","D"], pitches: [2,7,11,2] },
+  gCEA:   { label: "gCEA · reentrant", strings: ["g","C","E","A"], pitches: [7,0,4,9] },
+  DGBE:   { label: "DGBE · baritone",  strings: ["D","G","B","E"], pitches: [2,7,11,4] },
+  DGBD:   { label: "DGBD · open G",    strings: ["D","G","B","D"], pitches: [2,7,11,2] },
+  EADGBE: { label: "EADGBE · guitar",  strings: ["E","A","D","G","B","e"], pitches: [4,9,2,7,11,4] },
   // aDFsB:{ label: "aDF#B · D-tuning", strings: ["a","D","F#","B"], pitches: [9,2,6,11] },
 };
 
@@ -676,7 +677,8 @@ const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 
 /* ═══════════════════════════════════════════════════════════════
    CHORD LIBRARY
-   frets/fingers: [g, C, E, A] · 0 = open · fingers 0 = none
+   frets/fingers: one entry per string, low to high · 0 = open ·
+   -1 = muted (×) · fingers 0 = none
    cats: major | minor | seventh | colour
    ornaments: { s: string index 0–3, from: source fret (must match
      the chord's fret on that string), to: target fret (0 = open),
@@ -1318,6 +1320,154 @@ const CHORD_LIBRARY = {
     { name:"Bdim7", full:"B diminished 7", frets:[0,1,0,3], fingers:[0,1,0,3], cats:["colour"], ornaments:[] },
     { name:"Baug", full:"B augmented", frets:[1,0,0,1], fingers:[1,0,0,1], cats:["colour"], ornaments:[] },
   ],
+  EADGBE: [
+    /* ── curated core — the classic open shapes (× = muted string) ── */
+    { name:"C", full:"C major", frets:[-1,3,2,0,1,0], fingers:[0,3,2,0,1,0], cats:["major"], ornaments:[] },
+    { name:"D", full:"D major", frets:[-1,-1,0,2,3,2], fingers:[0,0,0,1,3,2], cats:["major"], ornaments:[] },
+    { name:"E", full:"E major", frets:[0,2,2,1,0,0], fingers:[0,2,3,1,0,0], cats:["major"], ornaments:[] },
+    { name:"F", full:"F major", frets:[1,3,3,2,1,1], fingers:[1,3,4,2,1,1], cats:["major"],
+      notes:"Full barre at fret 1 — the classic hurdle. The index finger lays flat across all six strings; keep the thumb low behind the neck." },
+    { name:"G", full:"G major", frets:[3,2,0,0,0,3], fingers:[2,1,0,0,0,3], cats:["major"], ornaments:[] },
+    { name:"A", full:"A major", frets:[-1,0,2,2,2,0], fingers:[0,0,1,2,3,0], cats:["major"], ornaments:[] },
+    { name:"Am", full:"A minor", frets:[-1,0,2,2,1,0], fingers:[0,0,2,3,1,0], cats:["minor"], ornaments:[] },
+    { name:"Dm", full:"D minor", frets:[-1,-1,0,2,3,1], fingers:[0,0,0,2,3,1], cats:["minor"], ornaments:[] },
+    { name:"Em", full:"E minor", frets:[0,2,2,0,0,0], fingers:[0,2,3,0,0,0], cats:["minor"], ornaments:[] },
+    { name:"C7", full:"C dominant 7", frets:[-1,3,2,3,1,0], fingers:[0,3,2,4,1,0], cats:["seventh"], ornaments:[] },
+    { name:"D7", full:"D dominant 7", frets:[-1,-1,0,2,1,2], fingers:[0,0,0,2,1,3], cats:["seventh"], ornaments:[] },
+    { name:"E7", full:"E dominant 7", frets:[0,2,0,1,0,0], fingers:[0,2,0,1,0,0], cats:["seventh"], ornaments:[] },
+    { name:"G7", full:"G dominant 7", frets:[3,2,0,0,0,1], fingers:[3,2,0,0,0,1], cats:["seventh"], ornaments:[] },
+    { name:"A7", full:"A dominant 7", frets:[-1,0,2,0,2,0], fingers:[0,0,2,0,3,0], cats:["seventh"], ornaments:[] },
+    { name:"B7", full:"B dominant 7", frets:[-1,2,1,2,0,2], fingers:[0,2,1,3,0,4], cats:["seventh"], ornaments:[] },
+    { name:"Am7", full:"A minor 7", frets:[-1,0,2,0,1,0], fingers:[0,0,2,0,1,0], cats:["minor","seventh"], ornaments:[] },
+    { name:"Dm7", full:"D minor 7", frets:[-1,-1,0,2,1,1], fingers:[0,0,0,2,1,1], cats:["minor","seventh"], ornaments:[] },
+    { name:"Em7", full:"E minor 7", frets:[0,2,0,0,0,0], fingers:[0,2,0,0,0,0], cats:["minor","seventh"], ornaments:[] },
+    { name:"Cmaj7", full:"C major 7", frets:[-1,3,2,0,0,0], fingers:[0,3,2,0,0,0], cats:["seventh"], ornaments:[] },
+    { name:"Fmaj7", full:"F major 7", frets:[-1,-1,3,2,1,0], fingers:[0,0,3,2,1,0], cats:["seventh"], ornaments:[] },
+    { name:"Asus2", full:"A suspended 2", frets:[-1,0,2,2,0,0], fingers:[0,0,1,2,0,0], cats:["colour"], ornaments:[] },
+    { name:"Asus4", full:"A suspended 4", frets:[-1,0,2,2,3,0], fingers:[0,0,1,2,3,0], cats:["colour"], ornaments:[] },
+    { name:"Dsus2", full:"D suspended 2", frets:[-1,-1,0,2,3,0], fingers:[0,0,0,1,2,0], cats:["colour"], ornaments:[] },
+    { name:"Dsus4", full:"D suspended 4", frets:[-1,-1,0,2,3,3], fingers:[0,0,0,1,2,3], cats:["colour"], ornaments:[] },
+    { name:"Esus4", full:"E suspended 4", frets:[0,2,2,2,0,0], fingers:[0,1,2,3,0,0], cats:["colour"], ornaments:[] },
+    { name:"Cadd9", full:"C add 9", frets:[-1,3,2,0,3,0], fingers:[0,2,1,0,3,0], cats:["major","colour"], ornaments:[] },
+    { name:"C6", full:"C major 6", frets:[0,0,2,0,1,0], fingers:[0,0,2,0,1,0], cats:["major","colour"], ornaments:[] },
+    { name:"Cm", full:"C minor", frets:[-1,3,1,0,1,3], fingers:[0,3,1,0,1,3], cats:["minor"], ornaments:[] },
+    { name:"Cm7", full:"C minor 7", frets:[3,1,1,0,1,3], fingers:[3,1,1,0,1,3], cats:["minor","seventh"], ornaments:[] },
+    { name:"Cm6", full:"C minor 6", frets:[3,0,1,0,1,3], fingers:[3,0,1,0,1,3], cats:["minor","colour"], ornaments:[] },
+    { name:"Csus2", full:"C suspended 2", frets:[-1,3,0,0,3,3], fingers:[0,1,0,0,1,1], cats:["colour"], ornaments:[] },
+    { name:"Csus4", full:"C suspended 4", frets:[-1,3,3,0,1,1], fingers:[0,3,3,0,1,1], cats:["colour"], ornaments:[] },
+    { name:"Cdim7", full:"C diminished 7", frets:[2,0,1,2,1,2], fingers:[2,0,1,2,1,2], cats:["colour"], ornaments:[] },
+    { name:"Caug", full:"C augmented", frets:[-1,-1,2,1,1,0], fingers:[0,0,2,1,1,0], cats:["colour"], ornaments:[] },
+    { name:"C#6", full:"C# major 6", frets:[1,1,3,1,2,1], fingers:[1,1,3,1,2,1], cats:["major","colour"], ornaments:[] },
+    { name:"C#7", full:"C# dominant 7", frets:[-1,4,3,4,0,4], fingers:[0,2,1,2,0,2], cats:["seventh"], ornaments:[] },
+    { name:"C#", full:"C# major", frets:[-1,-1,3,1,2,1], fingers:[0,0,3,1,2,1], cats:["major"], ornaments:[] },
+    { name:"C#m", full:"C# minor", frets:[-1,-1,2,1,2,0], fingers:[0,0,2,1,2,0], cats:["minor"], ornaments:[] },
+    { name:"C#m7", full:"C# minor 7", frets:[0,2,2,1,2,0], fingers:[0,2,2,1,2,0], cats:["minor","seventh"], ornaments:[] },
+    { name:"C#maj7", full:"C# major 7", frets:[1,3,3,1,2,1], fingers:[1,3,3,1,2,1], cats:["seventh"], ornaments:[] },
+    { name:"C#m6", full:"C# minor 6", frets:[0,1,2,1,2,0], fingers:[0,1,2,1,2,0], cats:["minor","colour"], ornaments:[] },
+    { name:"C#sus2", full:"C# suspended 2", frets:[-1,4,1,1,4,4], fingers:[0,4,1,1,4,4], cats:["colour"], ornaments:[] },
+    { name:"C#sus4", full:"C# suspended 4", frets:[-1,4,4,1,2,2], fingers:[0,4,4,1,2,2], cats:["colour"], ornaments:[] },
+    { name:"C#add9", full:"C# add 9", frets:[-1,-1,1,1,2,1], fingers:[0,0,1,1,2,1], cats:["major","colour"], ornaments:[] },
+    { name:"C#dim7", full:"C# diminished 7", frets:[0,1,2,0,2,0], fingers:[0,1,2,0,2,0], cats:["colour"], ornaments:[] },
+    { name:"C#aug", full:"C# augmented", frets:[1,0,3,2,2,1], fingers:[1,0,3,2,2,1], cats:["colour"], ornaments:[] },
+    { name:"D6", full:"D major 6", frets:[2,0,0,2,0,2], fingers:[1,0,0,1,0,1], cats:["major","colour"], ornaments:[] },
+    { name:"Dmaj7", full:"D major 7", frets:[2,0,0,2,2,2], fingers:[1,0,0,1,1,1], cats:["seventh"], ornaments:[] },
+    { name:"Dm6", full:"D minor 6", frets:[1,0,0,2,0,1], fingers:[1,0,0,2,0,1], cats:["minor","colour"], ornaments:[] },
+    { name:"Dadd9", full:"D add 9", frets:[0,0,0,2,3,2], fingers:[0,0,0,1,2,1], cats:["major","colour"], ornaments:[] },
+    { name:"Ddim7", full:"D diminished 7", frets:[-1,-1,0,1,0,1], fingers:[0,0,0,1,0,1], cats:["colour"], ornaments:[] },
+    { name:"Daug", full:"D augmented", frets:[-1,-1,0,3,3,2], fingers:[0,0,0,2,2,1], cats:["colour"], ornaments:[] },
+    { name:"Eb6", full:"E♭ major 6", frets:[3,1,1,0,1,3], fingers:[3,1,1,0,1,3], cats:["major","colour"], ornaments:[] },
+    { name:"Eb7", full:"E♭ dominant 7", frets:[3,1,1,0,2,3], fingers:[3,1,1,0,2,3], cats:["seventh"], ornaments:[] },
+    { name:"Eb", full:"E♭ major", frets:[3,1,1,0,4,3], fingers:[3,1,1,0,4,3], cats:["major"], ornaments:[] },
+    { name:"Ebm", full:"E♭ minor", frets:[-1,-1,4,3,4,2], fingers:[0,0,3,2,3,1], cats:["minor"], ornaments:[] },
+    { name:"Ebm7", full:"E♭ minor 7", frets:[2,1,1,3,2,2], fingers:[2,1,1,3,2,2], cats:["minor","seventh"], ornaments:[] },
+    { name:"Ebmaj7", full:"E♭ major 7", frets:[3,1,1,0,3,3], fingers:[3,1,1,0,3,3], cats:["seventh"], ornaments:[] },
+    { name:"Ebm6", full:"E♭ minor 6", frets:[2,1,1,3,1,2], fingers:[2,1,1,3,1,2], cats:["minor","colour"], ornaments:[] },
+    { name:"Ebsus2", full:"E♭ suspended 2", frets:[1,1,1,3,4,1], fingers:[1,1,1,3,4,1], cats:["colour"], ornaments:[] },
+    { name:"Ebsus4", full:"E♭ suspended 4", frets:[4,1,1,1,4,4], fingers:[4,1,1,1,4,4], cats:["colour"], ornaments:[] },
+    { name:"Ebadd9", full:"E♭ add 9", frets:[-1,-1,3,0,4,3], fingers:[0,0,1,0,2,1], cats:["major","colour"], ornaments:[] },
+    { name:"Ebdim7", full:"E♭ diminished 7", frets:[2,0,1,2,1,2], fingers:[2,0,1,2,1,2], cats:["colour"], ornaments:[] },
+    { name:"Ebaug", full:"E♭ augmented", frets:[-1,-1,1,0,0,3], fingers:[0,0,1,0,0,3], cats:["colour"], ornaments:[] },
+    { name:"E6", full:"E major 6", frets:[0,2,2,1,2,0], fingers:[0,2,2,1,2,0], cats:["major","colour"], ornaments:[] },
+    { name:"Emaj7", full:"E major 7", frets:[0,2,1,1,0,0], fingers:[0,2,1,1,0,0], cats:["seventh"], ornaments:[] },
+    { name:"Em6", full:"E minor 6", frets:[0,2,2,0,2,0], fingers:[0,1,1,0,1,0], cats:["minor","colour"], ornaments:[] },
+    { name:"Esus2", full:"E suspended 2", frets:[0,2,4,4,0,0], fingers:[0,1,3,3,0,0], cats:["colour"], ornaments:[] },
+    { name:"Eadd9", full:"E add 9", frets:[0,2,2,1,0,2], fingers:[0,2,2,1,0,2], cats:["major","colour"], ornaments:[] },
+    { name:"Edim7", full:"E diminished 7", frets:[0,1,2,0,2,0], fingers:[0,1,2,0,2,0], cats:["colour"], ornaments:[] },
+    { name:"Eaug", full:"E augmented", frets:[-1,-1,2,1,1,0], fingers:[0,0,2,1,1,0], cats:["colour"], ornaments:[] },
+    { name:"F6", full:"F major 6", frets:[1,0,0,2,1,1], fingers:[1,0,0,2,1,1], cats:["major","colour"], ornaments:[] },
+    { name:"F7", full:"F dominant 7", frets:[1,0,1,2,1,1], fingers:[1,0,1,2,1,1], cats:["seventh"], ornaments:[] },
+    { name:"Fm", full:"F minor", frets:[1,3,3,1,1,1], fingers:[1,3,3,1,1,1], cats:["minor"], ornaments:[] },
+    { name:"Fm7", full:"F minor 7", frets:[-1,-1,1,1,1,1], fingers:[0,0,1,1,1,1], cats:["minor","seventh"], ornaments:[] },
+    { name:"Fm6", full:"F minor 6", frets:[-1,-1,0,1,1,1], fingers:[0,0,0,1,1,1], cats:["minor","colour"], ornaments:[] },
+    { name:"Fsus2", full:"F suspended 2", frets:[1,3,3,0,1,1], fingers:[1,3,3,0,1,1], cats:["colour"], ornaments:[] },
+    { name:"Fsus4", full:"F suspended 4", frets:[1,1,3,3,1,1], fingers:[1,1,3,3,1,1], cats:["colour"], ornaments:[] },
+    { name:"Fadd9", full:"F add 9", frets:[1,0,3,0,1,1], fingers:[1,0,3,0,1,1], cats:["major","colour"], ornaments:[] },
+    { name:"Fdim7", full:"F diminished 7", frets:[-1,-1,0,1,0,1], fingers:[0,0,0,1,0,1], cats:["colour"], ornaments:[] },
+    { name:"Faug", full:"F augmented", frets:[1,0,3,2,2,1], fingers:[1,0,3,2,2,1], cats:["colour"], ornaments:[] },
+    { name:"F#6", full:"F# major 6", frets:[2,1,1,3,2,2], fingers:[2,1,1,3,2,2], cats:["major","colour"], ornaments:[] },
+    { name:"F#7", full:"F# dominant 7", frets:[2,1,2,3,2,0], fingers:[2,1,2,3,2,0], cats:["seventh"], ornaments:[] },
+    { name:"F#", full:"F# major", frets:[2,4,4,3,2,2], fingers:[1,3,3,2,1,1], cats:["major"], ornaments:[] },
+    { name:"F#m", full:"F# minor", frets:[2,0,4,2,2,2], fingers:[1,0,3,1,1,1], cats:["minor"], ornaments:[] },
+    { name:"F#m7", full:"F# minor 7", frets:[2,0,2,2,2,0], fingers:[1,0,1,1,1,0], cats:["minor","seventh"], ornaments:[] },
+    { name:"F#maj7", full:"F# major 7", frets:[2,1,3,3,2,1], fingers:[2,1,3,3,2,1], cats:["seventh"], ornaments:[] },
+    { name:"F#m6", full:"F# minor 6", frets:[2,0,1,2,2,2], fingers:[2,0,1,2,2,2], cats:["minor","colour"], ornaments:[] },
+    { name:"F#sus2", full:"F# suspended 2", frets:[2,4,4,1,2,2], fingers:[2,4,4,1,2,2], cats:["colour"], ornaments:[] },
+    { name:"F#sus4", full:"F# suspended 4", frets:[2,4,4,4,0,2], fingers:[1,3,3,3,0,1], cats:["colour"], ornaments:[] },
+    { name:"F#add9", full:"F# add 9", frets:[2,4,4,3,2,4], fingers:[1,3,3,2,1,3], cats:["major","colour"], ornaments:[] },
+    { name:"F#dim7", full:"F# diminished 7", frets:[2,0,1,2,1,2], fingers:[2,0,1,2,1,2], cats:["colour"], ornaments:[] },
+    { name:"F#aug", full:"F# augmented", frets:[2,1,0,3,3,2], fingers:[2,1,0,3,3,2], cats:["colour"], ornaments:[] },
+    { name:"G6", full:"G major 6", frets:[-1,-1,0,0,0,0], fingers:[0,0,0,0,0,0], cats:["major","colour"], ornaments:[] },
+    { name:"Gm", full:"G minor", frets:[3,1,0,0,3,3], fingers:[3,1,0,0,3,3], cats:["minor"], ornaments:[] },
+    { name:"Gm7", full:"G minor 7", frets:[3,1,0,0,3,1], fingers:[3,1,0,0,3,1], cats:["minor","seventh"], ornaments:[] },
+    { name:"Gmaj7", full:"G major 7", frets:[2,2,0,0,0,2], fingers:[1,1,0,0,0,1], cats:["seventh"], ornaments:[] },
+    { name:"Gm6", full:"G minor 6", frets:[3,1,0,0,3,0], fingers:[3,1,0,0,3,0], cats:["minor","colour"], ornaments:[] },
+    { name:"Gsus2", full:"G suspended 2", frets:[3,0,0,0,3,3], fingers:[1,0,0,0,1,1], cats:["colour"], ornaments:[] },
+    { name:"Gsus4", full:"G suspended 4", frets:[3,3,0,0,3,3], fingers:[1,1,0,0,1,1], cats:["colour"], ornaments:[] },
+    { name:"Gadd9", full:"G add 9", frets:[3,0,0,0,0,3], fingers:[1,0,0,0,0,1], cats:["major","colour"], ornaments:[] },
+    { name:"Gdim7", full:"G diminished 7", frets:[0,1,2,0,2,0], fingers:[0,1,2,0,2,0], cats:["colour"], ornaments:[] },
+    { name:"Gaug", full:"G augmented", frets:[3,2,1,0,0,3], fingers:[3,2,1,0,0,3], cats:["colour"], ornaments:[] },
+    { name:"Ab6", full:"A♭ major 6", frets:[-1,-1,1,1,1,1], fingers:[0,0,1,1,1,1], cats:["major","colour"], ornaments:[] },
+    { name:"Ab7", full:"A♭ dominant 7", frets:[-1,-1,1,1,1,2], fingers:[0,0,1,1,1,2], cats:["seventh"], ornaments:[] },
+    { name:"Ab", full:"A♭ major", frets:[4,3,1,1,1,4], fingers:[4,3,1,1,1,4], cats:["major"], ornaments:[] },
+    { name:"Abm", full:"A♭ minor", frets:[4,2,1,1,0,4], fingers:[4,2,1,1,0,4], cats:["minor"], ornaments:[] },
+    { name:"Abm7", full:"A♭ minor 7", frets:[2,2,1,1,0,2], fingers:[2,2,1,1,0,2], cats:["minor","seventh"], ornaments:[] },
+    { name:"Abmaj7", full:"A♭ major 7", frets:[3,3,1,1,1,3], fingers:[3,3,1,1,1,3], cats:["seventh"], ornaments:[] },
+    { name:"Abm6", full:"A♭ minor 6", frets:[-1,-1,1,1,0,1], fingers:[0,0,1,1,0,1], cats:["minor","colour"], ornaments:[] },
+    { name:"Absus2", full:"A♭ suspended 2", frets:[4,1,1,1,4,4], fingers:[4,1,1,1,4,4], cats:["colour"], ornaments:[] },
+    { name:"Absus4", full:"A♭ suspended 4", frets:[4,4,1,1,4,4], fingers:[4,4,1,1,4,4], cats:["colour"], ornaments:[] },
+    { name:"Abadd9", full:"A♭ add 9", frets:[4,1,1,1,1,4], fingers:[4,1,1,1,1,4], cats:["major","colour"], ornaments:[] },
+    { name:"Abdim7", full:"A♭ diminished 7", frets:[-1,-1,0,1,0,1], fingers:[0,0,0,1,0,1], cats:["colour"], ornaments:[] },
+    { name:"Abaug", full:"A♭ augmented", frets:[-1,-1,2,1,1,0], fingers:[0,0,2,1,1,0], cats:["colour"], ornaments:[] },
+    { name:"A6", full:"A major 6", frets:[0,0,2,2,2,2], fingers:[0,0,1,1,1,1], cats:["major","colour"], ornaments:[] },
+    { name:"Amaj7", full:"A major 7", frets:[0,0,2,1,2,0], fingers:[0,0,2,1,2,0], cats:["seventh"], ornaments:[] },
+    { name:"Am6", full:"A minor 6", frets:[0,0,2,2,1,2], fingers:[0,0,2,2,1,2], cats:["minor","colour"], ornaments:[] },
+    { name:"Aadd9", full:"A add 9", frets:[0,2,2,2,2,0], fingers:[0,1,1,1,1,0], cats:["major","colour"], ornaments:[] },
+    { name:"Adim7", full:"A diminished 7", frets:[-1,0,1,2,1,2], fingers:[0,0,1,2,1,2], cats:["colour"], ornaments:[] },
+    { name:"Aaug", full:"A augmented", frets:[-1,0,3,2,2,1], fingers:[0,0,3,2,2,1], cats:["colour"], ornaments:[] },
+    { name:"Bb6", full:"B♭ major 6", frets:[-1,1,0,0,3,1], fingers:[0,1,0,0,3,1], cats:["major","colour"], ornaments:[] },
+    { name:"Bb7", full:"B♭ dominant 7", frets:[-1,1,0,1,3,1], fingers:[0,1,0,1,3,1], cats:["seventh"], ornaments:[] },
+    { name:"Bb", full:"B♭ major", frets:[-1,1,0,3,3,1], fingers:[0,1,0,3,3,1], cats:["major"], ornaments:[] },
+    { name:"Bbm", full:"B♭ minor", frets:[-1,1,3,3,2,1], fingers:[0,1,3,3,2,1], cats:["minor"], ornaments:[] },
+    { name:"Bbm7", full:"B♭ minor 7", frets:[-1,1,3,1,2,1], fingers:[0,1,3,1,2,1], cats:["minor","seventh"], ornaments:[] },
+    { name:"Bbmaj7", full:"B♭ major 7", frets:[1,0,0,3,3,1], fingers:[1,0,0,3,3,1], cats:["seventh"], ornaments:[] },
+    { name:"Bbm6", full:"B♭ minor 6", frets:[-1,1,3,0,2,1], fingers:[0,1,3,0,2,1], cats:["minor","colour"], ornaments:[] },
+    { name:"Bbsus2", full:"B♭ suspended 2", frets:[-1,1,3,3,1,1], fingers:[0,1,3,3,1,1], cats:["colour"], ornaments:[] },
+    { name:"Bbsus4", full:"B♭ suspended 4", frets:[-1,1,1,3,4,1], fingers:[0,1,1,3,4,1], cats:["colour"], ornaments:[] },
+    { name:"Bbadd9", full:"B♭ add 9", frets:[-1,1,0,3,1,1], fingers:[0,1,0,3,1,1], cats:["major","colour"], ornaments:[] },
+    { name:"Bbdim7", full:"B♭ diminished 7", frets:[0,1,2,0,2,0], fingers:[0,1,2,0,2,0], cats:["colour"], ornaments:[] },
+    { name:"Bbaug", full:"B♭ augmented", frets:[-1,1,0,3,3,2], fingers:[0,1,0,3,3,2], cats:["colour"], ornaments:[] },
+    { name:"B6", full:"B major 6", frets:[-1,2,1,1,0,2], fingers:[0,2,1,1,0,2], cats:["major","colour"], ornaments:[] },
+    { name:"B", full:"B major", frets:[-1,2,4,4,4,2], fingers:[0,1,3,3,3,1], cats:["major"], ornaments:[] },
+    { name:"Bm", full:"B minor", frets:[-1,2,0,4,0,2], fingers:[0,1,0,3,0,1], cats:["minor"], ornaments:[] },
+    { name:"Bm7", full:"B minor 7", frets:[2,0,0,2,0,2], fingers:[1,0,0,1,0,1], cats:["minor","seventh"], ornaments:[] },
+    { name:"Bmaj7", full:"B major 7", frets:[-1,2,1,3,0,2], fingers:[0,2,1,3,0,2], cats:["seventh"], ornaments:[] },
+    { name:"Bm6", full:"B minor 6", frets:[-1,2,0,1,0,2], fingers:[0,2,0,1,0,2], cats:["minor","colour"], ornaments:[] },
+    { name:"Bsus2", full:"B suspended 2", frets:[2,4,4,4,0,2], fingers:[1,3,3,3,0,1], cats:["colour"], ornaments:[] },
+    { name:"Bsus4", full:"B suspended 4", frets:[-1,-1,4,4,0,0], fingers:[0,0,1,1,0,0], cats:["colour"], ornaments:[] },
+    { name:"Badd9", full:"B add 9", frets:[2,4,4,4,4,2], fingers:[1,3,3,3,3,1], cats:["major","colour"], ornaments:[] },
+    { name:"Bdim7", full:"B diminished 7", frets:[-1,-1,0,1,0,1], fingers:[0,0,0,1,0,1], cats:["colour"], ornaments:[] },
+    { name:"Baug", full:"B augmented", frets:[-1,2,1,0,0,3], fingers:[0,2,1,0,0,3], cats:["colour"], ornaments:[] },
+  ],
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1333,7 +1483,8 @@ function autoOrnaments(chord, tuning){
   const m = chord.name.match(/^([A-G][b#]?)/);
   if(!m || ROOT_PC[m[1]] === undefined) return [];
   const root = ROOT_PC[m[1]];
-  const pcs = new Set(chord.frets.map((f,i) => (tuning.pitches[i] + f) % 12));
+  const pcs = new Set();
+  chord.frets.forEach((f,i) => { if(f >= 0) pcs.add((tuning.pitches[i] + f) % 12); });
   const isMinor = chord.cats.includes("minor");
   const isSus = /sus/.test(chord.name);
   const fretted = chord.frets.filter(f => f > 0);
@@ -1341,6 +1492,7 @@ function autoOrnaments(chord, tuning){
   const base = maxF > 5 ? Math.min(...fretted) : 1;   // renderer's window start
   const cands = [];
   chord.frets.forEach((f,s) => {
+    if(f < 0) return;                                   // muted string — nothing to ornament
     const srcIv = (tuning.pitches[s] + f - root + 120) % 12;
     const srcIsThird = srcIv === 3 || srcIv === 4;
     const targets = [[f+1,"hammer"],[f+2,"hammer"],[f-1,"pull"],[f-2,"pull"]];
@@ -1384,8 +1536,11 @@ function effectiveOrnaments(chord, tuning){
    ALTERNATE VOICINGS — machine-searched when a card is opened
    (same rules + scoring as tools/generate-voicings.mjs, but the
    target tones come from the chord's own voicing, so curated shapes
-   that already omit the fifth stay honest). Up to two alternates,
-   each at least two frets away from positions already shown.
+   that already omit the fifth stay honest). Only frets that sound an
+   in-chord tone are enumerated per string, which keeps six strings
+   tractable; instruments with ≥5 strings may also mute one or two
+   bass strings (guitar style) and prefer the root in the bass.
+   Up to two alternates, each ≥2 frets from positions already shown.
    ═══════════════════════════════════════════════════════════════ */
 const VOICING_CACHE = new Map();
 
@@ -1396,33 +1551,52 @@ function altVoicings(chord, tuning, tuningKey){
   const m = chord.name.match(/^([A-G][b#]?)/);
   const root = m ? ROOT_PC[m[1]] : undefined;
   if(root !== undefined){
-    const chordPCs = [...new Set(chord.frets.map((f,i) => (tuning.pitches[i] + f) % 12))];
+    const chordPCs = [];
+    chord.frets.forEach((f,i) => {
+      if(f < 0) return;
+      const pc = (tuning.pitches[i] + f) % 12;
+      if(!chordPCs.includes(pc)) chordPCs.push(pc);
+    });
     const fifth = (root + 7) % 12;
     const reqPCs = chordPCs.length >= 4 ? chordPCs.filter(p => p !== fifth) : chordPCs;
     const NSTR = tuning.pitches.length, MAXF = 12;
     const primaryKey = chord.frets.join(",");
+    // per-string candidates: only frets that sound an in-chord tone
+    const allowed = tuning.pitches.map(p => {
+      const a = [];
+      for(let f = 0; f <= MAXF; f++) if(chordPCs.includes((p + f) % 12)) a.push(f);
+      return a;
+    });
+    const muteOpts = NSTR >= 5 ? [0,1,2] : [0];
     const cands = [];
-    const frets = new Array(NSTR).fill(0);
-    while(true){
-      const pcs = frets.map((f,i) => (tuning.pitches[i] + f) % 12);
-      if(pcs.every(p => chordPCs.includes(p)) && reqPCs.every(p => pcs.includes(p))){
-        const fretted = frets.filter(f => f > 0);
-        const maxF = Math.max(0, ...fretted);
-        const minF = fretted.length ? Math.min(...fretted) : 0;
-        const span = fretted.length ? maxF - minF : 0;
-        if(span <= 4 && !(maxF > 5 && frets.some(f => f === 0)) && frets.join(",") !== primaryKey){
-          const opens = frets.filter(f => f === 0).length;
-          const distinct = new Set(fretted).size;
-          const has5th = pcs.includes(fifth) || chordPCs.length === 3;
-          const score = span*3 + maxF*1.2 + minF - opens*1.5 + distinct*.7
-                      + (has5th ? 0 : 1.5) + (maxF > 5 ? 3 : 0);
-          cands.push({ frets: frets.slice(), pos: minF, score });
+    for(const mute of muteOpts){
+      const live = NSTR - mute;                         // strings mute..NSTR-1 sound
+      const idx = new Array(live).fill(0);
+      while(true){
+        const frets = new Array(mute).fill(-1)
+          .concat(idx.map((k,j) => allowed[mute + j][k]));
+        const pcs = frets.slice(mute).map((f,j) => (tuning.pitches[mute + j] + f) % 12);
+        if(reqPCs.every(p => pcs.includes(p))){
+          const fretted = frets.filter(f => f > 0);
+          const maxF = Math.max(0, ...fretted);
+          const minF = fretted.length ? Math.min(...fretted) : 0;
+          const span = fretted.length ? maxF - minF : 0;
+          if(span <= 4 && !(maxF > 5 && frets.some(f => f === 0)) && frets.join(",") !== primaryKey){
+            const opens = frets.filter(f => f === 0).length;
+            const distinct = new Set(fretted).size;
+            const has5th = pcs.includes(fifth) || chordPCs.length === 3;
+            const bassRoot = NSTR < 5 || pcs[0] === root;
+            const score = span*3 + maxF*1.2 + minF - opens*1.5 + distinct*.7
+                        + (has5th ? 0 : 1.5) + (maxF > 5 ? 3 : 0)
+                        + mute*1.2 + (bassRoot ? 0 : 2);
+            cands.push({ frets, pos: minF, score });
+          }
         }
+        let i = live - 1;                               // odometer over allowed frets
+        while(i >= 0 && idx[i] === allowed[mute + i].length - 1){ idx[i] = 0; i--; }
+        if(i < 0) break;
+        idx[i]++;
       }
-      let i = NSTR - 1;                                 // odometer over all fret combos
-      while(i >= 0 && frets[i] === MAXF){ frets[i] = 0; i--; }
-      if(i < 0) break;
-      frets[i]++;
     }
     cands.sort((a,b) => a.score - b.score);
     const pFretted = chord.frets.filter(f => f > 0);
@@ -1434,7 +1608,7 @@ function altVoicings(chord, tuning, tuningKey){
       const base = c.pos || 1;
       out.push({
         frets: c.frets,
-        fingers: c.frets.map(f => f === 0 ? 0 : Math.min(4, f - base + 1)),
+        fingers: c.frets.map(f => f <= 0 ? 0 : Math.min(4, f - base + 1)),
       });
     }
   }
@@ -1458,9 +1632,10 @@ function renderChordSVG(chord, tuning, opts = {}){
 
   const NSTR = tuning.strings.length;
   const NFRETS = 5;
-  // side margins exist to hold ornament labels — reclaim them when labels are off
-  const W = showLabels ? 192 : 148, H = 176;
+  // side margins exist to hold ornament labels — reclaim them when labels are off;
+  // width tracks the string count so 6-string diagrams get room
   const LEFT = showLabels ? 48 : 34, TOP = 42, GAP = 27, FRETH = 25;
+  const W = LEFT + GAP * (NSTR - 1) + (showLabels ? 63 : 33), H = 176;
   const sx = i => LEFT + i * GAP;                       // string x
   const fy = f => TOP + f * FRETH;                      // fret-line y
   const dy = f => TOP + (f - 0.5) * FRETH;              // dot y (relative fret)
@@ -1498,9 +1673,11 @@ function renderChordSVG(chord, tuning, opts = {}){
   if(baseFret > 1)
     P.push(`<text x="${LEFT-12}" y="${dy(1)+4}" fill="var(--dim)" font-size="11" text-anchor="middle">${baseFret}</text>`);
 
-  // fingered dots + open markers
+  // fingered dots + open/muted markers
   chord.frets.forEach((f,i) => {
-    if(f === 0){
+    if(f < 0){
+      P.push(`<text x="${sx(i)}" y="${OPENY + 4.5}" fill="var(--dim)" font-size="13" text-anchor="middle">×</text>`);
+    }else if(f === 0){
       P.push(`<circle cx="${sx(i)}" cy="${OPENY}" r="5" fill="none" stroke="var(--cyan)" stroke-width="1.6"/>`);
     }else{
       const y = dy(rel(f));
@@ -1738,7 +1915,7 @@ function filtered(){
   const tuning = TUNINGS[state.tuning];
   return list.filter(c => {
     if(state.cat !== "all" && !c.cats.includes(state.cat)) return false;
-    if(keyPCs && !c.frets.every((f,i) => keyPCs.includes((tuning.pitches[i] + f) % 12))) return false;
+    if(keyPCs && !c.frets.every((f,i) => f < 0 || keyPCs.includes((tuning.pitches[i] + f) % 12))) return false;
     if(q && !normName(c.name).includes(q) && !normName(c.full).includes(q)) return false;
     return true;
   });

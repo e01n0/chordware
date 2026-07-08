@@ -1,15 +1,20 @@
 # CHORDWARE //
 
-Cyberpunk-terminal chord chart reference for **banjolele / ukulele**.
+Cyberpunk-terminal chord chart reference for **banjolele / ukulele / guitar**.
 Single-file PWA — the entire app lives in `index.html` (no build step, no framework).
 
-Three tunings ship with full 145-chord libraries — a hand-curated core (with
+Four tunings ship with full chord libraries — a hand-curated core (with
 hammer-on/pull-off ornament data) plus machine-searched voicings covering all
 12 roots × major, minor, 7, m7, maj7, 6, m6, sus2, sus4, add9, dim7 and aug:
 
 - **gCEA** — standard reentrant uke
 - **DGBE** — baritone uke (top four guitar strings)
 - **DGBD** — open G (banjo); the open strings are a G chord and any straight barre is a major chord
+- **EADGBE** — standard 6-string guitar: the classic open shapes hand-curated (C, D, E, F-barre, G, A, the minors and 7ths, sus and add9), the rest machine-searched with guitar rules — bass strings may be muted (shown as ×) and the root is preferred in the bass
+
+Everything is string-count-agnostic: diagrams, the fretboard map, key filtering,
+auto-ornaments and the voicing search all adapt, so a five-string or alternate
+guitar tuning is just another `TUNINGS` + `CHORD_LIBRARY` entry away.
 
 ## Files
 

@@ -52,42 +52,56 @@ const QUALITIES = {
 };
 const MAXFRET = 9;
 
-function* combos(n, max){
-  const c = new Array(n).fill(0);
-  while(true){
-    yield [...c];
-    let i = n - 1;
-    while(i >= 0 && c[i] === max){ c[i] = 0; i--; }
-    if(i < 0) return;
-    c[i]++;
-  }
-}
-
+/* Voicing search. Only frets that sound an in-chord tone are enumerated
+   per string (equivalent to the old full sweep — out-of-chord frets were
+   always rejected — but it keeps six strings tractable). Instruments
+   with ≥5 strings may also mute one or two bass strings, guitar style,
+   with a scoring preference for keeping the root in the bass. */
 function bestVoicing(tuning, rootPC, q){
   const chordPCs = q.iv.map(x => (x + rootPC) % 12);
   const reqPCs = q.req.map(x => (x + rootPC) % 12);
+  const NSTR = tuning.pitches.length;
+  const allowed = tuning.pitches.map(p => {
+    const a = [];
+    for(let f = 0; f <= MAXFRET; f++) if(chordPCs.includes((p + f) % 12)) a.push(f);
+    return a;
+  });
+  const muteOpts = NSTR >= 5 ? [0,1,2] : [0];
   let best = null, bestScore = Infinity;
-  for(const frets of combos(tuning.pitches.length, MAXFRET)){
-    const pcs = frets.map((f,i) => (tuning.pitches[i] + f) % 12);
-    if(!pcs.every(p => chordPCs.includes(p))) continue;
-    if(!reqPCs.every(p => pcs.includes(p))) continue;
-    const fretted = frets.filter(f => f > 0);
-    const maxF = Math.max(0, ...fretted);
-    const minF = fretted.length ? Math.min(...fretted) : 0;
-    const span = fretted.length ? maxF - minF : 0;
-    if(span > 4) continue;
-    if(maxF > 5 && frets.some(f => f === 0)) continue;
-    const opens = frets.filter(f => f === 0).length;
-    const distinct = new Set(fretted).size;
-    const has5th = pcs.includes((rootPC + 7) % 12) || q.iv.length === 3;
-    const score = span * 3 + maxF * 1.2 + minF - opens * 1.5
-                + distinct * 0.7 + (has5th ? 0 : 1.5) + (maxF > 5 ? 3 : 0);
-    if(score < bestScore){ bestScore = score; best = frets; }
+  for(const mute of muteOpts){
+    const live = NSTR - mute;
+    if(allowed.slice(mute).some(a => !a.length)) continue;
+    const idx = new Array(live).fill(0);
+    while(true){
+      const frets = new Array(mute).fill(-1)
+        .concat(idx.map((k,j) => allowed[mute + j][k]));
+      const pcs = frets.slice(mute).map((f,j) => (tuning.pitches[mute + j] + f) % 12);
+      if(reqPCs.every(p => pcs.includes(p))){
+        const fretted = frets.filter(f => f > 0);
+        const maxF = Math.max(0, ...fretted);
+        const minF = fretted.length ? Math.min(...fretted) : 0;
+        const span = fretted.length ? maxF - minF : 0;
+        if(span <= 4 && !(maxF > 5 && frets.some(f => f === 0))){
+          const opens = frets.filter(f => f === 0).length;
+          const distinct = new Set(fretted).size;
+          const has5th = pcs.includes((rootPC + 7) % 12) || q.iv.length === 3;
+          const bassRoot = NSTR < 5 || pcs[0] === rootPC;
+          const score = span * 3 + maxF * 1.2 + minF - opens * 1.5
+                      + distinct * 0.7 + (has5th ? 0 : 1.5) + (maxF > 5 ? 3 : 0)
+                      + mute * 1.2 + (bassRoot ? 0 : 2);
+          if(score < bestScore){ bestScore = score; best = frets; }
+        }
+      }
+      let i = live - 1;
+      while(i >= 0 && idx[i] === allowed[mute + i].length - 1){ idx[i] = 0; i--; }
+      if(i < 0) break;
+      idx[i]++;
+    }
   }
   if(!best) return null;
   const fretted = best.filter(f => f > 0);
-  const minF = Math.min(...fretted);
-  const fingers = best.map(f => f === 0 ? 0 : Math.min(4, f - minF + 1));
+  const minF = fretted.length ? Math.min(...fretted) : 1;
+  const fingers = best.map(f => f <= 0 ? 0 : Math.min(4, f - minF + 1));
   return { frets: best, fingers };
 }
 
