@@ -674,11 +674,11 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
    Add a matching key to CHORD_LIBRARY and it appears in the picker.
    ═══════════════════════════════════════════════════════════════ */
 const TUNINGS = {
-  gCEA:   { label: "gCEA · reentrant", strings: ["g","C","E","A"], pitches: [7,0,4,9] },
-  DGBE:   { label: "DGBE · baritone",  strings: ["D","G","B","E"], pitches: [2,7,11,4] },
-  DGBD:   { label: "DGBD · open G",    strings: ["D","G","B","D"], pitches: [2,7,11,2] },
-  EADGBE: { label: "EADGBE · guitar",  strings: ["E","A","D","G","B","e"], pitches: [4,9,2,7,11,4] },
-  // aDFsB:{ label: "aDF#B · D-tuning", strings: ["a","D","F#","B"], pitches: [9,2,6,11] },
+  gCEA:   { label: "gCEA · uke standard",  group: "UKULELE · BANJOLELE", strings: ["g","C","E","A"], pitches: [7,0,4,9] },
+  DGBE:   { label: "DGBE · uke baritone",  group: "UKULELE · BANJOLELE", strings: ["D","G","B","E"], pitches: [2,7,11,4] },
+  DGBD:   { label: "DGBD · banjo open G",  group: "UKULELE · BANJOLELE", strings: ["D","G","B","D"], pitches: [2,7,11,2] },
+  EADGBE: { label: "EADGBE · guitar",      group: "GUITAR",              strings: ["E","A","D","G","B","e"], pitches: [4,9,2,7,11,4] },
+  // aDFsB:{ label: "aDF#B · D-tuning", group: "UKULELE · BANJOLELE", strings: ["a","D","F#","B"], pitches: [9,2,6,11] },
 };
 
 const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -2069,12 +2069,25 @@ function closeModal(){
 
 /* ── wire up controls ─────────────────────────────────────────── */
 const tuningSel = $("#tuning");
-Object.keys(TUNINGS).forEach(k => {
-  if(!CHORD_LIBRARY[k]) return;
-  const opt = document.createElement("option");
-  opt.value = k; opt.textContent = TUNINGS[k].label;
-  tuningSel.appendChild(opt);
-});
+{ // tunings grouped by instrument in the dropdown
+  const groups = new Map();
+  Object.keys(TUNINGS).forEach(k => {
+    if(!CHORD_LIBRARY[k]) return;
+    const g = TUNINGS[k].group || "OTHER";
+    if(!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(k);
+  });
+  for(const [g, keys] of groups){
+    const og = document.createElement("optgroup");
+    og.label = g;
+    keys.forEach(k => {
+      const opt = document.createElement("option");
+      opt.value = k; opt.textContent = TUNINGS[k].label;
+      og.appendChild(opt);
+    });
+    tuningSel.appendChild(og);
+  }
+}
 tuningSel.value = state.tuning;
 tuningSel.addEventListener("change", () => { state.tuning = tuningSel.value; state.page = 0; render(); });
 
