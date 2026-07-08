@@ -369,8 +369,8 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
   }
   #mapclose:active{ background:var(--red); color:var(--ink); }
   .maprow{ display:flex; gap:8px; margin-bottom:10px; }
-  #mapKey{
-    flex:1; min-height:44px; max-width:280px;
+  #mapKey, #mapScale, #styGenre, #styKey{
+    flex:1; min-width:0; min-height:44px; max-width:280px;
     background:var(--bg2); color:var(--yellow);
     border:1px solid var(--line2); border-radius:0;
     font-family:var(--font-m); font-size:13px; padding:0 8px;
@@ -389,6 +389,45 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
     margin-right:6px; vertical-align:-2px;
   }
   .maplegend b.hollow{ background:transparent !important; border:2px solid var(--red); }
+
+  /* ── styles overlay (progressions per genre + key) ────────────── */
+  #styleov{
+    position:fixed; inset:0; z-index:8100;
+    background:var(--overlay); display:none; overflow-y:auto;
+    padding:calc(14px + env(safe-area-inset-top, 0px)) 14px calc(20px + env(safe-area-inset-bottom));
+  }
+  #styleov.open{ display:block; }
+  #styclose{
+    min-width:48px; min-height:48px; flex:0 0 auto;
+    background:transparent; color:var(--red); border:1px solid var(--red);
+    font-family:var(--font-m); font-size:20px; cursor:pointer;
+  }
+  #styclose:active{ background:var(--red); color:var(--ink); }
+  .styblurb{
+    color:var(--text); font-size:12px; line-height:1.6; letter-spacing:.03em;
+    border-left:3px solid var(--yellow); padding:4px 10px; margin-bottom:10px;
+  }
+  #styscale{ color:var(--yellow); }
+  .prog{ margin-top:12px; border:1px solid var(--line); background:var(--panel); padding:10px 12px; }
+  .prog h3{
+    font-family:var(--font-h); font-size:14px; font-weight:700;
+    letter-spacing:.18em; color:var(--cyan); text-transform:uppercase; margin-bottom:6px;
+  }
+  .progline{
+    font-family:var(--font-m); color:var(--yellow); font-size:14px;
+    letter-spacing:.04em; line-height:1.8; margin-bottom:8px; overflow-wrap:anywhere;
+  }
+  .progline i{ font-style:normal; color:var(--dim); font-size:11px; }
+  .progbtns{ display:flex; gap:8px; }
+  .progbtns button{
+    flex:1; min-height:44px;
+    background:transparent; border:1px solid var(--cyan); color:var(--cyan);
+    font-family:var(--font-h); font-weight:600; font-size:13px; letter-spacing:.12em;
+    text-transform:uppercase; cursor:pointer;
+  }
+  .progbtns button.play{ border-color:var(--yellow); color:var(--yellow); }
+  .progbtns button:active{ background:var(--cyan); color:var(--ink); }
+  .progbtns button.play:active{ background:var(--yellow); color:var(--ink); }
 
   /* ── song editor overlay ──────────────────────────────────────── */
   #songEd{
@@ -727,6 +766,7 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
     </div>
     <div class="maprow">
       <select id="mapKey" aria-label="Map key"></select>
+      <select id="mapScale" aria-label="Map scale"></select>
     </div>
     <div class="mapscroll" id="mapdiag"></div>
     <div class="maplegend">
@@ -734,6 +774,31 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
       <span><b style="background:var(--cyan)"></b>CHORD TONE · 3RD / 5TH</span>
       <span><b class="hollow"></b>COLOUR TONE · 2·4·6·7</span>
     </div>
+  </div>
+</div>
+
+<div id="styleov" role="dialog" aria-modal="true" aria-label="Styles and progressions">
+  <div class="mapwrap">
+    <div class="maphead">
+      <div>
+        <h2 style="color:var(--yellow)">STYLES://</h2>
+        <div class="mfull" id="stytun"></div>
+      </div>
+      <button id="styclose" aria-label="Close">✕</button>
+    </div>
+    <div class="maprow">
+      <select id="styGenre" aria-label="Style"></select>
+      <select id="styKey" aria-label="Key"></select>
+    </div>
+    <div class="styblurb" id="styblurb"></div>
+    <div class="mapscroll" id="stymap"></div>
+    <div class="maplegend">
+      <span><b style="background:var(--yellow)"></b>ROOT</span>
+      <span><b style="background:var(--cyan)"></b>CHORD TONE</span>
+      <span><b class="hollow"></b>COLOUR</span>
+      <span id="styscale"></span>
+    </div>
+    <div id="styprogs"></div>
   </div>
 </div>
 
@@ -1976,10 +2041,8 @@ function fretMapNote(P, x, y, pc, rootPC, midi){
   P.push(`</g>`);
 }
 
-function renderFretMap(tuningKey, keyName, vertical){
+function renderFretMap(tuningKey, rootPC, scale, vertical){
   const tuning = TUNINGS[tuningKey];
-  const scale = KEYS[keyName];
-  const rootPC = NOTE_NAMES.indexOf(keyName.split(" ")[0]);
   const NFRETS = 12, NSTR = tuning.strings.length;
   const P = [];
 
@@ -2121,6 +2184,67 @@ function transposeChordName(name, n){
 function transposeLyrics(text, n){
   return text.replace(/\[([^\]\r\n]{1,12})\]/g, (m, tag) =>
     isChordTag(tag) ? "[" + transposeChordName(tag, n) + "]" : m);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCALES + STYLES — genre material: the scale that fits the style
+   (drawn on the fretboard map) and its standard progressions,
+   authored as roman-numeral degrees and resolved to real chords in
+   whatever key is picked (lowercase = minor, b = flattened degree,
+   trailing text = chord suffix: I7 → C7, i7 → Cm7, bVII → Bb).
+   ═══════════════════════════════════════════════════════════════ */
+const SCALES = {
+  auto:    { label: "KEY SCALE" },                               // whatever the key select says
+  majpent: { label: "MAJOR PENTATONIC",  iv: [0,2,4,7,9] },
+  country: { label: "COUNTRY · MAJ PENT + ♭3", iv: [0,2,3,4,7,9] },
+  minpent: { label: "MINOR PENTATONIC",  iv: [0,3,5,7,10] },
+  blues:   { label: "BLUES · MIN PENT + ♭5", iv: [0,3,5,6,7,10] },
+  major:   { label: "MAJOR",             iv: [0,2,4,5,7,9,11] },
+};
+
+const STYLES = {
+  blues: {
+    label: "BLUES", scale: "blues",
+    blurb: "Dominant 7ths everywhere — even the I chord. Colour with 9ths, and lean on the ♭5 blue note in the scale below.",
+    progs: [
+      { name: "12-Bar Blues",         deg: ["I7","I7","I7","I7","IV7","IV7","I7","I7","V7","IV7","I7","V7"] },
+      { name: "Quick-Change 12-Bar",  deg: ["I7","IV7","I7","I7","IV7","IV7","I7","I7","V7","IV7","I7","V7"] },
+      { name: "8-Bar Blues",          deg: ["I7","V7","IV7","IV7","I7","V7","I7","V7"] },
+      { name: "Minor Blues",          deg: ["i7","i7","i7","i7","iv7","iv7","i7","i7","bVI7","V7","i7","V7"] },
+    ],
+  },
+  country: {
+    label: "COUNTRY", scale: "country",
+    blurb: "Majors and dom-7ths, sus4 hammer-ons, and the ♭3→3 slur that makes it twang. The waltz is 3/4 — count in threes.",
+    progs: [
+      { name: "Country Standard",     deg: ["I","IV","I","V7"] },
+      { name: "12-Bar Country",       deg: ["I","I","I","I","IV","IV","I","I","V7","V7","I","I"] },
+      { name: "Country Ballad",       deg: ["I","vi","IV","V7"] },
+      { name: "Country Waltz",        deg: ["I","I","V7","V7","V7","V7","I","I"] },
+      { name: "Outlaw · Modal",       deg: ["I","bVII","IV","I"] },
+    ],
+  },
+  folk: {
+    label: "FOLK", scale: "major",
+    blurb: "Open triads with add9 / sus colour tones; the melody lives in the plain major scale.",
+    progs: [
+      { name: "Campfire",             deg: ["I","V","vi","IV"] },
+      { name: "Folk Standard",        deg: ["I","IV","I","V"] },
+      { name: "50s Progression",      deg: ["I","vi","IV","V"] },
+      { name: "Minor Folk · Andalusian", deg: ["i","bVII","bVI","V7"] },
+      { name: "Wagon Wheel",          deg: ["I","V","vi","IV","I","V","IV","IV"] },
+    ],
+  },
+};
+
+function degreeChord(tok, keyPC){
+  const m = tok.match(/^(b?)([iIvV]+)(.*)$/);
+  if(!m) return tok;
+  const idx = { i:0, ii:1, iii:2, iv:3, v:4, vi:5, vii:6 }[m[2].toLowerCase()];
+  if(idx === undefined) return tok;
+  const minor = m[2] === m[2].toLowerCase();
+  const pc = (keyPC + [0,2,4,5,7,9,11][idx] + (m[1] ? -1 : 0) + 12) % 12;
+  return SPELL[pc] + (minor ? "m" : "") + m[3];
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -2382,10 +2506,12 @@ tuningSel.addEventListener("change", () => { state.tuning = tuningSel.value; sta
 
 $("#chips").innerHTML = CATS.map(c =>
   `<button class="chip${c.id === state.cat ? " on" : ""}" data-cat="${c.id}">${c.label}</button>`).join("") +
+  `<button class="chip act" id="styChip" title="Blues / country / folk — standard progressions + genre scale maps">Styles</button>` +
   `<button class="chip act" id="mapChip" title="Fretboard map — every in-key note on the neck">Map</button>` +
   `<button class="chip act" id="tunChip" title="Tune up — mic pitch detection">Tuner</button>`;
 $("#chips").addEventListener("click", e => {
   const b = e.target.closest(".chip"); if(!b) return;
+  if(b.id === "styChip"){ openStyles(); return; }
   if(b.id === "mapChip"){ openMap(); return; }
   if(b.id === "tunChip"){ openTuner(); return; }
   state.cat = b.dataset.cat; state.page = 0;
@@ -2611,16 +2737,26 @@ mapKeySel.innerHTML =
   `<optgroup label="MINOR">${NOTE_NAMES.map(n => `<option value="${n} minor">KEY:// ${n} minor</option>`).join("")}</optgroup>`;
 mapKeySel.value = "C major";
 
+const mapScaleSel = $("#mapScale");
+mapScaleSel.innerHTML = Object.keys(SCALES).map(k =>
+  `<option value="${k}">SCALE:// ${SCALES[k].label}</option>`).join("");
+
 const mapPortrait = matchMedia("(orientation: portrait)");
 function drawMap(){
   const vertical = mapPortrait.matches;
+  const keyName = mapKeySel.value;
+  const rootPC = NOTE_NAMES.indexOf(keyName.split(" ")[0]);
+  const sc = mapScaleSel.value;
+  const scale = sc === "auto" ? KEYS[keyName] : SCALES[sc].iv.map(x => (x + rootPC) % 12);
   $("#mapdiag").classList.toggle("vert", vertical);
-  $("#mapdiag").innerHTML = renderFretMap(state.tuning, mapKeySel.value, vertical);
+  $("#mapdiag").innerHTML = renderFretMap(state.tuning, rootPC, scale, vertical);
   $("#maptun").textContent = TUNINGS[state.tuning].label + "  ·  FRETS 0–12";
 }
 mapPortrait.addEventListener("change", () => {
   if($("#mapov").classList.contains("open")) drawMap();
+  if($("#styleov").classList.contains("open")) drawStyles();
 });
+mapScaleSel.addEventListener("change", drawMap);
 function openMap(){
   if(state.key !== "all") mapKeySel.value = state.key;
   drawMap();
@@ -2637,6 +2773,64 @@ $("#mapov").addEventListener("click", e => { if(e.target === e.currentTarget) cl
 $("#mapdiag").addEventListener("click", e => {          // tap a note to hear it
   const g = e.target.closest("[data-midi]");
   if(g) pluck(+g.dataset.midi, 0, .32);
+});
+
+/* ── styles: genre progressions + genre scale maps ────────────── */
+$("#styGenre").innerHTML = Object.keys(STYLES).map(k =>
+  `<option value="${k}">STYLE:// ${STYLES[k].label}</option>`).join("");
+$("#styKey").innerHTML = SPELL.map((n, i) =>
+  `<option value="${i}">KEY:// ${n}</option>`).join("");
+$("#styKey").value = "7";                               // G — home key of most campfires
+
+function drawStyles(){
+  const g = STYLES[$("#styGenre").value];
+  const keyPC = +$("#styKey").value;
+  const scale = SCALES[g.scale].iv.map(x => (x + keyPC) % 12);
+  const vertical = mapPortrait.matches;
+  $("#stytun").textContent = TUNINGS[state.tuning].label + "  ·  FRETS 0–12";
+  $("#styblurb").textContent = g.blurb;
+  $("#styscale").textContent = "· " + SCALES[g.scale].label + " SCALE";
+  $("#stymap").classList.toggle("vert", vertical);
+  $("#stymap").innerHTML = renderFretMap(state.tuning, keyPC, scale, vertical);
+  $("#styprogs").innerHTML = g.progs.map(p => {
+    const chords = p.deg.map(d => degreeChord(d, keyPC));
+    return `<div class="prog">
+      <h3>// ${p.name}</h3>
+      <div class="progline">${chords.map((c, i) => `${c} <i>${p.deg[i]}</i>`).join(" · ")}</div>
+      <div class="progbtns">
+        <button data-chords="${chords.join(" ")}">Load Grid</button>
+        <button class="play" data-chords="${chords.join(" ")}" data-play="1">▶ Play</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+function openStyles(){
+  drawStyles();
+  $("#styleov").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+function closeStyles(){
+  $("#styleov").classList.remove("open");
+  document.body.style.overflow = "";
+}
+$("#styGenre").addEventListener("change", drawStyles);
+$("#styKey").addEventListener("change", drawStyles);
+$("#styclose").addEventListener("click", closeStyles);
+$("#styleov").addEventListener("click", e => { if(e.target === e.currentTarget) closeStyles(); });
+$("#stymap").addEventListener("click", e => {
+  const g = e.target.closest("[data-midi]");
+  if(g) pluck(+g.dataset.midi, 0, .32);
+});
+$("#styprogs").addEventListener("click", e => {
+  const b = e.target.closest("[data-chords]"); if(!b) return;
+  state.song = ""; state.setlist = "";
+  state.query = b.dataset.chords;                       // full bar sequence — perf steps the form
+  $("#search").value = state.query;
+  state.page = 0;
+  closeStyles();
+  refreshSongSel();
+  render();
+  if(b.dataset.play) openPerf();
 });
 
 /* ── performance view — big chord + lyric autoscroll, for playing live.
@@ -3096,6 +3290,7 @@ document.addEventListener("keydown", e => {
     if($("#tuner").classList.contains("open")) return closeTuner();
     if($("#setEd").classList.contains("open")) return closeSetEditor();
     if($("#songEd").classList.contains("open")) return closeSongEditor();
+    if($("#styleov").classList.contains("open")) return closeStyles();
     if($("#mapov").classList.contains("open")) return closeMap();
     return closeModal();
   }
@@ -3112,7 +3307,8 @@ document.addEventListener("keydown", e => {
     return;
   }
   if($("#songEd").classList.contains("open") || $("#setEd").classList.contains("open") ||
-     $("#tuner").classList.contains("open") || $("#mapov").classList.contains("open")) return;
+     $("#tuner").classList.contains("open") || $("#mapov").classList.contains("open") ||
+     $("#styleov").classList.contains("open")) return;
   if(e.key === "ArrowLeft"  && state.page > 0){ state.page--; render(); }
   if(e.key === "ArrowRight"){ const pages = Math.ceil(filtered().length / PAGE_SIZE); if(state.page < pages - 1){ state.page++; render(); } }
 });
