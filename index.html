@@ -2165,9 +2165,15 @@ function tabToTags(text){
 
 $("#seLyrics").addEventListener("paste", () => {
   setTimeout(() => {                            // run after the paste lands
-    const r = tabToTags($("#seLyrics").value);
+    const el = $("#seLyrics");
+    if(/^https?:\/\/\S+$/.test(el.value.trim())){
+      // no server, and browsers block cross-site reads — a URL can't be fetched
+      toast("CAN'T FETCH URLS — COPY THE SONG TEXT ITSELF");
+      return;
+    }
+    const r = tabToTags(el.value);
     if(r.converted){
-      $("#seLyrics").value = r.text;
+      el.value = r.text;
       toast("TAB FORMAT → INLINE TAGS · " + r.converted + " LINES");
     }
   }, 0);
