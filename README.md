@@ -26,8 +26,11 @@ hammer-on/pull-off ornament data) plus machine-searched voicings covering all
 - **Ornament overlay** — hammer-ons (red filled dots) and pull-offs (red hollow dots, red O for open-string targets) with connecting arcs. The toggle cycles **OFF → dots/arcs → dots/arcs + colour-tone labels** (`H: sus4`, `P: maj7`, …); the fullscreen view always shows labels. Chords without hand-curated ornament data get **auto-derived** ornaments computed from the voicing (marked as such in the fullscreen view) — a hand-written `ornaments` array always wins
 - **Search + category chips** — Major / Minor / 7th / Colour (sus, add9, 6ths, dim7, aug)
 - **Key filter** — pick a key and only chords whose voicings sit inside that scale remain (computed from the actual frets, so your own chords are key-filtered automatically)
-- **Songs** — type a space-separated chord list (`Am F C G`) to see exactly those chords in order, then **SAVE** it as a named song (persisted in localStorage); reload it any time from the SONG selector
-- **Fullscreen detail view** — tap any card for a large diagram and prose descriptions of every ornament
+- **Fretboard map** — the MAP chip opens the whole neck (frets 0–12) with every in-key note plotted and coloured by degree: root (yellow), chord tones 3rd/5th (cyan), colour tones 2·4·6·7 (red outline). Same pitch math as the key filter, so it tracks the selected tuning
+- **Songs with lyrics** — SAVE opens a song editor: a chord list (`Am F C G`) plus optional lyrics with inline `[Am]` chord tags; everything persists in localStorage and legacy chord-list-only songs still load
+- **Performance mode** — ▶ goes fullscreen for playing live: current chord huge with its diagram, next chord on deck, and if the lyrics carry `[Chord]` tags the words scroll with you, highlighting the active change. Advance by tapping the chord, arrow keys, space or PageDown — so Bluetooth page-turner pedals just work. Keeps the screen awake (Wake Lock) while you play
+- **Fullscreen detail view** — tap any card for a large diagram and prose descriptions of every ornament, plus a **voicing pager**: up to two alternate shapes per chord, machine-searched on the spot at positions at least two frets from the shapes already shown (◄ ► buttons, arrow keys or swipe; alternates get auto-derived ornaments)
+- **Colour schemes** — the SKIN button cycles Night City (default), Amber Term, Phosphor, Synthwave and Field Mode (high-contrast light, for playing in the sun). Pure CSS-variable swaps — even the SVG diagrams re-theme — and the choice persists
 - **Offline PWA** — installable, works with no connection once loaded
 
 ## Extending the chord library

@@ -25,7 +25,9 @@ const PATH = fileURLToPath(new URL('../index.html', import.meta.url));
 const WRITE = process.argv.includes('--write');
 
 const html = fs.readFileSync(PATH, 'utf8');
-const js = html.match(/<script>([\s\S]*)<\/script>/)[1];
+// several <script> blocks exist (theme restore in <head>, the app) — the app is the longest
+const js = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)]
+  .map(m => m[1]).sort((a, b) => b.length - a.length)[0];
 const head = js.slice(0, js.lastIndexOf('/*', js.indexOf('APP STATE')));
 const ctx = {};
 new Function('x', head + '; x.TUNINGS = TUNINGS; x.LIB = CHORD_LIBRARY;')(ctx);

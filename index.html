@@ -9,6 +9,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="CHORDWARE // banjolele chord chart terminal — reentrant gCEA, hammer-on & pull-off ornament overlays">
 <title>CHORDWARE // gCEA</title>
+<script>/* restore saved colour scheme before first paint */
+try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentElement.dataset.theme = _t; }catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -24,8 +26,44 @@
     --red:     #ff003c;
     --dim:     #5a7a86;
     --text:    #c8e5ec;
+    --ink:     #0a0a12;                 /* text on accent-filled surfaces */
+    --overlay: rgba(6,6,12,.97);
+    --scan:    rgba(0,0,0,.14);
+    --vig:     rgba(0,0,0,.35);
     --font-h:  'Rajdhani', 'Arial Narrow', sans-serif;
     --font-m:  'Share Tech Mono', 'Courier New', monospace;
+  }
+
+  /* ── colour schemes ── every component AND the SVG renderer read the
+     variables above, so a skin is nothing but an override block ──── */
+  html[data-theme="amber"]{
+    --bg:#0c0700; --bg2:#150e02; --panel:#120c02;
+    --line:#3a2c10; --line2:#5c471d;
+    --yellow:#ffb000; --cyan:#ffd35c; --red:#ff3b1f;
+    --dim:#8a6a3a; --text:#f0d9a8; --ink:#0c0700;
+    --overlay:rgba(10,7,0,.97);
+  }
+  html[data-theme="green"]{
+    --bg:#030a05; --bg2:#07140a; --panel:#061108;
+    --line:#10331c; --line2:#1c5230;
+    --yellow:#3aff6e; --cyan:#b8ffd0; --red:#ff4d6d;
+    --dim:#4d7a58; --text:#bdf0c9; --ink:#030a05;
+    --overlay:rgba(2,8,4,.97);
+  }
+  html[data-theme="synth"]{
+    --bg:#140522; --bg2:#1d0a33; --panel:#190830;
+    --line:#341450; --line2:#4d2173;
+    --yellow:#ff2ec4; --cyan:#00f0ff; --red:#fcee0a;
+    --dim:#8a6aa0; --text:#ecd9f7; --ink:#140522;
+    --overlay:rgba(16,4,28,.97);
+  }
+  html[data-theme="paper"]{ /* FIELD MODE — high contrast for daylight */
+    --bg:#f2efe4; --bg2:#e9e5d4; --panel:#edeada;
+    --line:#cfc8b0; --line2:#a89f83;
+    --yellow:#8a6400; --cyan:#00646e; --red:#b8003a;
+    --dim:#8c8672; --text:#26251d; --ink:#f7f4e9;
+    --overlay:rgba(242,239,228,.98);
+    --scan:rgba(60,50,20,.05); --vig:rgba(60,50,20,.10);
   }
   *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
   html,body{ height:100%; }
@@ -43,27 +81,28 @@
     position:fixed; inset:0; z-index:9000; pointer-events:none;
     background:
       repeating-linear-gradient(0deg,
-        rgba(0,0,0,0)   0px,
-        rgba(0,0,0,0)   2px,
-        rgba(0,0,0,.14) 3px,
-        rgba(0,0,0,0)   4px);
+        rgba(0,0,0,0) 0px,
+        rgba(0,0,0,0) 2px,
+        var(--scan)   3px,
+        rgba(0,0,0,0) 4px);
     mix-blend-mode:multiply;
   }
   body::before{
     content:"";
     position:fixed; inset:0; z-index:9001; pointer-events:none;
-    background:radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,.35) 100%);
+    background:radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, var(--vig) 100%);
   }
 
   /* ── header ───────────────────────────────────────────────── */
   header{
     position:sticky; top:0; z-index:100;
-    background:linear-gradient(180deg, #0a0a12 82%, rgba(10,10,18,0));
+    background:linear-gradient(180deg, var(--bg) 82%, transparent);
     /* keep clear of the iPhone notch / Dynamic Island in standalone PWA mode */
     padding:calc(10px + env(safe-area-inset-top, 0px)) 14px 4px;
   }
   .hbar{
-    display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+    display:flex; align-items:baseline; justify-content:space-between; gap:4px 10px;
+    flex-wrap:wrap;   /* tuning/theme row drops below the title on narrow phones */
     border-bottom:1px solid var(--yellow);
     padding-bottom:6px;
     position:relative;
@@ -91,7 +130,7 @@
   @keyframes gl2{ 0%,89%{transform:none;opacity:0} 90%{transform:translate(3px,1px);opacity:.9}
                   93%{transform:translate(-2px,-1px);opacity:.8} 95%,100%{transform:none;opacity:0} }
   .sub{
-    display:flex; align-items:center; gap:8px;
+    display:flex; align-items:center; gap:8px; margin-left:auto;
     color:var(--dim); font-size:11px; letter-spacing:.12em; white-space:nowrap;
   }
   select#tuning{
@@ -105,14 +144,14 @@
   .controls{ padding:8px 14px 2px; display:flex; flex-direction:column; gap:8px; }
   .row1{ display:flex; gap:8px; }
   #search{
-    flex:1; min-height:44px;
+    flex:1; min-width:0; min-height:44px;
     background:var(--bg2); color:var(--yellow);
     border:1px solid var(--line2);
     font-family:var(--font-m); font-size:15px; letter-spacing:.08em;
     padding:0 12px; outline:none;
   }
   #search::placeholder{ color:var(--dim); }
-  #search:focus{ border-color:var(--cyan); box-shadow:0 0 8px rgba(0,240,255,.35); }
+  #search:focus{ border-color:var(--cyan); box-shadow:0 0 8px color-mix(in srgb, var(--cyan) 35%, transparent); }
   #ornToggle{
     min-height:44px; padding:0 14px;
     background:var(--bg2); color:var(--red);
@@ -121,8 +160,8 @@
     cursor:pointer; white-space:nowrap; text-transform:uppercase;
   }
   #ornToggle.on{
-    background:var(--red); color:#0a0a12;
-    box-shadow:0 0 12px rgba(255,0,60,.55);
+    background:var(--red); color:var(--ink);
+    box-shadow:0 0 12px color-mix(in srgb, var(--red) 55%, transparent);
   }
   .chips{ display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; }
   .chips::-webkit-scrollbar{ display:none; }
@@ -134,9 +173,10 @@
     cursor:pointer; text-transform:uppercase;
   }
   .chip.on{
-    background:var(--cyan); color:#0a0a12; border-color:var(--cyan);
-    box-shadow:0 0 10px rgba(0,240,255,.5);
+    background:var(--cyan); color:var(--ink); border-color:var(--cyan);
+    box-shadow:0 0 10px color-mix(in srgb, var(--cyan) 50%, transparent);
   }
+  .chip.act{ color:var(--yellow); border-color:var(--yellow); }
   .row2{ display:flex; gap:8px; }
   .row2 select{
     flex:1; min-width:0; min-height:44px;
@@ -144,15 +184,17 @@
     border:1px solid var(--line2); border-radius:0;
     font-family:var(--font-m); font-size:13px; padding:0 8px;
   }
-  #saveSong, #delSong{
+  #saveSong, #delSong, #perfBtn{
     min-height:44px; padding:0 14px; flex:0 0 auto;
     background:transparent; border:1px solid var(--cyan); color:var(--cyan);
     font-family:var(--font-h); font-weight:600; font-size:13px; letter-spacing:.1em;
     text-transform:uppercase; cursor:pointer;
   }
-  #saveSong:active{ background:var(--cyan); color:#0a0a12; }
+  #saveSong:active{ background:var(--cyan); color:var(--ink); }
   #delSong{ border-color:var(--red); color:var(--red); }
-  #delSong:active{ background:var(--red); color:#0a0a12; }
+  #delSong:active{ background:var(--red); color:var(--ink); }
+  #perfBtn{ border-color:var(--yellow); color:var(--yellow); }
+  #perfBtn:active{ background:var(--yellow); color:var(--ink); }
 
   /* ── chord grid ───────────────────────────────────────────── */
   main{ padding:10px 14px 96px; max-width:1100px; margin:0 auto; }
@@ -173,7 +215,7 @@
   }
   .card:hover, .card:active{
     border-color:var(--yellow);
-    box-shadow:0 0 14px rgba(252,238,10,.22);
+    box-shadow:0 0 14px color-mix(in srgb, var(--yellow) 22%, transparent);
   }
   .card::before{
     content:""; position:absolute; left:-1px; top:-1px;
@@ -195,7 +237,7 @@
     padding:48px 0; letter-spacing:.15em; font-size:13px;
   }
   .buildline{
-    text-align:center; color:#2b2e3e; font-size:10px;
+    text-align:center; color:var(--dim); opacity:.5; font-size:10px;
     letter-spacing:.25em; padding:14px 0 0; user-select:all;
   }
 
@@ -204,7 +246,7 @@
     position:fixed; left:0; right:0; bottom:0; z-index:90;
     display:flex; align-items:center; justify-content:space-between; gap:8px;
     padding:10px 14px calc(10px + env(safe-area-inset-bottom));
-    background:linear-gradient(0deg, #0a0a12 78%, rgba(10,10,18,0));
+    background:linear-gradient(0deg, var(--bg) 78%, transparent);
   }
   .pager button{
     min-height:48px; min-width:96px;
@@ -214,16 +256,16 @@
     cursor:pointer; text-transform:uppercase;
   }
   .pager button:disabled{ opacity:.25; cursor:default; }
-  .pager button:not(:disabled):active{ background:var(--yellow); color:#0a0a12; }
+  .pager button:not(:disabled):active{ background:var(--yellow); color:var(--ink); }
   #pageInfo{
     color:var(--cyan); font-size:13px; letter-spacing:.2em; text-align:center;
-    text-shadow:0 0 8px rgba(0,240,255,.6);
+    text-shadow:0 0 8px color-mix(in srgb, var(--cyan) 60%, transparent);
   }
 
   /* ── fullscreen modal ─────────────────────────────────────── */
   #modal{
     position:fixed; inset:0; z-index:8000;
-    background:rgba(6,6,12,.97);
+    background:var(--overlay);
     display:none; overflow-y:auto;
     padding:calc(14px + env(safe-area-inset-top, 0px)) 14px calc(20px + env(safe-area-inset-bottom));
   }
@@ -244,7 +286,7 @@
     background:transparent; color:var(--red); border:1px solid var(--red);
     font-family:var(--font-m); font-size:20px; cursor:pointer;
   }
-  #mclose:active{ background:var(--red); color:#0a0a12; }
+  #mclose:active{ background:var(--red); color:var(--ink); }
   .mdiag svg{ display:block; width:100%; max-width:420px; height:auto; margin:0 auto; }
   .msec{
     margin-top:14px; border:1px solid var(--line);
@@ -258,21 +300,217 @@
   .msec h3.cy{ color:var(--cyan); }
   .orn-line{
     display:flex; gap:10px; align-items:baseline;
-    padding:7px 0; border-top:1px dashed #23232f; font-size:13px; line-height:1.45;
+    padding:7px 0; border-top:1px dashed var(--line); font-size:13px; line-height:1.45;
   }
   .orn-line:first-of-type{ border-top:none; }
   .orn-badge{
     flex:0 0 auto; font-family:var(--font-h); font-weight:700; font-size:11px;
     letter-spacing:.1em; padding:2px 7px; border:1px solid var(--red); color:var(--red);
   }
-  .orn-badge.h{ background:var(--red); color:#0a0a12; }
+  .orn-badge.h{ background:var(--red); color:var(--ink); }
   .orn-none{ color:var(--dim); font-size:12px; letter-spacing:.1em; }
   .mnotes{ color:var(--text); font-size:13px; line-height:1.5; }
-  .kbd-hint{ text-align:center; color:#333644; font-size:10px; letter-spacing:.2em; margin-top:18px; }
+  .kbd-hint{ text-align:center; color:var(--dim); opacity:.6; font-size:10px; letter-spacing:.2em; margin-top:18px; }
+
+  /* ── voicing pager (inside fullscreen modal) ─────────────────── */
+  .vbar{ display:flex; align-items:center; justify-content:center; gap:10px; margin-top:8px; }
+  .vbar button{
+    min-width:48px; min-height:44px;
+    background:var(--bg2); color:var(--cyan); border:1px solid var(--line2);
+    font-family:var(--font-m); font-size:15px; cursor:pointer;
+  }
+  .vbar button:disabled{ opacity:.25; cursor:default; }
+  .vbar button:not(:disabled):active{ background:var(--cyan); color:var(--ink); }
+  #vinfo{
+    color:var(--cyan); font-size:11px; letter-spacing:.16em;
+    min-width:170px; text-align:center; text-transform:uppercase;
+  }
+
+  /* ── theme cycler + toast ─────────────────────────────────────── */
+  #themeBtn{
+    min-height:32px; padding:0 9px;
+    background:var(--bg2); color:var(--yellow);
+    border:1px solid var(--line2); cursor:pointer;
+    font-family:var(--font-m); font-size:11px; letter-spacing:.12em; line-height:1;
+  }
+  #themeBtn:active{ background:var(--yellow); color:var(--ink); }
+  #toast{
+    position:fixed; left:50%; top:16%; transform:translateX(-50%);
+    z-index:9500; background:var(--bg2); color:var(--yellow);
+    border:1px solid var(--yellow); padding:9px 18px; white-space:nowrap;
+    font-family:var(--font-h); font-weight:600; letter-spacing:.18em; font-size:13px;
+    text-transform:uppercase; pointer-events:none; opacity:0; transition:opacity .2s;
+    box-shadow:0 0 18px color-mix(in srgb, var(--yellow) 25%, transparent);
+  }
+  #toast.show{ opacity:1; }
+
+  /* ── fretboard heat map overlay ───────────────────────────────── */
+  #mapov{
+    position:fixed; inset:0; z-index:8100;
+    background:var(--overlay); display:none; overflow-y:auto;
+    padding:calc(14px + env(safe-area-inset-top, 0px)) 14px calc(20px + env(safe-area-inset-bottom));
+  }
+  #mapov.open{ display:block; }
+  .mapwrap{ max-width:920px; margin:0 auto; }
+  .maphead{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    border-bottom:1px solid var(--cyan); padding-bottom:8px; margin-bottom:10px;
+  }
+  .maphead h2{
+    font-family:var(--font-h); font-weight:700;
+    font-size:clamp(20px, 5.5vw, 30px); letter-spacing:.12em; color:var(--cyan);
+    line-height:1;
+  }
+  .maphead .mfull{ color:var(--dim); font-size:11px; letter-spacing:.2em; text-transform:uppercase; }
+  #mapclose{
+    min-width:48px; min-height:48px; flex:0 0 auto;
+    background:transparent; color:var(--red); border:1px solid var(--red);
+    font-family:var(--font-m); font-size:20px; cursor:pointer;
+  }
+  #mapclose:active{ background:var(--red); color:var(--ink); }
+  .maprow{ display:flex; gap:8px; margin-bottom:10px; }
+  #mapKey{
+    flex:1; min-height:44px; max-width:280px;
+    background:var(--bg2); color:var(--yellow);
+    border:1px solid var(--line2); border-radius:0;
+    font-family:var(--font-m); font-size:13px; padding:0 8px;
+  }
+  .mapscroll{ overflow-x:auto; border:1px solid var(--line); background:var(--panel); }
+  .mapscroll svg{ display:block; min-width:780px; width:100%; height:auto; }
+  .maplegend{
+    display:flex; gap:14px 18px; flex-wrap:wrap; margin-top:10px;
+    font-size:11px; letter-spacing:.14em; color:var(--dim); text-transform:uppercase;
+  }
+  .maplegend b{
+    display:inline-block; width:12px; height:12px; border-radius:50%;
+    margin-right:6px; vertical-align:-2px;
+  }
+  .maplegend b.hollow{ background:transparent !important; border:2px solid var(--red); }
+
+  /* ── song editor overlay ──────────────────────────────────────── */
+  #songEd{
+    position:fixed; inset:0; z-index:8300;
+    background:var(--overlay); display:none; overflow-y:auto;
+    padding:calc(14px + env(safe-area-inset-top, 0px)) 14px calc(20px + env(safe-area-inset-bottom));
+  }
+  #songEd.open{ display:block; }
+  .sewrap{ max-width:560px; margin:0 auto; }
+  .sehead{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    border-bottom:1px solid var(--yellow); padding-bottom:8px; margin-bottom:4px;
+  }
+  .sehead h2{
+    font-family:var(--font-h); font-weight:700;
+    font-size:clamp(20px, 5.5vw, 30px); letter-spacing:.12em; color:var(--yellow);
+    line-height:1;
+  }
+  #seClose{
+    min-width:48px; min-height:48px; flex:0 0 auto;
+    background:transparent; color:var(--red); border:1px solid var(--red);
+    font-family:var(--font-m); font-size:20px; cursor:pointer;
+  }
+  #seClose:active{ background:var(--red); color:var(--ink); }
+  .sewrap label{
+    display:block; margin:14px 0 5px;
+    font-size:11px; letter-spacing:.22em; color:var(--dim); text-transform:uppercase;
+  }
+  .sewrap input, .sewrap textarea{
+    width:100%; background:var(--bg2); color:var(--yellow);
+    border:1px solid var(--line2); border-radius:0;
+    font-family:var(--font-m); font-size:14px; padding:10px 12px; outline:none;
+  }
+  .sewrap input:focus, .sewrap textarea:focus{ border-color:var(--cyan); }
+  .sewrap textarea{ min-height:190px; resize:vertical; line-height:1.7; color:var(--text); }
+  .sehint{ margin-top:6px; font-size:11px; color:var(--dim); line-height:1.6; letter-spacing:.04em; }
+  .sehint b{ color:var(--cyan); font-weight:normal; }
+  .sebtns{ display:flex; gap:8px; margin-top:16px; }
+  .sebtns button{
+    flex:1; min-height:48px;
+    background:transparent; border:1px solid var(--cyan); color:var(--cyan);
+    font-family:var(--font-h); font-weight:600; font-size:14px; letter-spacing:.14em;
+    text-transform:uppercase; cursor:pointer;
+  }
+  #seSave{ border-color:var(--yellow); color:var(--yellow); }
+  #seSave:active{ background:var(--yellow); color:var(--ink); }
+  #seCancel:active{ background:var(--cyan); color:var(--ink); }
+
+  /* ── performance view ─────────────────────────────────────────── */
+  #perf{
+    position:fixed; inset:0; z-index:8600;
+    background:var(--bg); display:none; flex-direction:column;
+    padding:calc(10px + env(safe-area-inset-top, 0px)) 14px calc(10px + env(safe-area-inset-bottom));
+  }
+  #perf.open{ display:flex; }
+  .phead{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    border-bottom:1px solid var(--yellow); padding-bottom:6px; flex:0 0 auto;
+  }
+  .phead h2{
+    font-family:var(--font-h); font-weight:700;
+    font-size:clamp(15px, 4.5vw, 24px); letter-spacing:.12em; color:var(--yellow);
+    text-transform:uppercase; line-height:1.1;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  #pprog{ color:var(--cyan); font-size:12px; letter-spacing:.2em; white-space:nowrap; }
+  #pclose{
+    min-width:44px; min-height:44px; flex:0 0 auto;
+    background:transparent; color:var(--red); border:1px solid var(--red);
+    font-family:var(--font-m); font-size:18px; cursor:pointer;
+  }
+  #pclose:active{ background:var(--red); color:var(--ink); }
+  .pbody{ flex:1; display:flex; flex-direction:column; min-height:0; gap:10px; padding-top:10px; }
+  .pchord{
+    flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:2px;
+    cursor:pointer; user-select:none; -webkit-user-select:none;
+  }
+  #pcur{
+    font-family:var(--font-h); font-weight:700;
+    font-size:clamp(42px, 12vw, 72px); color:var(--yellow); line-height:1;
+    text-shadow:0 0 22px color-mix(in srgb, var(--yellow) 35%, transparent);
+  }
+  #pdiag{ display:flex; justify-content:center; }
+  #pdiag svg{ height:clamp(170px, 30vh, 300px); width:auto; }
+  .pnodiag{ padding:38px 0; color:var(--dim); font-size:12px; letter-spacing:.2em; }
+  #pnext{ color:var(--cyan); font-size:14px; letter-spacing:.18em; text-transform:uppercase; }
+  .plyr{
+    flex:1 1 auto; min-height:0; overflow-y:auto;
+    border:1px solid var(--line); background:var(--panel);
+    padding:12px 14px; font-size:15px; line-height:2.1; color:var(--text);
+    white-space:pre-wrap;
+  }
+  .plyr:empty{ display:none; }
+  .ltag{
+    display:inline-block; padding:0 7px; margin:0 2px;
+    border:1px solid var(--line2); color:var(--cyan);
+    font-family:var(--font-h); font-weight:600; font-size:13px; letter-spacing:.06em;
+    cursor:pointer; line-height:1.7; vertical-align:baseline;
+  }
+  .ltag.cur{
+    background:var(--yellow); color:var(--ink); border-color:var(--yellow);
+    box-shadow:0 0 10px color-mix(in srgb, var(--yellow) 45%, transparent);
+  }
+  .pfoot{
+    flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
+    gap:8px; padding-top:10px;
+  }
+  .pfoot button{
+    min-height:52px; min-width:104px;
+    background:var(--bg2); color:var(--yellow); border:1px solid var(--yellow);
+    font-family:var(--font-h); font-weight:700; font-size:15px; letter-spacing:.14em;
+    cursor:pointer; text-transform:uppercase;
+  }
+  .pfoot button:disabled{ opacity:.25; cursor:default; }
+  .pfoot button:not(:disabled):active{ background:var(--yellow); color:var(--ink); }
+  .phint{ color:var(--dim); opacity:.7; font-size:10px; letter-spacing:.18em; text-align:center; }
+  @media (orientation:landscape) and (min-width:640px){
+    .pbody{ flex-direction:row; align-items:stretch; }
+    .pchord{ flex:0 0 44%; justify-content:center; }
+    .plyr{ flex:1; }
+  }
 
   /* notch clearance when rotated */
   @supports (padding: env(safe-area-inset-left)){
-    header, .controls, main, .pager, #modal{
+    header, .controls, main, .pager, #modal, #mapov, #songEd, #perf{
       padding-left:calc(14px + env(safe-area-inset-left));
       padding-right:calc(14px + env(safe-area-inset-right));
     }
@@ -287,6 +525,7 @@
     <div class="sub">
       <span>TUNING://</span>
       <select id="tuning" aria-label="Tuning"></select>
+      <button id="themeBtn" aria-label="Cycle colour scheme">SKIN</button>
     </div>
   </div>
 </header>
@@ -301,7 +540,8 @@
   <div class="row2">
     <select id="keySel" aria-label="Song key"></select>
     <select id="songSel" aria-label="Saved songs"></select>
-    <button id="saveSong" title="Save the chord list in the search bar as a song">Save</button>
+    <button id="perfBtn" title="Performance mode — step through the song fullscreen">▶</button>
+    <button id="saveSong" title="Save / edit the current song (chords + lyrics)">Save</button>
     <button id="delSong" style="display:none" title="Delete selected song">Del</button>
   </div>
 </div>
@@ -327,6 +567,11 @@
       <button id="mclose" aria-label="Close">✕</button>
     </div>
     <div class="mdiag" id="mdiag"></div>
+    <div class="vbar" id="vbar" style="display:none">
+      <button id="vprev" aria-label="Previous voicing">◄</button>
+      <div id="vinfo"></div>
+      <button id="vnext" aria-label="Next voicing">►</button>
+    </div>
     <div class="msec">
       <h3>// Ornament Protocols</h3>
       <div id="mornaments"></div>
@@ -335,9 +580,79 @@
       <h3 class="cy">// Field Notes</h3>
       <div class="mnotes" id="mnotes"></div>
     </div>
-    <div class="kbd-hint">TAP ✕ / ESC TO DISCONNECT</div>
+    <div class="kbd-hint">TAP ✕ / ESC TO DISCONNECT · ◄ ► SWITCH VOICING</div>
   </div>
 </div>
+
+<div id="mapov" role="dialog" aria-modal="true" aria-label="Fretboard map">
+  <div class="mapwrap">
+    <div class="maphead">
+      <div>
+        <h2>FRETBOARD://</h2>
+        <div class="mfull" id="maptun"></div>
+      </div>
+      <button id="mapclose" aria-label="Close">✕</button>
+    </div>
+    <div class="maprow">
+      <select id="mapKey" aria-label="Map key"></select>
+    </div>
+    <div class="mapscroll" id="mapdiag"></div>
+    <div class="maplegend">
+      <span><b style="background:var(--yellow)"></b>ROOT</span>
+      <span><b style="background:var(--cyan)"></b>CHORD TONE · 3RD / 5TH</span>
+      <span><b class="hollow"></b>COLOUR TONE · 2·4·6·7</span>
+    </div>
+  </div>
+</div>
+
+<div id="songEd" role="dialog" aria-modal="true" aria-label="Song editor">
+  <div class="sewrap">
+    <div class="sehead">
+      <h2>SONG EDITOR://</h2>
+      <button id="seClose" aria-label="Close">✕</button>
+    </div>
+    <label for="seName">Name</label>
+    <input id="seName" type="text" autocomplete="off" autocorrect="off" spellcheck="false"
+           placeholder="wagon wheel">
+    <label for="seChords">Chords · space-separated</label>
+    <input id="seChords" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+           placeholder="Am F C G">
+    <label for="seLyrics">Lyrics · optional</label>
+    <textarea id="seLyrics" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+              placeholder="[C]Heading down south to the [G]land of the pines&#10;I'm [Am]thumbing my way into [F]North Caroline"></textarea>
+    <div class="sehint">Tag chord changes inline as <b>[Am]</b> — performance mode then steps
+      tag to tag, highlighting the lyric line as you play. No tags? It steps through the chord list instead.</div>
+    <div class="sebtns">
+      <button id="seCancel">Cancel</button>
+      <button id="seSave">Save Song</button>
+    </div>
+  </div>
+</div>
+
+<div id="perf" role="dialog" aria-modal="true" aria-label="Performance view">
+  <div class="phead">
+    <div style="min-width:0">
+      <h2 id="pname"></h2>
+      <div id="pprog"></div>
+    </div>
+    <button id="pclose" aria-label="Exit performance view">✕</button>
+  </div>
+  <div class="pbody">
+    <div class="pchord" id="pchord" title="Tap for next chord">
+      <div id="pcur"></div>
+      <div id="pdiag"></div>
+      <div id="pnext"></div>
+    </div>
+    <div class="plyr" id="plyr"></div>
+  </div>
+  <div class="pfoot">
+    <button id="pprev">◄ Back</button>
+    <div class="phint">TAP CHORD / → / SPACE<br>TO ADVANCE</div>
+    <button id="pnextBtn">Next ►</button>
+  </div>
+</div>
+
+<div id="toast" aria-live="polite"></div>
 
 <script>
 "use strict";
@@ -1063,6 +1378,68 @@ function effectiveOrnaments(chord, tuning){
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   ALTERNATE VOICINGS — machine-searched when a card is opened
+   (same rules + scoring as tools/generate-voicings.mjs, but the
+   target tones come from the chord's own voicing, so curated shapes
+   that already omit the fifth stay honest). Up to two alternates,
+   each at least two frets away from positions already shown.
+   ═══════════════════════════════════════════════════════════════ */
+const VOICING_CACHE = new Map();
+
+function altVoicings(chord, tuning, tuningKey){
+  const cacheKey = tuningKey + ":" + chord.name;
+  if(VOICING_CACHE.has(cacheKey)) return VOICING_CACHE.get(cacheKey);
+  const out = [];
+  const m = chord.name.match(/^([A-G][b#]?)/);
+  const root = m ? ROOT_PC[m[1]] : undefined;
+  if(root !== undefined){
+    const chordPCs = [...new Set(chord.frets.map((f,i) => (tuning.pitches[i] + f) % 12))];
+    const fifth = (root + 7) % 12;
+    const reqPCs = chordPCs.length >= 4 ? chordPCs.filter(p => p !== fifth) : chordPCs;
+    const NSTR = tuning.pitches.length, MAXF = 12;
+    const primaryKey = chord.frets.join(",");
+    const cands = [];
+    const frets = new Array(NSTR).fill(0);
+    while(true){
+      const pcs = frets.map((f,i) => (tuning.pitches[i] + f) % 12);
+      if(pcs.every(p => chordPCs.includes(p)) && reqPCs.every(p => pcs.includes(p))){
+        const fretted = frets.filter(f => f > 0);
+        const maxF = Math.max(0, ...fretted);
+        const minF = fretted.length ? Math.min(...fretted) : 0;
+        const span = fretted.length ? maxF - minF : 0;
+        if(span <= 4 && !(maxF > 5 && frets.some(f => f === 0)) && frets.join(",") !== primaryKey){
+          const opens = frets.filter(f => f === 0).length;
+          const distinct = new Set(fretted).size;
+          const has5th = pcs.includes(fifth) || chordPCs.length === 3;
+          const score = span*3 + maxF*1.2 + minF - opens*1.5 + distinct*.7
+                      + (has5th ? 0 : 1.5) + (maxF > 5 ? 3 : 0);
+          cands.push({ frets: frets.slice(), pos: minF, score });
+        }
+      }
+      let i = NSTR - 1;                                 // odometer over all fret combos
+      while(i >= 0 && frets[i] === MAXF){ frets[i] = 0; i--; }
+      if(i < 0) break;
+      frets[i]++;
+    }
+    cands.sort((a,b) => a.score - b.score);
+    const pFretted = chord.frets.filter(f => f > 0);
+    const usedPos = [pFretted.length ? Math.min(...pFretted) : 0];
+    for(const c of cands){
+      if(out.length >= 2) break;
+      if(!usedPos.every(p => Math.abs(p - c.pos) >= 2)) continue;
+      usedPos.push(c.pos);
+      const base = c.pos || 1;
+      out.push({
+        frets: c.frets,
+        fingers: c.frets.map(f => f === 0 ? 0 : Math.min(4, f - base + 1)),
+      });
+    }
+  }
+  VOICING_CACHE.set(cacheKey, out);
+  return out;
+}
+
+/* ═══════════════════════════════════════════════════════════════
    SVG CHORD RENDERER — pure function of (chord, tuning, options)
    ═══════════════════════════════════════════════════════════════ */
 let svgUid = 0;
@@ -1126,7 +1503,7 @@ function renderChordSVG(chord, tuning, opts = {}){
       const y = dy(rel(f));
       P.push(`<circle cx="${sx(i)}" cy="${y}" r="8.5" fill="var(--yellow)"/>`);
       const fin = chord.fingers && chord.fingers[i];
-      if(fin) P.push(`<text x="${sx(i)}" y="${y+3.6}" fill="#0a0a12" font-size="10.5" font-weight="bold" text-anchor="middle">${fin}</text>`);
+      if(fin) P.push(`<text x="${sx(i)}" y="${y+3.6}" fill="var(--ink)" font-size="10.5" font-weight="bold" text-anchor="middle">${fin}</text>`);
     }
   });
 
@@ -1178,6 +1555,72 @@ function renderChordSVG(chord, tuning, opts = {}){
           P.push(`<line x1="${x+9}" y1="${tgtY}" x2="${W-42}" y2="${ly-3}" stroke="var(--red)" stroke-width=".7" stroke-dasharray="2 2" opacity=".5"/>`);
       }
     });
+  }
+
+  P.push(`</svg>`);
+  return P.join("");
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FRETBOARD HEAT MAP — one long neck (frets 0–12), every in-key
+   note plotted and coloured by scale degree: root / chord tones
+   (3rd + 5th) / colour tones. Same pitch math as the key filter.
+   ═══════════════════════════════════════════════════════════════ */
+function renderFretMap(tuningKey, keyName){
+  const tuning = TUNINGS[tuningKey];
+  const scale = KEYS[keyName];
+  const rootPC = NOTE_NAMES.indexOf(keyName.split(" ")[0]);
+  const NFRETS = 12, NSTR = tuning.strings.length;
+  const FW = 58, SG = 42, TOP = 26;
+  const X0 = 66;                                        // nut x — open column sits left of it
+  const W = X0 + NFRETS * FW + 12;
+  const H = TOP + (NSTR - 1) * SG + 44;
+  const sy = i => TOP + i * SG;
+  const fx = f => X0 + (f - .5) * FW;                   // note centre inside fret f (f ≥ 1)
+  const midY = TOP + (NSTR - 1) * SG / 2;
+
+  const P = [];
+  P.push(`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'Share Tech Mono',monospace">`);
+
+  // position inlays behind everything
+  [3,5,7,10].forEach(f =>
+    P.push(`<circle cx="${fx(f)}" cy="${midY}" r="5.5" fill="var(--line)"/>`));
+  [1,2].forEach(k =>
+    P.push(`<circle cx="${fx(12)}" cy="${TOP + (NSTR - 1) * SG * k / 3}" r="5.5" fill="var(--line)"/>`));
+
+  // nut + frets + fret numbers
+  P.push(`<rect x="${X0 - 2.5}" y="${sy(0) - 3}" width="5" height="${(NSTR - 1) * SG + 6}" fill="var(--yellow)"/>`);
+  for(let f = 1; f <= NFRETS; f++){
+    P.push(`<line x1="${X0 + f * FW}" y1="${sy(0)}" x2="${X0 + f * FW}" y2="${sy(NSTR - 1)}" stroke="var(--line2)" stroke-width="1"/>`);
+    P.push(`<text x="${fx(f)}" y="${H - 8}" fill="var(--dim)" font-size="11" text-anchor="middle">${f}</text>`);
+  }
+  P.push(`<text x="${X0 - 26}" y="${H - 8}" fill="var(--dim)" font-size="11" text-anchor="middle">0</text>`);
+
+  // strings + labels
+  for(let i = 0; i < NSTR; i++){
+    P.push(`<line x1="${X0}" y1="${sy(i)}" x2="${X0 + NFRETS * FW}" y2="${sy(i)}" stroke="var(--line2)" stroke-width="1"/>`);
+    P.push(`<text x="12" y="${sy(i) + 4}" fill="var(--cyan)" font-size="13" text-anchor="middle">${tuning.strings[i]}</text>`);
+  }
+
+  // in-key notes, coloured by degree
+  for(let i = 0; i < NSTR; i++){
+    for(let f = 0; f <= NFRETS; f++){
+      const pc = (tuning.pitches[i] + f) % 12;
+      if(!scale.includes(pc)) continue;
+      const iv = (pc - rootPC + 12) % 12;
+      const x = f === 0 ? X0 - 26 : fx(f), y = sy(i);
+      const name = NOTE_NAMES[pc];
+      if(iv === 0){
+        P.push(`<circle cx="${x}" cy="${y}" r="13" fill="var(--yellow)"/>`);
+        P.push(`<text x="${x}" y="${y + 3.8}" fill="var(--ink)" font-size="10.5" font-weight="bold" text-anchor="middle">${name}</text>`);
+      }else if(iv === 3 || iv === 4 || iv === 7){
+        P.push(`<circle cx="${x}" cy="${y}" r="12" fill="var(--cyan)"/>`);
+        P.push(`<text x="${x}" y="${y + 3.8}" fill="var(--ink)" font-size="10.5" text-anchor="middle">${name}</text>`);
+      }else{
+        P.push(`<circle cx="${x}" cy="${y}" r="11.5" fill="var(--bg)" stroke="var(--red)" stroke-width="1.6"/>`);
+        P.push(`<text x="${x}" y="${y + 3.8}" fill="var(--red)" font-size="10" text-anchor="middle">${name}</text>`);
+      }
+    }
   }
 
   P.push(`</svg>`);
@@ -1254,6 +1697,8 @@ function filtered(){
 }
 
 /* ── saved songs (localStorage) ───────────────────────────────── */
+/* Stored value per song is { chords, lyrics }; plain strings from the
+   pre-lyrics format still load (they're treated as chords-only). */
 const SONG_STORE = "chordware.songs";
 function loadSongs(){
   try{ return JSON.parse(localStorage.getItem(SONG_STORE)) || {}; }
@@ -1262,6 +1707,12 @@ function loadSongs(){
 function storeSongs(s){
   try{ localStorage.setItem(SONG_STORE, JSON.stringify(s)); }catch(e){/* private mode */}
 }
+function songData(v){
+  return typeof v === "string"
+    ? { chords: v, lyrics: "" }
+    : { chords: (v && v.chords) || "", lyrics: (v && v.lyrics) || "" };
+}
+const LYRIC_TAG = /\[([^\]\r\n]{1,12})\]/g;
 function refreshSongSel(){
   const sel = $("#songSel");
   const names = Object.keys(loadSongs()).sort();
@@ -1294,20 +1745,57 @@ function render(){
   $("#nextBtn").disabled = state.page >= pages - 1;
 }
 
-/* ── fullscreen modal ─────────────────────────────────────────── */
+/* ── fullscreen modal (with voicing pager) ────────────────────── */
 function ordinalFret(f){ return f === 0 ? "OPEN" : "fret " + f; }
+
+let modalState = null;   // { chord, voicings: [primary, ...alternates], idx }
 
 function openModal(chord){
   const tuning = TUNINGS[state.tuning];
+  modalState = {
+    chord,
+    voicings: [
+      { frets: chord.frets, fingers: chord.fingers },
+      ...altVoicings(chord, tuning, state.tuning),
+    ],
+    idx: 0,
+  };
+  renderModalView();
+  $("#modal").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function renderModalView(){
+  const { chord, voicings, idx } = modalState;
+  const tuning = TUNINGS[state.tuning];
+  const v = voicings[idx];
+  // alternates get a bare copy so ornaments are re-derived from *their* frets
+  const view = idx === 0 ? chord : { ...chord, frets: v.frets, fingers: v.fingers, ornaments: [] };
+
   $("#mname").textContent = chord.name;
   $("#mfull").textContent = chord.full + "  ·  " + tuning.label;
-  $("#mdiag").innerHTML = renderChordSVG(chord, tuning, { ornaments: true, labels: true });
+  $("#mdiag").innerHTML = renderChordSVG(view, tuning, { ornaments: true, labels: true });
 
-  const orns = effectiveOrnaments(chord, tuning);
-  const isAuto = orns.length && !(chord.ornaments && chord.ornaments.length);
+  const bar = $("#vbar");
+  if(voicings.length > 1){
+    bar.style.display = "";
+    const fretted = v.frets.filter(f => f > 0);
+    const pos = fretted.length ? "FRET " + Math.min(...fretted) : "OPEN";
+    $("#vinfo").textContent = `VOICING ${idx + 1}/${voicings.length} · ${idx === 0 ? "PRIMARY" : "ALT"} · ${pos}`;
+    $("#vprev").disabled = idx === 0;
+    $("#vnext").disabled = idx === voicings.length - 1;
+  }else{
+    bar.style.display = "none";
+  }
+
+  const orns = effectiveOrnaments(view, tuning);
+  const isAuto = orns.length && !(view.ornaments && view.ornaments.length);
+  const autoNote = idx > 0
+    ? `// ALT VOICING — machine-searched shape, ornaments auto-derived`
+    : `// AUTO-DERIVED FROM VOICING — no hand-curated data yet`;
   const box = $("#mornaments");
   if(orns.length){
-    box.innerHTML = (isAuto ? `<div class="orn-none" style="padding-bottom:6px">// AUTO-DERIVED FROM VOICING — no hand-curated data yet</div>` : "") +
+    box.innerHTML = (isAuto ? `<div class="orn-none" style="padding-bottom:6px">${autoNote}</div>` : "") +
     orns.map(o => {
       const sName = tuning.strings[o.s];
       const fromNote = noteAt(tuning, o.s, o.from);
@@ -1321,17 +1809,27 @@ function openModal(chord){
       </div>`;
     }).join("");
   }else{
-    box.innerHTML = `<div class="orn-none">// NO ORNAMENT DATA LOGGED FOR THIS SHAPE — EXTEND CHORD_LIBRARY //</div>`;
+    box.innerHTML = idx > 0
+      ? `<div class="orn-none">// ALT VOICING — machine-searched shape, no ornaments derivable //</div>`
+      : `<div class="orn-none">// NO ORNAMENT DATA LOGGED FOR THIS SHAPE — EXTEND CHORD_LIBRARY //</div>`;
   }
 
+  // field notes describe the primary shape — hide them on alternates
   const noteSec = $("#mnotesec");
-  if(chord.notes){ noteSec.style.display = ""; $("#mnotes").textContent = chord.notes; }
+  if(chord.notes && idx === 0){ noteSec.style.display = ""; $("#mnotes").textContent = chord.notes; }
   else noteSec.style.display = "none";
-
-  $("#modal").classList.add("open");
-  document.body.style.overflow = "hidden";
 }
+
+function stepVoicing(d){
+  if(!modalState) return;
+  const n = modalState.idx + d;
+  if(n < 0 || n >= modalState.voicings.length) return;
+  modalState.idx = n;
+  renderModalView();
+}
+
 function closeModal(){
+  modalState = null;
   $("#modal").classList.remove("open");
   document.body.style.overflow = "";
 }
@@ -1348,11 +1846,13 @@ tuningSel.value = state.tuning;
 tuningSel.addEventListener("change", () => { state.tuning = tuningSel.value; state.page = 0; render(); });
 
 $("#chips").innerHTML = CATS.map(c =>
-  `<button class="chip${c.id === state.cat ? " on" : ""}" data-cat="${c.id}">${c.label}</button>`).join("");
+  `<button class="chip${c.id === state.cat ? " on" : ""}" data-cat="${c.id}">${c.label}</button>`).join("") +
+  `<button class="chip act" id="mapChip" title="Fretboard map — every in-key note on the neck">Map</button>`;
 $("#chips").addEventListener("click", e => {
   const b = e.target.closest(".chip"); if(!b) return;
+  if(b.id === "mapChip"){ openMap(); return; }
   state.cat = b.dataset.cat; state.page = 0;
-  document.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".chip[data-cat]").forEach(x => x.classList.toggle("on", x === b));
   render();
 });
 
@@ -1369,13 +1869,12 @@ keySel.innerHTML = `<option value="all">KEY:// —</option>` +
   `<optgroup label="MINOR">${NOTE_NAMES.map(n => `<option value="${n} minor">${n} minor</option>`).join("")}</optgroup>`;
 keySel.addEventListener("change", () => { state.key = keySel.value; state.page = 0; render(); });
 
-/* songs: a song is a saved space-separated chord list */
+/* songs: a saved chord list, optionally with lyrics ([Am] tags inside) */
 $("#songSel").addEventListener("change", e => {
   const name = e.target.value;
   state.song = name;
   if(name){
-    const songs = loadSongs();
-    state.query = songs[name] || "";
+    state.query = songData(loadSongs()[name]).chords;
     $("#search").value = state.query;
   }
   state.page = 0;
@@ -1383,24 +1882,48 @@ $("#songSel").addEventListener("change", e => {
   render();
 });
 
-$("#saveSong").addEventListener("click", () => {
-  const toks = queryTokens();
-  const valid = toks.filter(tk => chordList().some(c => normName(c.name) === normName(tk)));
-  if(!valid.length){
-    alert("Type a space-separated chord list in the search bar first, e.g.\n\nAm F C G");
+/* ── song editor ──────────────────────────────────────────────── */
+const knownChord = t => chordList().some(c => normName(c.name) === normName(t));
+
+function openSongEditor(){
+  const cur = state.song ? songData(loadSongs()[state.song]) : null;
+  $("#seName").value = state.song || "";
+  $("#seChords").value = state.query.trim() || (cur ? cur.chords : "");
+  $("#seLyrics").value = cur ? cur.lyrics : "";
+  $("#songEd").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+function closeSongEditor(){
+  $("#songEd").classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+$("#saveSong").addEventListener("click", openSongEditor);
+$("#seClose").addEventListener("click", closeSongEditor);
+$("#seCancel").addEventListener("click", closeSongEditor);
+
+$("#seSave").addEventListener("click", () => {
+  const name = $("#seName").value.trim();
+  if(!name){ alert("Name the song first."); return; }
+  const toks = $("#seChords").value.trim().split(/\s+/).filter(Boolean);
+  const lyrics = $("#seLyrics").value.replace(/\s+$/, "");
+  const tagged = [...lyrics.matchAll(LYRIC_TAG)].map(m => m[1]);
+  if(!toks.some(knownChord) && !tagged.some(knownChord)){
+    alert("Add a space-separated chord list (e.g. Am F C G)\nor tag chords in the lyrics like [Am].");
     return;
   }
-  const unknown = toks.filter(tk => !chordList().some(c => normName(c.name) === normName(tk)));
-  const name = prompt(
-    (unknown.length ? `// WARNING: unknown chords skipped: ${unknown.join(" ")}\n\n` : "") +
-    "Save song as:", state.song || valid.slice(0,3).join(" "));
-  if(!name) return;
+  const unknown = [...new Set(toks.concat(tagged).filter(t => !knownChord(t)))];
+  if(unknown.length &&
+     !confirm(`// WARNING: not in the ${state.tuning} chord DB (kept, but no diagram):\n\n${unknown.join(" ")}\n\nSave anyway?`)) return;
   const songs = loadSongs();
-  songs[name.trim()] = valid.join(" ");
+  songs[name] = { chords: toks.join(" "), lyrics };
   storeSongs(songs);
-  state.song = name.trim();
-  state.query = valid.join(" ");
+  state.song = name;
+  // grid follows the chord list; with lyrics-only songs, the unique tagged chords
+  state.query = toks.length ? toks.join(" ") : [...new Set(tagged.filter(knownChord))].join(" ");
   $("#search").value = state.query;
+  state.page = 0;
+  closeSongEditor();
   refreshSongSel();
   render();
 });
@@ -1446,11 +1969,193 @@ grid.addEventListener("keydown", e => {
 
 $("#mclose").addEventListener("click", closeModal);
 $("#modal").addEventListener("click", e => { if(e.target === e.currentTarget) closeModal(); });
+$("#vprev").addEventListener("click", () => stepVoicing(-1));
+$("#vnext").addEventListener("click", () => stepVoicing(1));
+
+/* swipe between voicings on the modal diagram */
+let mTouchX = null;
+$("#mdiag").addEventListener("touchstart", e => { mTouchX = e.touches[0].clientX; }, { passive:true });
+$("#mdiag").addEventListener("touchend", e => {
+  if(mTouchX === null) return;
+  const dx = e.changedTouches[0].clientX - mTouchX;
+  mTouchX = null;
+  if(Math.abs(dx) < 50) return;
+  stepVoicing(dx < 0 ? 1 : -1);
+}, { passive:true });
+
+/* ── fretboard heat map ───────────────────────────────────────── */
+const mapKeySel = $("#mapKey");
+mapKeySel.innerHTML =
+  `<optgroup label="MAJOR">${NOTE_NAMES.map(n => `<option value="${n} major">KEY:// ${n} major</option>`).join("")}</optgroup>` +
+  `<optgroup label="MINOR">${NOTE_NAMES.map(n => `<option value="${n} minor">KEY:// ${n} minor</option>`).join("")}</optgroup>`;
+mapKeySel.value = "C major";
+
+function drawMap(){
+  $("#mapdiag").innerHTML = renderFretMap(state.tuning, mapKeySel.value);
+  $("#maptun").textContent = TUNINGS[state.tuning].label + "  ·  FRETS 0–12";
+}
+function openMap(){
+  if(state.key !== "all") mapKeySel.value = state.key;
+  drawMap();
+  $("#mapov").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+function closeMap(){
+  $("#mapov").classList.remove("open");
+  document.body.style.overflow = "";
+}
+mapKeySel.addEventListener("change", drawMap);
+$("#mapclose").addEventListener("click", closeMap);
+$("#mapov").addEventListener("click", e => { if(e.target === e.currentTarget) closeMap(); });
+
+/* ── performance view — big chord + lyric autoscroll, for playing live.
+   [Chord] tags in the lyrics drive the sequence; otherwise the chord
+   list does. Keyboard arrows / space / page keys advance, so Bluetooth
+   page-turner pedals work out of the box. ─────────────────────── */
+const escHTML = s => s.replace(/[&<>"]/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[ch]));
+let perf = null;   // { seq: [{name, chord}], idx, ... }
+
+function buildPerf(){
+  const find = n => chordList().find(c => normName(c.name) === normName(n)) || null;
+  let name = state.song || "AD-HOC SET", chords = state.query.trim(), lyrics = "";
+  if(state.song){
+    const d = songData(loadSongs()[state.song]);
+    chords = d.chords; lyrics = d.lyrics;
+  }
+  const tags = [...lyrics.matchAll(LYRIC_TAG)];
+  if(tags.length){
+    let html = "", last = 0;
+    const seq = tags.map((m, i) => {
+      html += escHTML(lyrics.slice(last, m.index));
+      html += `<span class="ltag" data-i="${i}">${escHTML(m[1])}</span>`;
+      last = m.index + m[0].length;
+      return { name: m[1], chord: find(m[1]) };
+    });
+    html += escHTML(lyrics.slice(last));
+    return { name, seq, idx: 0, lyricHTML: html };
+  }
+  const seq = chords.split(/\s+/).filter(Boolean).map(t => ({ name: t, chord: find(t) }));
+  return seq.length ? { name, seq, idx: 0, lyricHTML: lyrics ? escHTML(lyrics) : "" } : null;
+}
+
+function renderPerf(){
+  const { seq, idx } = perf;
+  const cur = seq[idx], nxt = seq[idx + 1];
+  $("#pcur").textContent = cur.name;
+  $("#pdiag").innerHTML = cur.chord
+    ? renderChordSVG(cur.chord, TUNINGS[state.tuning], { ornaments: state.orn > 0, labels: false })
+    : `<div class="pnodiag">// NO DIAGRAM IN DB //</div>`;
+  $("#pnext").textContent = nxt ? "NEXT// " + nxt.name : "— END —";
+  $("#pprog").textContent = `${idx + 1} / ${seq.length}`;
+  $("#pprev").disabled = idx === 0;
+  $("#pnextBtn").disabled = idx >= seq.length - 1;
+  document.querySelectorAll("#plyr .ltag").forEach(el => {
+    const on = +el.dataset.i === idx;
+    el.classList.toggle("cur", on);
+    if(on) el.scrollIntoView({ block: "center", behavior: "smooth" });
+  });
+}
+
+function openPerf(){
+  const p = buildPerf();
+  if(!p){ toast("LOAD A SONG OR TYPE A CHORD LIST"); return; }
+  perf = p;
+  $("#pname").textContent = "♪ " + p.name;
+  $("#plyr").innerHTML = p.lyricHTML;
+  $("#perf").classList.add("open");
+  document.body.style.overflow = "hidden";
+  renderPerf();
+  requestWakeLock();
+}
+function perfStep(d){
+  if(!perf) return;
+  const n = perf.idx + d;
+  if(n < 0 || n >= perf.seq.length) return;
+  perf.idx = n;
+  renderPerf();
+}
+function closePerf(){
+  perf = null;
+  $("#perf").classList.remove("open");
+  document.body.style.overflow = "";
+  releaseWakeLock();
+}
+
+/* keep the screen on mid-song (best effort — API needs https) */
+let wakeLock = null;
+async function requestWakeLock(){
+  try{ if("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); }catch(e){}
+}
+function releaseWakeLock(){
+  if(wakeLock){ wakeLock.release().catch(() => {}); wakeLock = null; }
+}
+document.addEventListener("visibilitychange", () => {
+  if(document.visibilityState === "visible" && perf) requestWakeLock();
+});
+
+$("#perfBtn").addEventListener("click", openPerf);
+$("#pclose").addEventListener("click", closePerf);
+$("#pprev").addEventListener("click", () => perfStep(-1));
+$("#pnextBtn").addEventListener("click", () => perfStep(1));
+$("#pchord").addEventListener("click", () => perfStep(1));
+$("#plyr").addEventListener("click", e => {
+  const t = e.target.closest(".ltag"); if(!t || !perf) return;
+  perf.idx = +t.dataset.i;
+  renderPerf();
+});
+
+/* ── colour schemes ───────────────────────────────────────────── */
+const THEMES = [
+  { id: "",      label: "NIGHT CITY"  },
+  { id: "amber", label: "AMBER TERM"  },
+  { id: "green", label: "PHOSPHOR"    },
+  { id: "synth", label: "SYNTHWAVE"   },
+  { id: "paper", label: "FIELD MODE"  },
+];
+let toastTimer = null;
+function toast(msg){
+  const el = $("#toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 1400);
+}
+function applyTheme(id, announce){
+  if(id) document.documentElement.dataset.theme = id;
+  else delete document.documentElement.dataset.theme;
+  try{ localStorage.setItem("chordware.theme", id); }catch(e){}
+  document.querySelector('meta[name="theme-color"]')
+    .setAttribute("content", getComputedStyle(document.documentElement).getPropertyValue("--bg").trim());
+  const t = THEMES.find(t => t.id === id) || THEMES[0];
+  $("#themeBtn").title = "Colour scheme: " + t.label + " — tap to cycle";
+  if(announce) toast("SKIN:// " + t.label);
+}
+$("#themeBtn").addEventListener("click", () => {
+  const i = THEMES.findIndex(t => t.id === (document.documentElement.dataset.theme || ""));
+  applyTheme(THEMES[(i + 1) % THEMES.length].id, true);
+});
+applyTheme(document.documentElement.dataset.theme || "", false);
 
 document.addEventListener("keydown", e => {
-  if(e.key === "Escape") return closeModal();
-  if(document.activeElement === $("#search")) return;
-  if($("#modal").classList.contains("open")) return;
+  if(e.key === "Escape"){
+    if($("#perf").classList.contains("open")) return closePerf();
+    if($("#songEd").classList.contains("open")) return closeSongEditor();
+    if($("#mapov").classList.contains("open")) return closeMap();
+    return closeModal();
+  }
+  const el = document.activeElement;
+  if(el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+  if($("#perf").classList.contains("open")){
+    if(["ArrowRight"," ","PageDown","ArrowDown"].includes(e.key)){ e.preventDefault(); perfStep(1); }
+    if(["ArrowLeft","PageUp","ArrowUp"].includes(e.key)){ e.preventDefault(); perfStep(-1); }
+    return;
+  }
+  if($("#modal").classList.contains("open")){
+    if(e.key === "ArrowLeft")  stepVoicing(-1);
+    if(e.key === "ArrowRight") stepVoicing(1);
+    return;
+  }
+  if($("#songEd").classList.contains("open") || $("#mapov").classList.contains("open")) return;
   if(e.key === "ArrowLeft"  && state.page > 0){ state.page--; render(); }
   if(e.key === "ArrowRight"){ const pages = Math.ceil(filtered().length / PAGE_SIZE); if(state.page < pages - 1){ state.page++; render(); } }
 });
