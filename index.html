@@ -377,6 +377,9 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
   }
   .mapscroll{ overflow-x:auto; border:1px solid var(--line); background:var(--panel); }
   .mapscroll svg{ display:block; min-width:780px; width:100%; height:auto; }
+  /* portrait: neck hangs nut-up, full height, no sideways scroll */
+  .mapscroll.vert{ overflow-x:hidden; }
+  .mapscroll.vert svg{ min-width:0; max-width:340px; margin:0 auto; }
   .maplegend{
     display:flex; gap:14px 18px; flex-wrap:wrap; margin-top:10px;
     font-size:11px; letter-spacing:.14em; color:var(--dim); text-transform:uppercase;
@@ -1562,63 +1565,108 @@ function renderChordSVG(chord, tuning, opts = {}){
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   FRETBOARD HEAT MAP — one long neck (frets 0–12), every in-key
+   FRETBOARD HEAT MAP — the whole neck (frets 0–12), every in-key
    note plotted and coloured by scale degree: root / chord tones
    (3rd + 5th) / colour tones. Same pitch math as the key filter.
+   Landscape/desktop lie the neck on its side; portrait hangs it
+   nut-up like the chord diagrams, so nothing scrolls sideways.
    ═══════════════════════════════════════════════════════════════ */
-function renderFretMap(tuningKey, keyName){
+function fretMapNote(P, x, y, pc, rootPC){
+  const iv = (pc - rootPC + 12) % 12;
+  const name = NOTE_NAMES[pc];
+  if(iv === 0){
+    P.push(`<circle cx="${x}" cy="${y}" r="13" fill="var(--yellow)"/>`);
+    P.push(`<text x="${x}" y="${y + 3.8}" fill="var(--ink)" font-size="10.5" font-weight="bold" text-anchor="middle">${name}</text>`);
+  }else if(iv === 3 || iv === 4 || iv === 7){
+    P.push(`<circle cx="${x}" cy="${y}" r="12" fill="var(--cyan)"/>`);
+    P.push(`<text x="${x}" y="${y + 3.8}" fill="var(--ink)" font-size="10.5" text-anchor="middle">${name}</text>`);
+  }else{
+    P.push(`<circle cx="${x}" cy="${y}" r="11.5" fill="var(--bg)" stroke="var(--red)" stroke-width="1.6"/>`);
+    P.push(`<text x="${x}" y="${y + 3.8}" fill="var(--red)" font-size="10" text-anchor="middle">${name}</text>`);
+  }
+}
+
+function renderFretMap(tuningKey, keyName, vertical){
   const tuning = TUNINGS[tuningKey];
   const scale = KEYS[keyName];
   const rootPC = NOTE_NAMES.indexOf(keyName.split(" ")[0]);
   const NFRETS = 12, NSTR = tuning.strings.length;
-  const FW = 58, SG = 42, TOP = 26;
-  const X0 = 66;                                        // nut x — open column sits left of it
-  const W = X0 + NFRETS * FW + 12;
-  const H = TOP + (NSTR - 1) * SG + 44;
-  const sy = i => TOP + i * SG;
-  const fx = f => X0 + (f - .5) * FW;                   // note centre inside fret f (f ≥ 1)
-  const midY = TOP + (NSTR - 1) * SG / 2;
-
   const P = [];
-  P.push(`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'Share Tech Mono',monospace">`);
 
-  // position inlays behind everything
-  [3,5,7,10].forEach(f =>
-    P.push(`<circle cx="${fx(f)}" cy="${midY}" r="5.5" fill="var(--line)"/>`));
-  [1,2].forEach(k =>
-    P.push(`<circle cx="${fx(12)}" cy="${TOP + (NSTR - 1) * SG * k / 3}" r="5.5" fill="var(--line)"/>`));
+  if(vertical){
+    /* nut at the top, frets run down — same reading as the chord cards */
+    const GAP = 56, FH = 46, LEFT = 46, TOP = 56;
+    const W = LEFT + (NSTR - 1) * GAP + 30;
+    const H = TOP + NFRETS * FH + 14;
+    const sx = i => LEFT + i * GAP;
+    const fy = f => TOP + (f - .5) * FH;                // note centre inside fret f (f ≥ 1)
+    const OPENY = TOP - 20;                             // open notes above the nut
+    const midX = LEFT + (NSTR - 1) * GAP / 2;
 
-  // nut + frets + fret numbers
-  P.push(`<rect x="${X0 - 2.5}" y="${sy(0) - 3}" width="5" height="${(NSTR - 1) * SG + 6}" fill="var(--yellow)"/>`);
-  for(let f = 1; f <= NFRETS; f++){
-    P.push(`<line x1="${X0 + f * FW}" y1="${sy(0)}" x2="${X0 + f * FW}" y2="${sy(NSTR - 1)}" stroke="var(--line2)" stroke-width="1"/>`);
-    P.push(`<text x="${fx(f)}" y="${H - 8}" fill="var(--dim)" font-size="11" text-anchor="middle">${f}</text>`);
-  }
-  P.push(`<text x="${X0 - 26}" y="${H - 8}" fill="var(--dim)" font-size="11" text-anchor="middle">0</text>`);
+    P.push(`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'Share Tech Mono',monospace">`);
 
-  // strings + labels
-  for(let i = 0; i < NSTR; i++){
-    P.push(`<line x1="${X0}" y1="${sy(i)}" x2="${X0 + NFRETS * FW}" y2="${sy(i)}" stroke="var(--line2)" stroke-width="1"/>`);
-    P.push(`<text x="12" y="${sy(i) + 4}" fill="var(--cyan)" font-size="13" text-anchor="middle">${tuning.strings[i]}</text>`);
-  }
+    // position inlays behind everything
+    [3,5,7,10].forEach(f => P.push(`<circle cx="${midX}" cy="${fy(f)}" r="5.5" fill="var(--line)"/>`));
+    [1,2].forEach(k =>
+      P.push(`<circle cx="${LEFT + (NSTR - 1) * GAP * k / 3}" cy="${fy(12)}" r="5.5" fill="var(--line)"/>`));
 
-  // in-key notes, coloured by degree
-  for(let i = 0; i < NSTR; i++){
-    for(let f = 0; f <= NFRETS; f++){
-      const pc = (tuning.pitches[i] + f) % 12;
-      if(!scale.includes(pc)) continue;
-      const iv = (pc - rootPC + 12) % 12;
-      const x = f === 0 ? X0 - 26 : fx(f), y = sy(i);
-      const name = NOTE_NAMES[pc];
-      if(iv === 0){
-        P.push(`<circle cx="${x}" cy="${y}" r="13" fill="var(--yellow)"/>`);
-        P.push(`<text x="${x}" y="${y + 3.8}" fill="var(--ink)" font-size="10.5" font-weight="bold" text-anchor="middle">${name}</text>`);
-      }else if(iv === 3 || iv === 4 || iv === 7){
-        P.push(`<circle cx="${x}" cy="${y}" r="12" fill="var(--cyan)"/>`);
-        P.push(`<text x="${x}" y="${y + 3.8}" fill="var(--ink)" font-size="10.5" text-anchor="middle">${name}</text>`);
-      }else{
-        P.push(`<circle cx="${x}" cy="${y}" r="11.5" fill="var(--bg)" stroke="var(--red)" stroke-width="1.6"/>`);
-        P.push(`<text x="${x}" y="${y + 3.8}" fill="var(--red)" font-size="10" text-anchor="middle">${name}</text>`);
+    // nut + frets + fret numbers
+    P.push(`<rect x="${sx(0) - 3}" y="${TOP - 2.5}" width="${(NSTR - 1) * GAP + 6}" height="5" fill="var(--yellow)"/>`);
+    for(let f = 1; f <= NFRETS; f++){
+      P.push(`<line x1="${sx(0)}" y1="${TOP + f * FH}" x2="${sx(NSTR - 1)}" y2="${TOP + f * FH}" stroke="var(--line2)" stroke-width="1"/>`);
+      P.push(`<text x="14" y="${fy(f) + 4}" fill="var(--dim)" font-size="11" text-anchor="middle">${f}</text>`);
+    }
+
+    // strings + labels
+    for(let i = 0; i < NSTR; i++){
+      P.push(`<line x1="${sx(i)}" y1="${TOP}" x2="${sx(i)}" y2="${TOP + NFRETS * FH}" stroke="var(--line2)" stroke-width="1"/>`);
+      P.push(`<text x="${sx(i)}" y="16" fill="var(--cyan)" font-size="13" text-anchor="middle">${tuning.strings[i]}</text>`);
+    }
+
+    // in-key notes, coloured by degree
+    for(let i = 0; i < NSTR; i++){
+      for(let f = 0; f <= NFRETS; f++){
+        const pc = (tuning.pitches[i] + f) % 12;
+        if(!scale.includes(pc)) continue;
+        fretMapNote(P, sx(i), f === 0 ? OPENY : fy(f), pc, rootPC);
+      }
+    }
+  }else{
+    const FW = 58, SG = 42, TOP = 26;
+    const X0 = 66;                                      // nut x — open column sits left of it
+    const W = X0 + NFRETS * FW + 12;
+    const H = TOP + (NSTR - 1) * SG + 44;
+    const sy = i => TOP + i * SG;
+    const fx = f => X0 + (f - .5) * FW;                 // note centre inside fret f (f ≥ 1)
+    const midY = TOP + (NSTR - 1) * SG / 2;
+
+    P.push(`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'Share Tech Mono',monospace">`);
+
+    // position inlays behind everything
+    [3,5,7,10].forEach(f => P.push(`<circle cx="${fx(f)}" cy="${midY}" r="5.5" fill="var(--line)"/>`));
+    [1,2].forEach(k =>
+      P.push(`<circle cx="${fx(12)}" cy="${TOP + (NSTR - 1) * SG * k / 3}" r="5.5" fill="var(--line)"/>`));
+
+    // nut + frets + fret numbers
+    P.push(`<rect x="${X0 - 2.5}" y="${sy(0) - 3}" width="5" height="${(NSTR - 1) * SG + 6}" fill="var(--yellow)"/>`);
+    for(let f = 1; f <= NFRETS; f++){
+      P.push(`<line x1="${X0 + f * FW}" y1="${sy(0)}" x2="${X0 + f * FW}" y2="${sy(NSTR - 1)}" stroke="var(--line2)" stroke-width="1"/>`);
+      P.push(`<text x="${fx(f)}" y="${H - 8}" fill="var(--dim)" font-size="11" text-anchor="middle">${f}</text>`);
+    }
+    P.push(`<text x="${X0 - 26}" y="${H - 8}" fill="var(--dim)" font-size="11" text-anchor="middle">0</text>`);
+
+    // strings + labels
+    for(let i = 0; i < NSTR; i++){
+      P.push(`<line x1="${X0}" y1="${sy(i)}" x2="${X0 + NFRETS * FW}" y2="${sy(i)}" stroke="var(--line2)" stroke-width="1"/>`);
+      P.push(`<text x="12" y="${sy(i) + 4}" fill="var(--cyan)" font-size="13" text-anchor="middle">${tuning.strings[i]}</text>`);
+    }
+
+    // in-key notes, coloured by degree
+    for(let i = 0; i < NSTR; i++){
+      for(let f = 0; f <= NFRETS; f++){
+        const pc = (tuning.pitches[i] + f) % 12;
+        if(!scale.includes(pc)) continue;
+        fretMapNote(P, f === 0 ? X0 - 26 : fx(f), sy(i), pc, rootPC);
       }
     }
   }
@@ -1990,10 +2038,16 @@ mapKeySel.innerHTML =
   `<optgroup label="MINOR">${NOTE_NAMES.map(n => `<option value="${n} minor">KEY:// ${n} minor</option>`).join("")}</optgroup>`;
 mapKeySel.value = "C major";
 
+const mapPortrait = matchMedia("(orientation: portrait)");
 function drawMap(){
-  $("#mapdiag").innerHTML = renderFretMap(state.tuning, mapKeySel.value);
+  const vertical = mapPortrait.matches;
+  $("#mapdiag").classList.toggle("vert", vertical);
+  $("#mapdiag").innerHTML = renderFretMap(state.tuning, mapKeySel.value, vertical);
   $("#maptun").textContent = TUNINGS[state.tuning].label + "  ·  FRETS 0–12";
 }
+mapPortrait.addEventListener("change", () => {
+  if($("#mapov").classList.contains("open")) drawMap();
+});
 function openMap(){
   if(state.key !== "all") mapKeySel.value = state.key;
   drawMap();
