@@ -369,8 +369,8 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
     font-family:var(--font-m); font-size:20px; cursor:pointer;
   }
   #mapclose:active{ background:var(--red); color:var(--ink); }
-  .maprow{ display:flex; gap:8px; margin-bottom:10px; }
-  #mapKey, #mapScale, #styGenre, #styKey{
+  .maprow{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  #mapKey, #mapScale, #styGenre, #styKey, .ovtun{
     flex:1; min-width:0; min-height:44px; max-width:280px;
     background:var(--bg2); color:var(--yellow);
     border:1px solid var(--line2); border-radius:0;
@@ -849,6 +849,7 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
       <button id="mapclose" aria-label="Close">✕</button>
     </div>
     <div class="maprow">
+      <select class="ovtun" aria-label="Tuning"></select>
       <select id="mapKey" aria-label="Map key"></select>
       <select id="mapScale" aria-label="Map scale"></select>
     </div>
@@ -883,6 +884,7 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
       <button id="styclose" aria-label="Close">✕</button>
     </div>
     <div class="maprow">
+      <select class="ovtun" aria-label="Tuning"></select>
       <select id="styGenre" aria-label="Style"></select>
       <select id="styKey" aria-label="Key"></select>
     </div>
@@ -908,6 +910,7 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
       <button id="lnclose" aria-label="Close">✕</button>
     </div>
     <div class="maprow">
+      <select class="ovtun" aria-label="Tuning"></select>
       <select id="lnLesson" aria-label="Lesson"></select>
       <select id="lnChord" aria-label="Chord to roll over"></select>
     </div>
@@ -923,7 +926,7 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
     </div>
     <div class="mapscroll" id="lnTab"></div>
     <div class="maplegend" id="lnHint">
-      <span><b style="background:var(--red)"></b>T · I · M — THUMB / INDEX / MIDDLE</span>
+      <span><b style="background:var(--red)"></b>T · I · M · F — THUMB / INDEX / MIDDLE / FRAIL</span>
       <span><b class="hollow"></b>NUMBERS = FRETS · × = MUTED</span>
     </div>
   </div>
@@ -989,6 +992,9 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
         <div class="mfull" id="tuntun"></div>
       </div>
       <button id="tclose" aria-label="Close">✕</button>
+    </div>
+    <div class="maprow">
+      <select class="ovtun" aria-label="Tuning"></select>
     </div>
     <div class="tundial">
       <div id="tnote">—</div>
@@ -2393,7 +2399,7 @@ NOTE_NAMES.forEach((n,i) => { KEYS[n + " major"] = MAJOR_SCALE.map(x => (x + i) 
 NOTE_NAMES.forEach((n,i) => { KEYS[n + " minor"] = MAJOR_SCALE.map(x => (x + i + 3) % 12); });
 
 const state = {
-  tuning: "gCEA",
+  tuning: "gCEA",   // restored from localStorage below — the app remembers your instrument
   query: "",
   cat: "all",
   key: "all",
@@ -2402,6 +2408,10 @@ const state = {
   page: 0,
   orn: 0,   // 0 = off · 1 = ornament dots/arcs · 2 = dots/arcs + colour-tone labels
 };
+try{
+  const t = localStorage.getItem("chordware.tuning");
+  if(TUNINGS[t] && CHORD_LIBRARY[t]) state.tuning = t;
+}catch(e){/* private mode */}
 
 const $ = sel => document.querySelector(sel);
 const grid = $("#grid"), pageInfo = $("#pageInfo");
@@ -2598,8 +2608,11 @@ function closeModal(){
 }
 
 /* ── wire up controls ─────────────────────────────────────────── */
+/* the tuning picker lives in the header AND in every overlay (map,
+   styles, learn, tuner) — one builder fills them all, one setter keeps
+   them in sync, redraws whatever's open, and persists the choice */
 const tuningSel = $("#tuning");
-{ // tunings grouped by instrument in the dropdown
+function fillTuningSelect(sel){
   const groups = new Map();
   Object.keys(TUNINGS).forEach(k => {
     if(!CHORD_LIBRARY[k]) return;
@@ -2615,11 +2628,27 @@ const tuningSel = $("#tuning");
       opt.value = k; opt.textContent = TUNINGS[k].label;
       og.appendChild(opt);
     });
-    tuningSel.appendChild(og);
+    sel.appendChild(og);
+  }
+  sel.value = state.tuning;
+  sel.addEventListener("change", () => setTuning(sel.value));
+}
+fillTuningSelect(tuningSel);
+document.querySelectorAll(".ovtun").forEach(fillTuningSelect);
+
+function setTuning(t){
+  state.tuning = t; state.page = 0;
+  try{ localStorage.setItem("chordware.tuning", t); }catch(e){/* private mode */}
+  document.querySelectorAll("#tuning, .ovtun").forEach(s => { if(s.value !== t) s.value = t; });
+  render();
+  if($("#mapov").classList.contains("open")) drawMap();
+  if($("#styleov").classList.contains("open")) drawStyles();
+  if($("#learnov").classList.contains("open")) relearnTuning();
+  if($("#tuner").classList.contains("open")){
+    $("#tuntun").textContent = TUNINGS[t].label;
+    $("#tstrings").innerHTML = TUNINGS[t].strings.map(s => `<span>${s}</span>`).join("");
   }
 }
-tuningSel.value = state.tuning;
-tuningSel.addEventListener("change", () => { state.tuning = tuningSel.value; state.page = 0; render(); });
 
 $("#chips").innerHTML = CATS.map(c =>
   `<button class="chip${c.id === state.cat ? " on" : ""}" data-cat="${c.id}">${c.label}</button>`).join("") +
@@ -3225,6 +3254,22 @@ const ROLL_LESSONS = [
     blurb:"Thumb strikes a bass string, then index + middle pinch two strings together. The half-speed feel makes it the easiest roll to sing over.",
     ev:[ {t:0,s:0,fin:"T"},{t:2,s:2,fin:"I"},{t:2,s:3,fin:"M"},
          {t:4,s:1,fin:"T"},{t:6,s:2,fin:"I"},{t:6,s:3,fin:"M"} ] },
+  { name:"Foggy Mountain Roll", steps:8,
+    blurb:"Earl Scruggs' signature: index and middle trade on the top strings while the thumb answers below — 2-1-3-1 here, with the 3rd string standing in for the banjo's 5th.",
+    ev:[ {t:0,s:2,fin:"I"},{t:1,s:3,fin:"M"},{t:2,s:1,fin:"T"},{t:3,s:3,fin:"M"},
+         {t:4,s:2,fin:"I"},{t:5,s:3,fin:"M"},{t:6,s:1,fin:"T"},{t:7,s:3,fin:"M"} ] },
+  { name:"Index-Lead Roll", steps:8,
+    blurb:"A lead pattern for backup: the index opens each group on the 2nd string and the thumb keeps the pulse underneath. Swap it in under vocals where a forward roll feels too busy.",
+    ev:[ {t:0,s:2,fin:"I"},{t:1,s:1,fin:"T"},{t:2,s:3,fin:"M"},{t:3,s:1,fin:"T"},
+         {t:4,s:2,fin:"I"},{t:5,s:1,fin:"T"},{t:6,s:3,fin:"M"},{t:7,s:1,fin:"T"} ] },
+  { name:"Middle-Lead Roll", steps:8,
+    blurb:"The mirror lead: middle opens every group on the 1st string with the thumb answering — puts the melody voice on top, so it's the one for picking out tunes.",
+    ev:[ {t:0,s:3,fin:"M"},{t:1,s:1,fin:"T"},{t:2,s:2,fin:"I"},{t:3,s:1,fin:"T"},
+         {t:4,s:3,fin:"M"},{t:5,s:1,fin:"T"},{t:6,s:2,fin:"I"},{t:7,s:1,fin:"T"} ] },
+  { name:"Clawhammer Bum-Ditty", steps:8,
+    blurb:"The old-time down-picking engine — not a roll at all: strike a melody note with the back of a nail (F = frail), brush the strings, then the thumb catches the 4th. On a reentrant uke that's the high-g drone — exactly the banjo 5th string's job. BUM · DIT-TY.",
+    ev:[ {t:0,s:3,fin:"F"},{t:2,s:1,fin:"F"},{t:2,s:2,fin:"F"},{t:2,s:3,fin:"F"},{t:3,s:0,fin:"T"},
+         {t:4,s:3,fin:"F"},{t:6,s:1,fin:"F"},{t:6,s:2,fin:"F"},{t:6,s:3,fin:"F"},{t:7,s:0,fin:"T"} ] },
 ];
 
 const SLIDE_LESSONS = {
@@ -3400,13 +3445,16 @@ function drawLearn(){
   $("#lnTab").innerHTML = renderLessonTab(l, lnChord(), TUNINGS[state.tuning]);
 }
 
-function openLearn(){
+function relearnTuning(){                                // repopulate the per-tuning selects, then draw
   const list = chordList();
   const home = { gCEA:"C", DGBE:"G", DGBD:"G" }[state.tuning];
   $("#lnChord").innerHTML = list.map(c => `<option value="${c.name}">CHORD:// ${c.name}</option>`).join("");
   if(home && list.some(c => c.name === home)) $("#lnChord").value = home;
   $("#lnLesson").innerHTML = "";                         // force drawLearn to rebuild for this tuning
   drawLearn();
+}
+function openLearn(){
+  relearnTuning();
   $("#learnov").classList.add("open");
   document.body.style.overflow = "hidden";
 }
