@@ -413,7 +413,7 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
     border:1px solid var(--line2); font-family:var(--font-m); font-size:16px; cursor:pointer;
   }
   .prtempo button:active{ background:var(--yellow); color:var(--ink); }
-  #prBpm{
+  #prBpm, #lnBpm{
     display:flex; align-items:center; padding:0 10px; min-width:74px; justify-content:center;
     border-top:1px solid var(--line2); border-bottom:1px solid var(--line2);
     color:var(--yellow); font-size:13px; letter-spacing:.1em;
@@ -441,6 +441,37 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
     fill:var(--bg2); stroke:var(--line2); stroke-width:1.6;
   }
   #mapdiag.quiz g[data-pc]:not(.reveal):not([data-iv="0"]) text{ opacity:0; }
+
+  /* ── learn overlay — rolls + slide licks as animated tab ──────── */
+  #learnov{
+    position:fixed; inset:0; z-index:8100;
+    background:var(--overlay); display:none; overflow-y:auto;
+    padding:calc(14px + env(safe-area-inset-top, 0px)) 14px calc(20px + env(safe-area-inset-bottom));
+  }
+  #learnov.open{ display:block; }
+  .lnrow{ display:flex; gap:8px; margin:10px 0; flex-wrap:wrap; }
+  #lnclose{
+    min-width:48px; min-height:48px; flex:0 0 auto;
+    background:transparent; color:var(--red); border:1px solid var(--red);
+    font-family:var(--font-m); font-size:20px; cursor:pointer;
+  }
+  #lnclose:active{ background:var(--red); color:var(--ink); }
+  #lnLesson, #lnChord{
+    flex:1; min-width:0; min-height:44px; max-width:280px;
+    background:var(--bg2); color:var(--yellow);
+    border:1px solid var(--line2); border-radius:0;
+    font-family:var(--font-m); font-size:13px; padding:0 8px;
+  }
+  #lnTab svg{ display:block; min-width:640px; width:100%; height:auto; }
+  .lev circle{ fill:var(--bg2); stroke:var(--cyan); stroke-width:1.6; }
+  .lev text.fr{ fill:var(--cyan); }
+  .lev text.fin{ fill:var(--red); }
+  .lev text.mute{ fill:var(--dim); }
+  .lev .sl{ stroke:var(--red); stroke-width:2; fill:none; }
+  .lev.lit circle{ fill:var(--yellow); stroke:var(--yellow); filter:drop-shadow(0 0 7px var(--yellow)); }
+  .lev.lit text.fr{ fill:var(--ink); }
+  #lnPlayhead{ stroke:var(--yellow); stroke-width:2; opacity:0; }
+  #lnPlayhead.run{ opacity:.9; }
 
   /* ── styles overlay (progressions per genre + key) ────────────── */
   #styleov{
@@ -732,7 +763,7 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
 
   /* notch clearance when rotated */
   @supports (padding: env(safe-area-inset-left)){
-    header, .controls, main, .pager, #modal, #mapov, #songEd, #setEd, #tuner, #perf{
+    header, .controls, main, .pager, #modal, #mapov, #learnov, #songEd, #setEd, #tuner, #perf{
       padding-left:calc(14px + env(safe-area-inset-left));
       padding-right:calc(14px + env(safe-area-inset-right));
     }
@@ -864,6 +895,37 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
       <span id="styscale"></span>
     </div>
     <div id="styprogs"></div>
+  </div>
+</div>
+
+<div id="learnov" role="dialog" aria-modal="true" aria-label="Learn — rolls and slide licks">
+  <div class="mapwrap">
+    <div class="maphead">
+      <div>
+        <h2 style="color:var(--red)">LEARN://</h2>
+        <div class="mfull" id="lntun"></div>
+      </div>
+      <button id="lnclose" aria-label="Close">✕</button>
+    </div>
+    <div class="maprow">
+      <select id="lnLesson" aria-label="Lesson"></select>
+      <select id="lnChord" aria-label="Chord to roll over"></select>
+    </div>
+    <div class="styblurb" id="lnBlurb"></div>
+    <div class="lnrow">
+      <button class="prbtn" id="lnPlay" title="Loop the pattern at tempo">▶ Play</button>
+      <button class="prbtn" id="lnSnd" title="Hear the pattern, or just a metronome tick while you play it">SND NOTES</button>
+      <div class="prtempo">
+        <button id="lnSlow" aria-label="Slower">−</button>
+        <div id="lnBpm">70 BPM</div>
+        <button id="lnFast" aria-label="Faster">+</button>
+      </div>
+    </div>
+    <div class="mapscroll" id="lnTab"></div>
+    <div class="maplegend" id="lnHint">
+      <span><b style="background:var(--red)"></b>T · I · M — THUMB / INDEX / MIDDLE</span>
+      <span><b class="hollow"></b>NUMBERS = FRETS · × = MUTED</span>
+    </div>
   </div>
 </div>
 
@@ -2563,11 +2625,13 @@ $("#chips").innerHTML = CATS.map(c =>
   `<button class="chip${c.id === state.cat ? " on" : ""}" data-cat="${c.id}">${c.label}</button>`).join("") +
   `<button class="chip act" id="styChip" title="Blues / country / folk — standard progressions + genre scale maps">Styles</button>` +
   `<button class="chip act" id="mapChip" title="Fretboard map — every in-key note on the neck">Map</button>` +
+  `<button class="chip act" id="lrnChip" title="Learn — banjo rolls + slide licks as animated tab">Learn</button>` +
   `<button class="chip act" id="tunChip" title="Tune up — mic pitch detection">Tuner</button>`;
 $("#chips").addEventListener("click", e => {
   const b = e.target.closest(".chip"); if(!b) return;
   if(b.id === "styChip"){ openStyles(); return; }
   if(b.id === "mapChip"){ openMap(); return; }
+  if(b.id === "lrnChip"){ openLearn(); return; }
   if(b.id === "tunChip"){ openTuner(); return; }
   state.cat = b.dataset.cat; state.page = 0;
   document.querySelectorAll(".chip[data-cat]").forEach(x => x.classList.toggle("on", x === b));
@@ -3127,6 +3191,248 @@ $("#styprogs").addEventListener("click", e => {
   if(b.dataset.play) openPerf();
 });
 
+/* ═══════════════════════════════════════════════════════════════
+   LEARN — technique lessons as animated tab. Two kinds:
+   · ROLLS — banjo right-hand picking patterns for any 4-string
+     tuning. A roll is string order + timing, independent of the
+     chord, so you pick any shape from the library and the frets
+     come from what you're holding. Strings are numbered banjo
+     style: 1st = highest pitch. t is in eighth-note slots.
+   · LICKS — authored left-hand phrases per tuning (frets are
+     absolute). Slides are ev {sl:from, to:target}; the audio runs
+     the chromatic steps so it whines like a slide should.
+   Playback loops the tab strip with a sweeping playhead; SND
+   toggles between hearing the notes and a bare metronome tick.
+   ═══════════════════════════════════════════════════════════════ */
+const ROLL_LESSONS = [
+  { name:"Forward Roll", steps:8,
+    blurb:"The engine of bluegrass banjo: thumb–index–middle rolling toward the floor. 3rd–2nd–1st twice, then 3rd–1st to fill the bar. Keep it even — speed comes later.",
+    ev:[ {t:0,s:1,fin:"T"},{t:1,s:2,fin:"I"},{t:2,s:3,fin:"M"},{t:3,s:1,fin:"T"},
+         {t:4,s:2,fin:"I"},{t:5,s:3,fin:"M"},{t:6,s:1,fin:"T"},{t:7,s:3,fin:"M"} ] },
+  { name:"Backward Roll", steps:8,
+    blurb:"The forward roll mirrored: middle–index–thumb climbing away from the floor. Great under melody notes on the 1st string.",
+    ev:[ {t:0,s:3,fin:"M"},{t:1,s:2,fin:"I"},{t:2,s:1,fin:"T"},{t:3,s:3,fin:"M"},
+         {t:4,s:2,fin:"I"},{t:5,s:1,fin:"T"},{t:6,s:3,fin:"M"},{t:7,s:2,fin:"I"} ] },
+  { name:"Forward-Reverse Roll", steps:8,
+    blurb:"Out and back in one bar — the thumb drops to the 4th string at the turn, which is what gives it that rolling-wave shape.",
+    ev:[ {t:0,s:1,fin:"T"},{t:1,s:2,fin:"I"},{t:2,s:3,fin:"M"},{t:3,s:0,fin:"T"},
+         {t:4,s:3,fin:"M"},{t:5,s:2,fin:"I"},{t:6,s:1,fin:"T"},{t:7,s:3,fin:"M"} ] },
+  { name:"Alternating Thumb Roll", steps:8,
+    blurb:"The thumb bounces between the 4th and 3rd strings while index and middle answer — the classic boom-chick engine behind old-time and country backup.",
+    ev:[ {t:0,s:0,fin:"T"},{t:1,s:2,fin:"I"},{t:2,s:1,fin:"T"},{t:3,s:3,fin:"M"},
+         {t:4,s:0,fin:"T"},{t:5,s:2,fin:"I"},{t:6,s:1,fin:"T"},{t:7,s:3,fin:"M"} ] },
+  { name:"Pinch Pattern", steps:8,
+    blurb:"Thumb strikes a bass string, then index + middle pinch two strings together. The half-speed feel makes it the easiest roll to sing over.",
+    ev:[ {t:0,s:0,fin:"T"},{t:2,s:2,fin:"I"},{t:2,s:3,fin:"M"},
+         {t:4,s:1,fin:"T"},{t:6,s:2,fin:"I"},{t:6,s:3,fin:"M"} ] },
+];
+
+const SLIDE_LESSONS = {
+  DGBD: [   // open G — authored in G blues (G · B♭ · C · D♭ · D · F)
+    { name:"Slide into the ♭3", steps:8,
+      blurb:"THE blues move: slide up into the ♭3 (B♭) from a fret below and let the open strings answer. Everything here sits in G blues.",
+      ev:[ {t:0,s:1,f:0},{t:1,s:1,sl:2,to:3},{t:3,s:3,f:0},{t:4,s:2,f:1},
+           {t:5,s:1,sl:2,to:3},{t:6,s:1,f:0},{t:7,s:0,f:0} ] },
+    { name:"Double-Stop Slide to the IV", steps:8,
+      blurb:"Open G's party trick: a straight barre at 5 is the IV chord. Slide a two-string double-stop 3→5 on the B and high-D strings, sit on it, and fall back home.",
+      ev:[ {t:0,s:1,f:0},{t:1,s:2,sl:3,to:5},{t:1,s:3,sl:3,to:5},{t:3,s:2,f:5},{t:3,s:3,f:5},
+           {t:5,s:2,sl:5,to:3},{t:5,s:3,sl:5,to:3},{t:7,s:1,f:0} ] },
+    { name:"♭5 Wobble", steps:8,
+      blurb:"C → D♭ → D on the G string: sliding through the blue note instead of picking it. Rock it back down and resolve to the root.",
+      ev:[ {t:0,s:1,f:5},{t:1,s:1,sl:5,to:6},{t:2,s:1,sl:6,to:7},{t:4,s:1,sl:7,to:6},
+           {t:5,s:1,f:5},{t:6,s:1,f:3},{t:7,s:1,f:0} ] },
+    { name:"Turnaround Walk-Down", steps:8,
+      blurb:"Bar 11–12 material: slide into F on the high D string, then walk F–D–C–B♭–G and land on the V. Tag it onto any 12-bar in G.",
+      ev:[ {t:0,s:3,sl:2,to:3},{t:1,s:3,f:0},{t:2,s:2,f:1},{t:3,s:1,f:3},
+           {t:4,s:1,f:0},{t:6,s:1,sl:6,to:7} ] },
+  ],
+};
+
+function lessonsFor(tuningKey){
+  const out = [];
+  if(TUNINGS[tuningKey].strings.length === 4)
+    ROLL_LESSONS.forEach(l => out.push({ ...l, kind:"roll" }));
+  (SLIDE_LESSONS[tuningKey] || []).forEach(l => out.push({ ...l, kind:"lick" }));
+  return out;
+}
+
+/* slide audio: pluck the start, run quiet chromatic steps into the
+   target — a plucked-string slide is exactly that ramp of re-attacks */
+function slideNotes(m0, m1, when, gain = .3){
+  pluck(m0, when, gain);
+  const dir = m1 > m0 ? 1 : -1, n = Math.abs(m1 - m0);
+  for(let k = 1; k <= n; k++)
+    pluck(m0 + k * dir, when + .05 + k * .055, k === n ? gain * .75 : .07);
+}
+
+/* the tab strip: strings as horizontal lines (1st string on top, like
+   real tab), one column per eighth-note slot, events as fret circles.
+   Rolls read frets from the held chord; licks carry their own. */
+function renderLessonTab(lesson, chord, tuning){
+  const NSTR = tuning.strings.length;
+  const STEP = 64, X0 = 58, TOP = 30, SG = 42;
+  const W = X0 + lesson.steps * STEP + 14;
+  const H = TOP + (NSTR - 1) * SG + 40;
+  const sy = s => TOP + (NSTR - 1 - s) * SG;            // s0 (lowest position) at the bottom
+  const ex = t => X0 + (t + .5) * STEP;
+  const P = [`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'Share Tech Mono',monospace">`];
+
+  for(let t = 0; t <= lesson.steps; t++){               // beat grid — heavier on the quarters
+    const x = X0 + t * STEP;
+    P.push(`<line x1="${x}" y1="${TOP - 8}" x2="${x}" y2="${sy(0) + 8}" stroke="var(--line${t % 2 ? "2" : ""})" stroke-width="${t % 2 ? .5 : 1}"/>`);
+    if(t < lesson.steps && t % 2 === 0)
+      P.push(`<text x="${ex(t)}" y="${H - 4}" fill="var(--dim)" font-size="11" text-anchor="middle">${t / 2 + 1}</text>`);
+  }
+  for(let s = 0; s < NSTR; s++){
+    P.push(`<line x1="${X0}" y1="${sy(s)}" x2="${X0 + lesson.steps * STEP}" y2="${sy(s)}" stroke="var(--line2)" stroke-width="1"/>`);
+    P.push(`<text x="${X0 - 34}" y="${sy(s) + 4}" fill="var(--cyan)" font-size="13">${tuning.strings[s]}</text>`);
+  }
+
+  lesson.ev.forEach((e, i) => {
+    const x = ex(e.t), y = sy(e.s);
+    P.push(`<g class="lev" data-ei="${i}">`);
+    if(e.sl !== undefined){                             // slide: from-fret, slanted connector, to-fret
+      const x2 = x + STEP * .55;
+      P.push(`<line class="sl" x1="${x + 11}" y1="${y + 4}" x2="${x2 - 11}" y2="${y - 4}"/>`);
+      P.push(`<circle cx="${x}" cy="${y}" r="11"/>`);
+      P.push(`<text class="fr" x="${x}" y="${y + 3.8}" font-size="11" text-anchor="middle">${e.sl}</text>`);
+      P.push(`<circle cx="${x2}" cy="${y}" r="11"/>`);
+      P.push(`<text class="fr" x="${x2}" y="${y + 3.8}" font-size="11" text-anchor="middle">${e.to}</text>`);
+    }else{
+      const f = e.f !== undefined ? e.f : chord.frets[e.s];
+      if(f < 0){
+        P.push(`<text class="mute" x="${x}" y="${y + 4.5}" font-size="14" text-anchor="middle">×</text>`);
+      }else{
+        P.push(`<circle cx="${x}" cy="${y}" r="11"/>`);
+        P.push(`<text class="fr" x="${x}" y="${y + 3.8}" font-size="11" text-anchor="middle">${f}</text>`);
+      }
+    }
+    if(e.fin) P.push(`<text class="fin" x="${x}" y="${y - 15}" font-size="10" text-anchor="middle">${e.fin}</text>`);
+    P.push(`</g>`);
+  });
+
+  P.push(`<line id="lnPlayhead" x1="${X0}" y1="${TOP - 10}" x2="${X0}" y2="${sy(0) + 10}"/>`);
+  P.push(`</svg>`);
+  return P.join("");
+}
+
+/* ── lesson playback: schedule one loop of audio, sweep the playhead
+   with rAF, light events as they sound, repeat ─────────────────── */
+let lsn = null;                                          // { playing, t0, raf, loopTimer } — selection lives in the selects
+let lsnBpm = 70, lsnSnd = true;
+
+function lnLesson(){ return lessonsFor(state.tuning)[+$("#lnLesson").value]; }
+function lnChord(){
+  const list = chordList();
+  return list.find(c => c.name === $("#lnChord").value) || list[0];
+}
+
+function lnEventAudio(e, chord, tuning, when){
+  if(e.sl !== undefined) return slideNotes(tuning.open[e.s] + e.sl, tuning.open[e.s] + e.to, when);
+  const f = e.f !== undefined ? e.f : chord.frets[e.s];
+  if(f >= 0) pluck(tuning.open[e.s] + f, when, .3);
+}
+
+function lnScheduleLoop(){
+  const l = lnLesson(), stepS = 30 / lsnBpm;             // eighth notes against a quarter-note BPM
+  if(lsnSnd) l.ev.forEach(e => lnEventAudio(e, lnChord(), TUNINGS[state.tuning], e.t * stepS));
+  for(let t = 0; t < l.steps; t += 2) pluck(98, t * stepS, lsnSnd ? .05 : .12);   // tick on the quarters
+  lsn.loopTimer = setTimeout(lnScheduleLoop, l.steps * stepS * 1000);
+}
+
+function lnFrame(){
+  if(!lsn || !lsn.playing) return;
+  const l = lnLesson(), stepMs = 30000 / lsnBpm, loopMs = l.steps * stepMs;
+  const tl = (performance.now() - lsn.t0) % loopMs;
+  const ph = $("#lnPlayhead");
+  if(ph){
+    const x = 58 + (tl / stepMs) * 64;                   // X0/STEP from the renderer
+    ph.setAttribute("x1", x); ph.setAttribute("x2", x);
+  }
+  document.querySelectorAll("#lnTab .lev").forEach(g => {
+    const t = l.ev[+g.dataset.ei].t * stepMs;
+    g.classList.toggle("lit", tl >= t && tl < t + stepMs * .9);
+  });
+  lsn.raf = requestAnimationFrame(lnFrame);
+}
+
+function lnStop(){
+  if(lsn){ clearTimeout(lsn.loopTimer); cancelAnimationFrame(lsn.raf); }
+  lsn = null;
+  $("#lnPlay").classList.remove("on");
+  $("#lnPlay").textContent = "▶ Play";
+  const ph = $("#lnPlayhead");
+  if(ph) ph.classList.remove("run");
+  document.querySelectorAll("#lnTab .lev.lit").forEach(g => g.classList.remove("lit"));
+  syncWakeLock();
+}
+function lnStart(){
+  audioCtx();                                            // user gesture — unlock audio before the first scheduled pluck
+  lsn = { playing: true, t0: performance.now() };
+  $("#lnPlay").classList.add("on");
+  $("#lnPlay").textContent = "◼ Stop";
+  $("#lnPlayhead").classList.add("run");
+  lnScheduleLoop();
+  lnFrame();
+  syncWakeLock();
+}
+
+function drawLearn(){
+  lnStop();
+  const lessons = lessonsFor(state.tuning);
+  $("#lntun").textContent = TUNINGS[state.tuning].label;
+  if(!lessons.length){
+    $("#lnLesson").innerHTML = ""; $("#lnChord").style.display = "none";
+    $("#lnBlurb").textContent = "// NO LESSONS FOR THIS TUNING YET — ROLLS ARE FOUR-STRING //";
+    $("#lnTab").innerHTML = ""; $("#lnPlay").disabled = true;
+    return;
+  }
+  $("#lnPlay").disabled = false;
+  const sel = $("#lnLesson");
+  if(sel.options.length !== lessons.length)              // tuning changed — rebuild the list
+    sel.innerHTML = lessons.map((l, i) =>
+      `<option value="${i}">${l.kind === "roll" ? "ROLL" : "LICK"}:// ${l.name}</option>`).join("");
+  const l = lessons[+sel.value] || lessons[0];
+  const roll = l.kind === "roll";
+  $("#lnChord").style.display = roll ? "" : "none";
+  $("#lnHint").style.display = roll ? "" : "none";
+  $("#lnBlurb").textContent = l.blurb;
+  $("#lnTab").innerHTML = renderLessonTab(l, lnChord(), TUNINGS[state.tuning]);
+}
+
+function openLearn(){
+  const list = chordList();
+  const home = { gCEA:"C", DGBE:"G", DGBD:"G" }[state.tuning];
+  $("#lnChord").innerHTML = list.map(c => `<option value="${c.name}">CHORD:// ${c.name}</option>`).join("");
+  if(home && list.some(c => c.name === home)) $("#lnChord").value = home;
+  $("#lnLesson").innerHTML = "";                         // force drawLearn to rebuild for this tuning
+  drawLearn();
+  $("#learnov").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+function closeLearn(){
+  lnStop();
+  $("#learnov").classList.remove("open");
+  document.body.style.overflow = "";
+}
+$("#lnLesson").addEventListener("change", drawLearn);
+$("#lnChord").addEventListener("change", drawLearn);
+$("#lnPlay").addEventListener("click", () => { lsn ? lnStop() : lnStart(); });
+$("#lnSnd").addEventListener("click", () => {
+  lsnSnd = !lsnSnd;
+  $("#lnSnd").textContent = lsnSnd ? "SND NOTES" : "SND TICK";
+  $("#lnSnd").classList.toggle("on", !lsnSnd);
+});
+function setLsnBpm(v){
+  lsnBpm = Math.max(40, Math.min(240, v));
+  $("#lnBpm").textContent = lsnBpm + " BPM";
+  if(lsn){ lnStop(); lnStart(); }                        // retime cleanly from the top
+}
+$("#lnSlow").addEventListener("click", () => setLsnBpm(lsnBpm - 10));
+$("#lnFast").addEventListener("click", () => setLsnBpm(lsnBpm + 10));
+$("#lnclose").addEventListener("click", closeLearn);
+$("#learnov").addEventListener("click", e => { if(e.target === e.currentTarget) closeLearn(); });
+
 /* ── performance view — big chord + lyric autoscroll, for playing live.
    [Chord] tags in the lyrics drive the sequence; otherwise the chord
    list does. Keyboard arrows / space / page keys advance, so Bluetooth
@@ -3309,7 +3615,7 @@ function closePerf(){
 let wakeLock = null, AWAKE = false;
 try{ AWAKE = localStorage.getItem("chordware.awake") === "1"; }catch(e){}
 async function syncWakeLock(){
-  const want = AWAKE || !!perf || !!prac;                // hands are on the instrument during a drill too
+  const want = AWAKE || !!perf || !!prac || !!lsn;       // hands are on the instrument during a drill or lesson too
   if(want && !wakeLock && document.visibilityState === "visible"){
     try{
       if("wakeLock" in navigator){
@@ -3607,6 +3913,7 @@ document.addEventListener("keydown", e => {
     if($("#setEd").classList.contains("open")) return closeSetEditor();
     if($("#songEd").classList.contains("open")) return closeSongEditor();
     if($("#styleov").classList.contains("open")) return closeStyles();
+    if($("#learnov").classList.contains("open")) return closeLearn();
     if($("#mapov").classList.contains("open")) return closeMap();
     return closeModal();
   }
@@ -3624,7 +3931,7 @@ document.addEventListener("keydown", e => {
   }
   if($("#songEd").classList.contains("open") || $("#setEd").classList.contains("open") ||
      $("#tuner").classList.contains("open") || $("#mapov").classList.contains("open") ||
-     $("#styleov").classList.contains("open")) return;
+     $("#styleov").classList.contains("open") || $("#learnov").classList.contains("open")) return;
   if(e.key === "ArrowLeft"  && state.page > 0){ state.page--; render(); }
   if(e.key === "ArrowRight"){ const pages = Math.ceil(filtered().length / PAGE_SIZE); if(state.page < pages - 1){ state.page++; render(); } }
 });
