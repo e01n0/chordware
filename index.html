@@ -3273,6 +3273,24 @@ const ROLL_LESSONS = [
 ];
 
 const SLIDE_LESSONS = {
+  gCEA: [   // standard uke — authored in C blues (C · E♭ · F · G♭ · G · B♭)
+    { name:"Slide into the ♭3", steps:8,
+      blurb:"THE blues move in C: slide up into the ♭3 (E♭) on the C string from a fret below, and let the high-g drone answer at the end. Everything here sits in C blues.",
+      ev:[ {t:0,s:1,f:0},{t:1,s:1,sl:2,to:3},{t:3,s:3,f:3},{t:4,s:2,f:3},
+           {t:5,s:1,sl:2,to:3},{t:6,s:1,f:0},{t:7,s:0,f:0} ] },
+    { name:"Double-Stop Slide", steps:8,
+      blurb:"The classic uke blues double-stop: the E + A pair slid 1→3 takes F + B♭ up into G + C — dominant tension resolving straight into home. Sit on it, then slide back down.",
+      ev:[ {t:0,s:1,f:0},{t:1,s:2,sl:1,to:3},{t:1,s:3,sl:1,to:3},{t:3,s:2,f:3},{t:3,s:3,f:3},
+           {t:5,s:2,sl:3,to:1},{t:5,s:3,sl:3,to:1},{t:7,s:1,f:0} ] },
+    { name:"♭5 Wobble", steps:8,
+      blurb:"F → G♭ → G on the C string: sliding through the blue note instead of picking it. Rock it back down and resolve to the root — same frets as the open-G version, one string over.",
+      ev:[ {t:0,s:1,f:5},{t:1,s:1,sl:5,to:6},{t:2,s:1,sl:6,to:7},{t:4,s:1,sl:7,to:6},
+           {t:5,s:1,f:5},{t:6,s:1,f:3},{t:7,s:1,f:0} ] },
+    { name:"Turnaround Walk-Down", steps:8,
+      blurb:"Bar 11–12 material in C: slide into E♭ on the A string, walk E♭–C–B♭–G down to the root, and land on the V. Tag it onto any 12-bar in C.",
+      ev:[ {t:0,s:3,sl:5,to:6},{t:1,s:3,f:3},{t:2,s:3,f:1},{t:3,s:2,f:3},
+           {t:4,s:1,f:0},{t:6,s:1,sl:6,to:7} ] },
+  ],
   DGBD: [   // open G — authored in G blues (G · B♭ · C · D♭ · D · F)
     { name:"Slide into the ♭3", steps:8,
       blurb:"THE blues move: slide up into the ♭3 (B♭) from a fret below and let the open strings answer. Everything here sits in G blues.",
