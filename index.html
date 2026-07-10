@@ -391,6 +391,57 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
   }
   .maplegend b.hollow{ background:transparent !important; border:2px solid var(--red); }
 
+  /* ── practice drills on the fretboard map ─────────────────────── */
+  #pracRow{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .prbtn{
+    min-height:44px; padding:0 14px; flex:1 0 auto;
+    background:transparent; color:var(--cyan); border:1px solid var(--cyan);
+    font-family:var(--font-m); font-size:13px; letter-spacing:.12em;
+    text-transform:uppercase; cursor:pointer;
+  }
+  .prbtn.on{ background:var(--cyan); color:var(--ink); }
+  .prbtn:disabled{ opacity:.4; cursor:default; }
+  #prBox{
+    flex:1 0 auto; min-width:0; min-height:44px; max-width:200px;
+    background:var(--bg2); color:var(--yellow);
+    border:1px solid var(--line2); border-radius:0;
+    font-family:var(--font-m); font-size:13px; padding:0 8px;
+  }
+  .prtempo{ display:flex; align-items:stretch; }
+  .prtempo button{
+    min-width:44px; min-height:44px; background:transparent; color:var(--yellow);
+    border:1px solid var(--line2); font-family:var(--font-m); font-size:16px; cursor:pointer;
+  }
+  .prtempo button:active{ background:var(--yellow); color:var(--ink); }
+  #prBpm{
+    display:flex; align-items:center; padding:0 10px; min-width:74px; justify-content:center;
+    border-top:1px solid var(--line2); border-bottom:1px solid var(--line2);
+    color:var(--yellow); font-size:13px; letter-spacing:.1em;
+  }
+  #prStatus{
+    margin-bottom:10px; min-height:20px;
+    font-size:13px; letter-spacing:.14em; color:var(--yellow); text-transform:uppercase;
+  }
+  #prStatus b{ color:var(--cyan); font-weight:400; }
+  /* the lit / target / verdict halos — pure CSS so every skin re-themes them */
+  #mapdiag g[data-pc] circle{ transition:filter .12s; }
+  #mapdiag g.prlit  circle{ filter:drop-shadow(0 0 7px var(--yellow)) drop-shadow(0 0 3px var(--yellow)); }
+  #mapdiag g.prtgt  circle{ filter:drop-shadow(0 0 7px var(--yellow)) drop-shadow(0 0 3px var(--yellow)); }
+  #mapdiag g.prgood circle{ filter:drop-shadow(0 0 9px var(--cyan))   drop-shadow(0 0 4px var(--cyan)); }
+  #mapdiag g.prbad  circle{ filter:drop-shadow(0 0 9px var(--red))    drop-shadow(0 0 4px var(--red)); }
+  #mapdiag g.prlit, #mapdiag g.prtgt, #mapdiag g.prgood, #mapdiag g.prbad{
+    transform:scale(1.14); transform-box:fill-box; transform-origin:center;
+  }
+  @keyframes prpulse{ 0%,100%{ transform:scale(1.06); } 50%{ transform:scale(1.24); } }
+  #mapdiag g.prtgt{ animation:prpulse 1s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce){ #mapdiag g.prtgt{ animation:none; } }
+  /* FIND IT quiz: notes go neutral + unlabelled until revealed —
+     roots keep their yellow so you always have an anchor */
+  #mapdiag.quiz g[data-pc]:not(.reveal):not([data-iv="0"]) circle{
+    fill:var(--bg2); stroke:var(--line2); stroke-width:1.6;
+  }
+  #mapdiag.quiz g[data-pc]:not(.reveal):not([data-iv="0"]) text{ opacity:0; }
+
   /* ── styles overlay (progressions per genre + key) ────────────── */
   #styleov{
     position:fixed; inset:0; z-index:8100;
@@ -770,6 +821,18 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
       <select id="mapKey" aria-label="Map key"></select>
       <select id="mapScale" aria-label="Map scale"></select>
     </div>
+    <div id="pracRow">
+      <button class="prbtn" id="prFollow" title="Watch + hear the scale walked at tempo">Follow</button>
+      <button class="prbtn" id="prHear" title="Play along — the mic checks every note">Hear Me</button>
+      <button class="prbtn" id="prFind" title="Quiz — the map goes dark, find the degree">Find It</button>
+      <select id="prBox" aria-label="Practice position"></select>
+      <div class="prtempo">
+        <button id="prSlow" aria-label="Slower">−</button>
+        <div id="prBpm">80 BPM</div>
+        <button id="prFast" aria-label="Faster">+</button>
+      </div>
+    </div>
+    <div id="prStatus">// PICK A DRILL — FOLLOW PLAYS IT · HEAR ME LISTENS · FIND IT QUIZZES //</div>
     <div class="mapscroll" id="mapdiag"></div>
     <div class="maplegend">
       <span><b style="background:var(--yellow)"></b>ROOT</span>
@@ -2023,10 +2086,10 @@ function renderChordSVG(chord, tuning, opts = {}){
    Landscape/desktop lie the neck on its side; portrait hangs it
    nut-up like the chord diagrams, so nothing scrolls sideways.
    ═══════════════════════════════════════════════════════════════ */
-function fretMapNote(P, x, y, pc, rootPC, midi){
+function fretMapNote(P, x, y, pc, rootPC, midi, s, f){
   const iv = (pc - rootPC + 12) % 12;
   const name = NOTE_NAMES[pc];
-  P.push(`<g data-midi="${midi}" style="cursor:pointer">`);   // tap a note to hear it
+  P.push(`<g data-midi="${midi}" data-pc="${pc}" data-iv="${iv}" data-s="${s}" data-f="${f}" style="cursor:pointer">`);   // tap a note to hear it; practice drills grade by pc/iv and light exact spots by s/f
   if(iv === 0){
     P.push(`<circle cx="${x}" cy="${y}" r="13" fill="var(--yellow)"/>`);
     P.push(`<text x="${x}" y="${y + 3.8}" fill="var(--ink)" font-size="10.5" font-weight="bold" text-anchor="middle">${name}</text>`);
@@ -2080,7 +2143,7 @@ function renderFretMap(tuningKey, rootPC, scale, vertical){
       for(let f = 0; f <= NFRETS; f++){
         const pc = (tuning.pitches[i] + f) % 12;
         if(!scale.includes(pc)) continue;
-        fretMapNote(P, sx(i), f === 0 ? OPENY : fy(f), pc, rootPC, tuning.open[i] + f);
+        fretMapNote(P, sx(i), f === 0 ? OPENY : fy(f), pc, rootPC, tuning.open[i] + f, i, f);
       }
     }
   }else{
@@ -2118,7 +2181,7 @@ function renderFretMap(tuningKey, rootPC, scale, vertical){
       for(let f = 0; f <= NFRETS; f++){
         const pc = (tuning.pitches[i] + f) % 12;
         if(!scale.includes(pc)) continue;
-        fretMapNote(P, f === 0 ? X0 - 26 : fx(f), sy(i), pc, rootPC, tuning.open[i] + f);
+        fretMapNote(P, f === 0 ? X0 - 26 : fx(f), sy(i), pc, rootPC, tuning.open[i] + f, i, f);
       }
     }
   }
@@ -2734,12 +2797,17 @@ mapScaleSel.innerHTML = Object.keys(SCALES).map(k =>
   `<option value="${k}">SCALE:// ${SCALES[k].label}</option>`).join("");
 
 const mapPortrait = matchMedia("(orientation: portrait)");
-function drawMap(){
-  const vertical = mapPortrait.matches;
+function mapScalePCs(){
   const keyName = mapKeySel.value;
   const rootPC = NOTE_NAMES.indexOf(keyName.split(" ")[0]);
   const sc = mapScaleSel.value;
   const scale = sc === "auto" ? KEYS[keyName] : SCALES[sc].iv.map(x => (x + rootPC) % 12);
+  return { rootPC, scale };
+}
+function drawMap(){
+  stopPractice();                                        // a redraw wipes the SVG the drill is lit on
+  const vertical = mapPortrait.matches;
+  const { rootPC, scale } = mapScalePCs();
   $("#mapdiag").classList.toggle("vert", vertical);
   $("#mapdiag").innerHTML = renderFretMap(state.tuning, rootPC, scale, vertical);
   $("#maptun").textContent = TUNINGS[state.tuning].label + "  ·  FRETS 0–12";
@@ -2756,16 +2824,250 @@ function openMap(){
   document.body.style.overflow = "hidden";
 }
 function closeMap(){
+  stopPractice();
   $("#mapov").classList.remove("open");
   document.body.style.overflow = "";
 }
 mapKeySel.addEventListener("change", drawMap);
 $("#mapclose").addEventListener("click", closeMap);
 $("#mapov").addEventListener("click", e => { if(e.target === e.currentTarget) closeMap(); });
-$("#mapdiag").addEventListener("click", e => {          // tap a note to hear it
+$("#mapdiag").addEventListener("click", e => {          // tap a note to hear it — or answer the quiz
   const g = e.target.closest("[data-midi]");
-  if(g) pluck(+g.dataset.midi, 0, .32);
+  if(!g) return;
+  if(prac && prac.mode === "find"){ findTap(g); return; }
+  pluck(+g.dataset.midi, 0, .32);
 });
+
+/* ═══════════════════════════════════════════════════════════════
+   PRACTICE — scale drills on the fretboard map.
+   FOLLOW walks the scale at tempo (lit notes + plucks), HEAR ME
+   listens on the mic and only advances when you actually play the
+   target pitch, FIND IT darkens the map (roots stay as anchors)
+   and quizzes degrees. Best pass time / quiz score persist per
+   tuning × key × scale × box.
+   ═══════════════════════════════════════════════════════════════ */
+const DEGREE_NAMES = ["R","♭2","2","♭3","3","4","♭5","5","♭6","6","♭7","7"];
+const PRAC_BOXES = {
+  open: { label:"OPEN · 0–4",   lo:0, hi:4  },
+  p2:   { label:"POS 2 · 2–6",  lo:2, hi:6  },
+  p5:   { label:"POS 5 · 5–9",  lo:5, hi:9  },
+  p7:   { label:"POS 7 · 7–12", lo:7, hi:12 },
+  full: { label:"FULL · 0–12",  lo:0, hi:12 },
+};
+$("#prBox").innerHTML = Object.keys(PRAC_BOXES).map(k =>
+  `<option value="${k}">BOX:// ${PRAC_BOXES[k].label}</option>`).join("");
+
+const PRAC_IDLE = "// PICK A DRILL — FOLLOW PLAYS IT · HEAR ME LISTENS · FIND IT QUIZZES //";
+const FIND_ROUND = 10;
+let prac = null;                                         // active drill state — null when idle
+let pracBpm = 80;
+
+/* best results per tuning × key × scale × box (localStorage) */
+const PRAC_STORE = "chordware.practice";
+function pracKey(){ return [state.tuning, mapKeySel.value, mapScaleSel.value, $("#prBox").value].join("|"); }
+function pracBest(field, val, better){                   // record val if it beats the stored best; return the best
+  let all = {};
+  try{ all = JSON.parse(localStorage.getItem(PRAC_STORE)) || {}; }catch(e){}
+  const cur = all[pracKey()] || (all[pracKey()] = {});
+  if(cur[field] === undefined || better(val, cur[field])) cur[field] = val;
+  try{ localStorage.setItem(PRAC_STORE, JSON.stringify(all)); }catch(e){/* private mode */}
+  return cur[field];
+}
+
+/* the drill's note sequence: every in-scale note in the box, low to
+   high, one location per pitch, starting on the lowest root — then
+   back down. Same pitch math as the map itself. */
+function pracSeq(){
+  const t = TUNINGS[state.tuning];
+  const box = PRAC_BOXES[$("#prBox").value];
+  const { rootPC, scale } = mapScalePCs();
+  const notes = [];
+  for(let s = 0; s < t.pitches.length; s++)
+    for(let f = box.lo; f <= box.hi; f++){
+      const pc = (t.pitches[s] + f) % 12;
+      if(scale.includes(pc)) notes.push({ s, f, midi: t.open[s] + f, pc, iv: (pc - rootPC + 12) % 12 });
+    }
+  notes.sort((a, b) => a.midi - b.midi || a.f - b.f);
+  const seen = new Set();
+  let asc = notes.filter(n => !seen.has(n.midi) && seen.add(n.midi));
+  const ri = asc.findIndex(n => n.iv === 0);
+  if(ri > 0) asc = asc.slice(ri);
+  return asc.concat(asc.slice(0, -1).reverse());
+}
+
+const pracNoteEl = n => $(`#mapdiag g[data-s="${n.s}"][data-f="${n.f}"]`);
+const pracClear = cls => document.querySelectorAll("#mapdiag g." + cls).forEach(el => el.classList.remove(cls));
+const pracStatus = html => { $("#prStatus").innerHTML = html; };
+const fmtSecs = ms => (ms / 1000).toFixed(1) + "S";
+
+function stopPractice(){
+  if(prac){ clearInterval(prac.timer); clearTimeout(prac.wait); }
+  stopPracMic();
+  prac = null;
+  ["prlit","prtgt","prgood","prbad","reveal"].forEach(pracClear);
+  $("#mapdiag").classList.remove("quiz");
+  document.querySelectorAll(".prbtn").forEach(b => b.classList.remove("on"));
+  pracStatus(PRAC_IDLE);
+  syncWakeLock();
+}
+
+/* ── FOLLOW — the app walks the scale, you watch and copy ─────── */
+function startFollow(){
+  const seq = pracSeq();
+  if(seq.length < 4){ pracStatus("// NOT ENOUGH NOTES IN THIS BOX — TRY ANOTHER //"); return; }
+  prac = { mode:"follow", seq, idx:0 };
+  $("#prFollow").classList.add("on");
+  followTick();
+  followTimer();
+}
+function followTimer(){
+  clearInterval(prac.timer);
+  prac.timer = setInterval(followTick, 60000 / pracBpm);
+}
+function followTick(){
+  const n = prac.seq[prac.idx];
+  pracClear("prlit");
+  const el = pracNoteEl(n);
+  if(el) el.classList.add("prlit");
+  pluck(n.midi, 0, .32);
+  pracStatus(`FOLLOW · <b>${DEGREE_NAMES[n.iv]}</b> · ${NOTE_NAMES[n.pc]} · ${prac.idx + 1}/${prac.seq.length}`);
+  prac.idx = (prac.idx + 1) % prac.seq.length;
+}
+
+/* ── HEAR ME — mic-gated: the dot only moves when you play it ─── */
+let pracStream = null, pracAnalyser = null, pracBuf = null;
+async function pracMicStart(){
+  try{
+    pracStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+    });
+  }catch(e){ return false; }
+  const ctx = audioCtx();
+  pracAnalyser = ctx.createAnalyser();
+  pracAnalyser.fftSize = 2048;
+  ctx.createMediaStreamSource(pracStream).connect(pracAnalyser);
+  pracBuf = new Float32Array(pracAnalyser.fftSize);
+  return true;
+}
+function stopPracMic(){
+  if(pracStream){ pracStream.getTracks().forEach(t => t.stop()); pracStream = null; }
+  pracAnalyser = null;
+}
+
+async function startHear(){
+  const seq = pracSeq();
+  if(seq.length < 4){ pracStatus("// NOT ENOUGH NOTES IN THIS BOX — TRY ANOTHER //"); return; }
+  pracStatus("// REQUESTING MIC… //");
+  const ok = await pracMicStart();
+  if(prac || !$("#mapov").classList.contains("open")){ stopPracMic(); return; }   // another drill started or the map closed while the permission prompt was up
+  if(!ok){ pracStatus("// MIC BLOCKED — ALLOW ACCESS AND TAP HEAR ME AGAIN //"); return; }
+  prac = { mode:"hear", seq, idx:0, hold:0, mute:0, t0:0 };
+  $("#prHear").classList.add("on");
+  syncWakeLock();
+  hearTarget();
+  prac.timer = setInterval(hearTick, 90);
+}
+function hearTarget(){
+  pracClear("prtgt"); pracClear("prgood");
+  const n = prac.seq[prac.idx];
+  const el = pracNoteEl(n);
+  if(el) el.classList.add("prtgt");
+  const t = TUNINGS[state.tuning];
+  pracStatus(`HEAR ME · PLAY <b>${DEGREE_NAMES[n.iv]}</b> · ${NOTE_NAMES[n.pc]} · ` +
+    `${t.strings[n.s]} STRING ${n.f === 0 ? "OPEN" : "FRET " + n.f} · ${prac.idx + 1}/${prac.seq.length}`);
+}
+function hearTick(){
+  if(!prac || prac.mode !== "hear" || !pracAnalyser) return;
+  if(prac.mute > 0){ prac.mute--; return; }              // deaf right after a hit — the string is still ringing
+  pracAnalyser.getFloatTimeDomainData(pracBuf);
+  const f = detectPitch(pracBuf, AC.sampleRate);
+  if(f < 0){ prac.hold = 0; return; }
+  const heard = Math.round(69 + 12 * Math.log2(f / 440));
+  const want = prac.seq[prac.idx].midi;
+  const ok = heard === want || heard === want + 12 || heard === want - 12;  // autocorrelation can jump an octave
+  prac.hold = ok ? prac.hold + 1 : 0;
+  if(prac.hold >= 2) hearHit();
+}
+function hearHit(){
+  if(prac.idx === 0) prac.t0 = performance.now();        // the pass clock starts on the first note you land
+  const el = pracNoteEl(prac.seq[prac.idx]);
+  pracClear("prtgt");
+  if(el) el.classList.add("prgood");
+  prac.hold = 0;
+  prac.mute = 4;
+  prac.idx++;
+  if(prac.idx >= prac.seq.length){
+    const ms = Math.round(performance.now() - prac.t0);
+    const best = pracBest("hearMs", ms, (a, b) => a < b);
+    pracStatus(`CLEAN PASS · ${fmtSecs(ms)} · BEST ${fmtSecs(best)} — AGAIN FROM THE TOP`);
+    prac.idx = 0;
+    prac.wait = setTimeout(hearTarget, 1800);
+    return;
+  }
+  prac.wait = setTimeout(hearTarget, 300);
+}
+
+/* ── FIND IT — map goes dark (roots stay), tap the asked degree ─ */
+function startFind(){
+  const { rootPC, scale } = mapScalePCs();
+  const ivs = scale.map(pc => (pc - rootPC + 12) % 12).filter(iv => iv !== 0);  // roots stay visible as anchors
+  if(!ivs.length){ pracStatus("// NOTHING TO QUIZ IN THIS SCALE //"); return; }
+  prac = { mode:"find", ivs, n:0, score:0, target:-1, lock:false };
+  $("#prFind").classList.add("on");
+  $("#mapdiag").classList.add("quiz");
+  findPrompt();
+}
+function findPrompt(){
+  ["prgood","prbad","reveal"].forEach(pracClear);
+  prac.n++;
+  let iv = prac.target;
+  while(iv === prac.target && prac.ivs.length > 1)
+    iv = prac.ivs[Math.floor(Math.random() * prac.ivs.length)];
+  if(prac.ivs.length === 1) iv = prac.ivs[0];
+  prac.target = iv;
+  prac.lock = false;
+  pracStatus(`FIND IT · TAP A <b>${DEGREE_NAMES[iv]}</b> · ${prac.n}/${FIND_ROUND} · SCORE ${prac.score}`);
+}
+function findTap(g){
+  if(prac.lock) return;
+  prac.lock = true;
+  g.classList.add("reveal");
+  const right = +g.dataset.iv === prac.target;
+  if(right){
+    g.classList.add("prgood");
+    pluck(+g.dataset.midi, 0, .32);
+    prac.score++;
+  }else{
+    g.classList.add("prbad");
+    document.querySelectorAll(`#mapdiag g[data-iv="${prac.target}"]`)
+      .forEach(el => el.classList.add("reveal", "prgood"));   // show where they all were
+  }
+  prac.wait = setTimeout(prac.n >= FIND_ROUND ? findEnd : findPrompt, right ? 700 : 1600);
+}
+function findEnd(){
+  const best = pracBest("find", prac.score, (a, b) => a > b);
+  const msg = `ROUND OVER · ${prac.score}/${FIND_ROUND} · BEST ${best}/${FIND_ROUND} — TAP FIND IT TO RUN IT BACK`;
+  stopPractice();
+  pracStatus(msg);
+}
+
+/* drill buttons toggle; starting one stops whatever else was running */
+function pracToggle(mode, start){
+  const was = prac && prac.mode === mode;
+  stopPractice();
+  if(!was) start();
+}
+$("#prFollow").addEventListener("click", () => pracToggle("follow", startFollow));
+$("#prHear").addEventListener("click", () => pracToggle("hear", startHear));
+$("#prFind").addEventListener("click", () => pracToggle("find", startFind));
+$("#prBox").addEventListener("change", stopPractice);
+function setPracBpm(v){
+  pracBpm = Math.max(40, Math.min(240, v));
+  $("#prBpm").textContent = pracBpm + " BPM";
+  if(prac && prac.mode === "follow") followTimer();      // retime the running walk in place
+}
+$("#prSlow").addEventListener("click", () => setPracBpm(pracBpm - 10));
+$("#prFast").addEventListener("click", () => setPracBpm(pracBpm + 10));
 
 /* ── styles: genre progressions + genre scale maps ────────────── */
 $("#styGenre").innerHTML = Object.keys(STYLES).map(k =>
@@ -3007,7 +3309,7 @@ function closePerf(){
 let wakeLock = null, AWAKE = false;
 try{ AWAKE = localStorage.getItem("chordware.awake") === "1"; }catch(e){}
 async function syncWakeLock(){
-  const want = AWAKE || !!perf;
+  const want = AWAKE || !!perf || !!prac;                // hands are on the instrument during a drill too
   if(want && !wakeLock && document.visibilityState === "visible"){
     try{
       if("wakeLock" in navigator){
