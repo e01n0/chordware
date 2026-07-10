@@ -3316,53 +3316,67 @@ function slideNotes(m0, m1, when, gain = .3){
 function renderLessonTab(lesson, chord, tuning){
   const NSTR = tuning.strings.length;
   const STEP = 64, X0 = 58, TOP = 30, SG = 42;
-  const W = X0 + lesson.steps * STEP + 14;
+  const REPS = REDUCED_MOTION ? 1 : 3;                  // bars rendered — playback slides them through a one-bar window
+  const W = X0 + lesson.steps * STEP + 14;              // the visible window stays one bar wide
   const H = TOP + (NSTR - 1) * SG + 40;
   const sy = s => TOP + (NSTR - 1 - s) * SG;            // s0 (lowest position) at the bottom
   const ex = t => X0 + (t + .5) * STEP;
   const P = [`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'Share Tech Mono',monospace">`];
 
-  for(let t = 0; t <= lesson.steps; t++){               // beat grid — heavier on the quarters
-    const x = X0 + t * STEP;
-    P.push(`<line x1="${x}" y1="${TOP - 8}" x2="${x}" y2="${sy(0) + 8}" stroke="var(--line${t % 2 ? "2" : ""})" stroke-width="${t % 2 ? .5 : 1}"/>`);
-    if(t < lesson.steps && t % 2 === 0)
-      P.push(`<text x="${ex(t)}" y="${H - 4}" fill="var(--dim)" font-size="11" text-anchor="middle">${t / 2 + 1}</text>`);
-  }
+  // static furniture: string lines + labels stay put while the time grid scrolls
   for(let s = 0; s < NSTR; s++){
-    P.push(`<line x1="${X0}" y1="${sy(s)}" x2="${X0 + lesson.steps * STEP}" y2="${sy(s)}" stroke="var(--line2)" stroke-width="1"/>`);
+    P.push(`<line x1="${X0 - 18}" y1="${sy(s)}" x2="${W - 6}" y2="${sy(s)}" stroke="var(--line2)" stroke-width="1"/>`);
     P.push(`<text x="${X0 - 34}" y="${sy(s) + 4}" fill="var(--cyan)" font-size="13">${tuning.strings[s]}</text>`);
   }
 
-  lesson.ev.forEach((e, i) => {
-    const x = ex(e.t), y = sy(e.s);
-    P.push(`<g class="lev" data-ei="${i}">`);
-    if(e.sl !== undefined){                             // slide: from-fret, slanted connector, to-fret
-      const x2 = x + STEP * .55;
-      P.push(`<line class="sl" x1="${x + 11}" y1="${y + 4}" x2="${x2 - 11}" y2="${y - 4}"/>`);
-      P.push(`<circle cx="${x}" cy="${y}" r="11"/>`);
-      P.push(`<text class="fr" x="${x}" y="${y + 3.8}" font-size="11" text-anchor="middle">${e.sl}</text>`);
-      P.push(`<circle cx="${x2}" cy="${y}" r="11"/>`);
-      P.push(`<text class="fr" x="${x2}" y="${y + 3.8}" font-size="11" text-anchor="middle">${e.to}</text>`);
-    }else{
-      const f = e.f !== undefined ? e.f : chord.frets[e.s];
-      if(f < 0){
-        P.push(`<text class="mute" x="${x}" y="${y + 4.5}" font-size="14" text-anchor="middle">×</text>`);
-      }else{
-        P.push(`<circle cx="${x}" cy="${y}" r="11"/>`);
-        P.push(`<text class="fr" x="${x}" y="${y + 3.8}" font-size="11" text-anchor="middle">${f}</text>`);
-      }
+  // the scrolling strip: REPS identical bars; the clip wrapper must NOT
+  // move, so the window stays put while the inner group translates
+  P.push(`<clipPath id="lnClip"><rect x="${X0 - 18}" y="0" width="${W - X0 + 12}" height="${H}"/></clipPath>`);
+  P.push(`<g clip-path="url(#lnClip)"><g id="lnScroll">`);
+  for(let r = 0; r < REPS; r++){
+    const off = r * lesson.steps;
+    for(let t = 0; t < lesson.steps + (r === REPS - 1 ? 1 : 0); t++){   // beat grid — heavier on the quarters
+      const x = X0 + (off + t) * STEP;
+      P.push(`<line x1="${x}" y1="${TOP - 8}" x2="${x}" y2="${sy(0) + 8}" stroke="var(--line${t % 2 ? "2" : ""})" stroke-width="${t % 2 ? .5 : 1}"/>`);
+      if(t < lesson.steps && t % 2 === 0)
+        P.push(`<text x="${ex(off + t)}" y="${H - 4}" fill="var(--dim)" font-size="11" text-anchor="middle">${t / 2 + 1}</text>`);
     }
-    if(e.fin) P.push(`<text class="fin" x="${x}" y="${y - 15}" font-size="10" text-anchor="middle">${e.fin}</text>`);
-    P.push(`</g>`);
-  });
+    lesson.ev.forEach(e => {
+      const x = ex(off + e.t), y = sy(e.s);
+      P.push(`<g class="lev" data-t="${off + e.t}">`);
+      if(e.sl !== undefined){                           // slide: from-fret, slanted connector, to-fret
+        const x2 = x + STEP * .55;
+        P.push(`<line class="sl" x1="${x + 11}" y1="${y + 4}" x2="${x2 - 11}" y2="${y - 4}"/>`);
+        P.push(`<circle cx="${x}" cy="${y}" r="11"/>`);
+        P.push(`<text class="fr" x="${x}" y="${y + 3.8}" font-size="11" text-anchor="middle">${e.sl}</text>`);
+        P.push(`<circle cx="${x2}" cy="${y}" r="11"/>`);
+        P.push(`<text class="fr" x="${x2}" y="${y + 3.8}" font-size="11" text-anchor="middle">${e.to}</text>`);
+      }else{
+        const f = e.f !== undefined ? e.f : chord.frets[e.s];
+        if(f < 0){
+          P.push(`<text class="mute" x="${x}" y="${y + 4.5}" font-size="14" text-anchor="middle">×</text>`);
+        }else{
+          P.push(`<circle cx="${x}" cy="${y}" r="11"/>`);
+          P.push(`<text class="fr" x="${x}" y="${y + 3.8}" font-size="11" text-anchor="middle">${f}</text>`);
+        }
+      }
+      if(e.fin) P.push(`<text class="fin" x="${x}" y="${y - 15}" font-size="10" text-anchor="middle">${e.fin}</text>`);
+      P.push(`</g>`);
+    });
+  }
+  P.push(`</g></g>`);
 
-  P.push(`<line id="lnPlayhead" x1="${X0}" y1="${TOP - 10}" x2="${X0}" y2="${sy(0) + 10}"/>`);
+  // fixed over the first note column while the tab scrolls under it;
+  // with reduced motion the strip stays put and this sweeps instead
+  const phX = REDUCED_MOTION ? X0 : ex(0);
+  P.push(`<line id="lnPlayhead" x1="${phX}" y1="${TOP - 10}" x2="${phX}" y2="${sy(0) + 10}"/>`);
   P.push(`</svg>`);
   return P.join("");
 }
 
-/* ── lesson playback: schedule one loop of audio, sweep the playhead
-   with rAF, light events as they sound, repeat ─────────────────── */
+/* ── lesson playback: schedule one loop of audio, scroll the tab past
+   the fixed playhead with rAF (bars are identical, so snapping back a
+   bar at the loop point is seamless), light events as they sound ── */
 let lsn = null;                                          // { playing, t0, raf, loopTimer } — selection lives in the selects
 let lsnBpm = 70, lsnSnd = true;
 
@@ -3389,13 +3403,18 @@ function lnFrame(){
   if(!lsn || !lsn.playing) return;
   const l = lnLesson(), stepMs = 30000 / lsnBpm, loopMs = l.steps * stepMs;
   const tl = (performance.now() - lsn.t0) % loopMs;
-  const ph = $("#lnPlayhead");
-  if(ph){
-    const x = 58 + (tl / stepMs) * 64;                   // X0/STEP from the renderer
-    ph.setAttribute("x1", x); ph.setAttribute("x2", x);
+  if(REDUCED_MOTION){                                    // strip stays put, the playhead sweeps
+    const ph = $("#lnPlayhead");
+    if(ph){
+      const x = 58 + (tl / stepMs) * 64;                 // X0/STEP from the renderer
+      ph.setAttribute("x1", x); ph.setAttribute("x2", x);
+    }
+  }else{                                                 // playhead stays put, the tab scrolls under it
+    const sc = $("#lnScroll");
+    if(sc) sc.setAttribute("transform", `translate(${-(tl / stepMs) * 64} 0)`);
   }
   document.querySelectorAll("#lnTab .lev").forEach(g => {
-    const t = l.ev[+g.dataset.ei].t * stepMs;
+    const t = +g.dataset.t * stepMs;
     g.classList.toggle("lit", tl >= t && tl < t + stepMs * .9);
   });
   lsn.raf = requestAnimationFrame(lnFrame);
@@ -3408,6 +3427,8 @@ function lnStop(){
   $("#lnPlay").textContent = "▶ Play";
   const ph = $("#lnPlayhead");
   if(ph) ph.classList.remove("run");
+  const sc = $("#lnScroll");
+  if(sc) sc.setAttribute("transform", "translate(0 0)");  // rewind the strip to bar one
   document.querySelectorAll("#lnTab .lev.lit").forEach(g => g.classList.remove("lit"));
   syncWakeLock();
 }
