@@ -32,7 +32,11 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
     --vig:     rgba(0,0,0,.35);
     --font-h:  'Rajdhani', 'Arial Narrow', sans-serif;
     --font-m:  'Share Tech Mono', 'Courier New', monospace;
+    --content-w: 1100px;   /* shared content column — grid, header, controls, pager */
   }
+  /* tablets/desktops widen the whole content column together */
+  @media (min-width:1440px){ :root{ --content-w:1380px; } }
+  @media (min-width:1800px){ :root{ --content-w:1680px; } }
 
   /* ── colour schemes ── every component AND the SVG renderer read the
      variables above, so a skin is nothing but an override block ──── */
@@ -106,6 +110,7 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
     border-bottom:1px solid var(--yellow);
     padding-bottom:6px;
     position:relative;
+    max-width:var(--content-w); margin:0 auto;
   }
   .hbar::after{ /* corner cut, Arasaka-terminal style */
     content:""; position:absolute; right:0; bottom:-1px;
@@ -196,15 +201,29 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
   #delSong:active{ background:var(--red); color:var(--ink); }
   #perfBtn{ border-color:var(--yellow); color:var(--yellow); }
   #perfBtn:active{ background:var(--yellow); color:var(--ink); }
+  /* tablet-landscape/desktop: search, chips and song controls share one
+     row so the vertical chrome shrinks and the grid gets the height */
+  @media (min-width:1100px){
+    .controls{
+      flex-direction:row; align-items:center; flex-wrap:wrap;
+      width:100%; max-width:var(--content-w); margin:0 auto;
+    }
+    .row1{ flex:1 1 340px; min-width:300px; }
+    .chips{ flex:0 1 auto; }
+    .row2{ flex:1 1 380px; min-width:330px; }
+  }
 
   /* ── chord grid ───────────────────────────────────────────── */
-  main{ padding:10px 14px 96px; max-width:1100px; margin:0 auto; }
+  main{ padding:10px 14px 96px; max-width:var(--content-w); margin:0 auto; }
   #grid{
     display:grid; gap:10px;
     grid-template-columns:repeat(2, 1fr);   /* mobile portrait: 2×3 */
   }
+  /* Column count is owned by JS (applyGridLayout) so the page size always
+     matches what the grid shows — phones keep 2×3 / 3×2, tablets and
+     desktops scale up to 6×3. This media query is only the no-JS fallback. */
   @media (orientation:landscape), (min-width:820px){
-    #grid{ grid-template-columns:repeat(3, 1fr); }  /* landscape/desktop: 3×2 */
+    #grid{ grid-template-columns:repeat(3, 1fr); }
   }
   .card{
     background:var(--panel);
@@ -248,6 +267,14 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
     display:flex; align-items:center; justify-content:space-between; gap:8px;
     padding:10px 14px calc(10px + env(safe-area-inset-bottom));
     background:linear-gradient(0deg, var(--bg) 78%, transparent);
+  }
+  /* keep prev/next within reach of the grid on wide screens instead of
+     pinned to the far corners of the display */
+  @media (min-width:1100px){
+    .pager{
+      left:50%; right:auto; transform:translateX(-50%);
+      width:100%; max-width:calc(var(--content-w) + 28px);
+    }
   }
   .pager button{
     min-height:48px; min-width:96px;
@@ -312,6 +339,15 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
   .orn-none{ color:var(--dim); font-size:12px; letter-spacing:.1em; }
   .mnotes{ color:var(--text); font-size:13px; line-height:1.5; }
   .kbd-hint{ text-align:center; color:var(--dim); opacity:.6; font-size:10px; letter-spacing:.2em; margin-top:18px; }
+  /* wide screens: diagram + voicing pager on the left, ornament
+     protocols and field notes alongside instead of below */
+  @media (min-width:960px){
+    .mwrap{ max-width:940px; }
+    .mcols{
+      display:grid; grid-template-columns:minmax(0,440px) minmax(0,1fr);
+      gap:0 26px; align-items:start;
+    }
+  }
 
   /* ── voicing pager (inside fullscreen modal) ─────────────────── */
   .vbar{ display:flex; align-items:center; justify-content:center; gap:10px; margin-top:8px; }
@@ -375,6 +411,11 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
     background:var(--bg2); color:var(--yellow);
     border:1px solid var(--line2); border-radius:0;
     font-family:var(--font-m); font-size:13px; padding:0 8px;
+  }
+  /* desktops: let the neck stretch — the map/styles/learn SVGs all
+     scale with their container */
+  @media (min-width:1280px){
+    .mapwrap{ max-width:1240px; }
   }
   .mapscroll{ overflow-x:auto; border:1px solid var(--line); background:var(--panel); }
   .mapscroll svg{ display:block; min-width:780px; width:100%; height:auto; }
@@ -511,6 +552,14 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
   .progbtns button.play{ border-color:var(--yellow); color:var(--yellow); }
   .progbtns button:active{ background:var(--cyan); color:var(--ink); }
   .progbtns button.play:active{ background:var(--yellow); color:var(--ink); }
+  /* desktops: progressions read fine two abreast */
+  @media (min-width:1280px){
+    #styprogs{
+      display:grid; grid-template-columns:repeat(2, minmax(0,1fr));
+      gap:12px; margin-top:12px; align-items:start;
+    }
+    #styprogs .prog{ margin-top:0; }
+  }
 
   /* ── song editor overlay ──────────────────────────────────────── */
   #songEd{
@@ -558,6 +607,11 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
   #seSave{ border-color:var(--yellow); color:var(--yellow); }
   #seSave:active{ background:var(--yellow); color:var(--ink); }
   #seCancel:active{ background:var(--cyan); color:var(--ink); }
+  /* desktops: room to paste and edit a whole song */
+  @media (min-width:1100px){
+    #songEd .sewrap{ max-width:820px; }
+    #songEd textarea{ min-height:320px; }
+  }
 
   /* ── performance view ─────────────────────────────────────────── */
   #perf{
@@ -648,6 +702,13 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
     .pbody{ flex-direction:row; align-items:stretch; }
     .pchord{ flex:0 0 44%; justify-content:center; }
     .plyr{ flex:1; }
+  }
+  /* big screens: cap the line length, grow the diagram and lyrics */
+  @media (min-width:1100px){
+    .phead, .pbody, .pfoot{ width:100%; max-width:1500px; margin:0 auto; }
+    #pdiag svg{ height:clamp(200px, 38vh, 400px); }
+    .plyr{ font-size:17px; line-height:2.2; padding:16px 22px; }
+    #pnext{ font-size:16px; }
   }
 
   /* ── left-hand + keep-awake toggles ───────────────────────────── */
@@ -821,19 +882,25 @@ try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentE
       </div>
       <button id="mclose" aria-label="Close">✕</button>
     </div>
-    <div class="mdiag" id="mdiag"></div>
-    <div class="vbar" id="vbar" style="display:none">
-      <button id="vprev" aria-label="Previous voicing">◄</button>
-      <div id="vinfo"></div>
-      <button id="vnext" aria-label="Next voicing">►</button>
-    </div>
-    <div class="msec">
-      <h3>// Ornament Protocols</h3>
-      <div id="mornaments"></div>
-    </div>
-    <div class="msec" id="mnotesec" style="display:none">
-      <h3 class="cy">// Field Notes</h3>
-      <div class="mnotes" id="mnotes"></div>
+    <div class="mcols">
+      <div class="mmain">
+        <div class="mdiag" id="mdiag"></div>
+        <div class="vbar" id="vbar" style="display:none">
+          <button id="vprev" aria-label="Previous voicing">◄</button>
+          <div id="vinfo"></div>
+          <button id="vnext" aria-label="Next voicing">►</button>
+        </div>
+      </div>
+      <div class="mside">
+        <div class="msec">
+          <h3>// Ornament Protocols</h3>
+          <div id="mornaments"></div>
+        </div>
+        <div class="msec" id="mnotesec" style="display:none">
+          <h3 class="cy">// Field Notes</h3>
+          <div class="mnotes" id="mnotes"></div>
+        </div>
+      </div>
     </div>
     <div class="kbd-hint">TAP ✕ / ESC TO DISCONNECT · ◄ ► SWITCH VOICING</div>
   </div>
@@ -2380,7 +2447,7 @@ function degreeChord(tok, keyPC){
 /* ═══════════════════════════════════════════════════════════════
    APP STATE + UI
    ═══════════════════════════════════════════════════════════════ */
-const PAGE_SIZE = 6;
+let PAGE_SIZE = 6;   // recomputed by applyGridLayout() to match the responsive grid
 const CATS = [
   { id:"all",      label:"All"       },
   { id:"major",    label:"Major"     },
@@ -2415,6 +2482,34 @@ try{
 
 const $ = sel => document.querySelector(sel);
 const grid = $("#grid"), pageInfo = $("#pageInfo");
+
+/* ── responsive grid layout ───────────────────────────────────────
+   Columns follow viewport width, rows follow height, so tablets and
+   desktops page through more of the library at once — an iPad on its
+   side gets 4×2, a big monitor up to 6×3 — while phones keep the
+   classic 2×3 / 3×2. JS owns the column count (inline style) so
+   PAGE_SIZE always matches exactly what the grid shows. */
+function gridLayout(){
+  const w = innerWidth, h = innerHeight;
+  let cols = 2;                          // phone portrait
+  if(w >= 1800) cols = 6;
+  else if(w >= 1440) cols = 5;
+  else if(w >= 1080) cols = 4;           // iPad landscape / laptop
+  else if(w >= 820 || w > h) cols = 3;   // iPad portrait / phone landscape
+  const rows = cols === 2 ? 3 : (h >= 1000 ? 3 : 2);
+  return { cols, rows };
+}
+function applyGridLayout(){
+  const { cols, rows } = gridLayout();
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  const size = cols * rows;
+  if(size === PAGE_SIZE) return false;
+  const first = state.page * PAGE_SIZE;  // keep the chord you were on in view
+  PAGE_SIZE = size;
+  state.page = Math.floor(first / size);
+  return true;
+}
+applyGridLayout();
 
 function chordList(){
   return CHORD_LIBRARY[state.tuning] || [];
@@ -4036,6 +4131,13 @@ grid.addEventListener("touchend", e => {
   if(dx < 0 && state.page < pages - 1){ state.page++; render(); }
   if(dx > 0 && state.page > 0){ state.page--; render(); }
 }, { passive:true });
+
+/* rotate / resize / split-screen: re-fit the grid, keeping your place */
+let gridRszT = 0;
+addEventListener("resize", () => {
+  clearTimeout(gridRszT);
+  gridRszT = setTimeout(() => { if(applyGridLayout()) render(); }, 120);
+});
 
 render();
 

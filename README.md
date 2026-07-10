@@ -28,7 +28,7 @@ guitar tuning is just another `TUNINGS` + `CHORD_LIBRARY` entry away.
 
 ## Features
 
-- **Chord grid** — 6 SVG diagrams per page (2×3 portrait, 3×2 landscape/desktop), swipe or arrow-key paging
+- **Chord grid** — SVG diagrams paged to fit the screen: 2×3 on a portrait phone, 3×2 landscape, growing with the display (4×2 on an iPad on its side, up to 6×3 on a big monitor — the wide layouts also pull the controls into one row and put the detail view's diagram and ornament notes side by side); swipe or arrow-key paging, and rotating/resizing re-fits the grid without losing your place
 - **Ornament overlay** — hammer-ons (red filled dots) and pull-offs (red hollow dots, red O for open-string targets) with connecting arcs. The toggle cycles **OFF → dots/arcs → dots/arcs + colour-tone labels** (`H: sus4`, `P: maj7`, …); the fullscreen view always shows labels. Chords without hand-curated ornament data get **auto-derived** ornaments computed from the voicing — a hand-written `ornaments` array always wins
 - **Search + category chips** — Major / Minor / 7th / Colour (sus, add9, 6ths, dim7, aug)
 - **Key filter** — pick a key and only chords whose voicings sit inside that scale remain (computed from the actual frets, so your own chords are key-filtered automatically)
