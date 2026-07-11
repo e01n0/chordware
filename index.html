@@ -3,14 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0a0a12">
+<meta name="theme-color" content="#f2efe4">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="CHORDWARE // chord chart terminal for ukulele, banjolele & guitar — hammer-on & pull-off ornament overlays, fretboard maps, performance mode">
 <title>CHORDWARE // gCEA</title>
-<script>/* restore saved colour scheme before first paint */
-try{ var _t = localStorage.getItem("chordware.theme"); if(_t) document.documentElement.dataset.theme = _t; }catch(e){}</script>
+<script>/* restore saved colour scheme before first paint — field mode is the default skin */
+try{ var _t = localStorage.getItem("chordware.theme"); }catch(e){}
+if(_t == null) _t = "paper";
+if(_t) document.documentElement.dataset.theme = _t;</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -4387,13 +4389,15 @@ render();
     g.fillText("gCEA", size/2, size*.74);
     return c.toDataURL("image/png");
   }
+  /* splash/chrome colour follows the active skin at install time */
+  const themeBg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
   const manifest = {
     name: "CHORDWARE", short_name: "CHORDWARE",
     description: "Banjolele chord chart terminal — gCEA reentrant",
     start_url: location.href.split("#")[0],
     scope: location.href.replace(/[^/]*$/, ""),
     display: "standalone", orientation: "any",
-    background_color: "#0a0a12", theme_color: "#0a0a12",
+    background_color: themeBg, theme_color: themeBg,
     icons: [
       { src: icon(192), sizes: "192x192", type: "image/png", purpose: "any" },
       { src: icon(512), sizes: "512x512", type: "image/png", purpose: "any" },
