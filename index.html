@@ -408,7 +408,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   }
   #mapclose:active{ background:var(--red); color:var(--ink); }
   .maprow{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
-  #mapKey, #mapScale, #styGenre, #styKey, .ovtun{
+  #mapKey, #mapScale, #styGenre, #styKey, #mnTune, .ovtun{
     flex:1; min-width:0; min-height:44px; max-width:280px;
     background:var(--bg2); color:var(--yellow);
     border:1px solid var(--line2); border-radius:0;
@@ -456,7 +456,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     border:1px solid var(--line2); font-family:var(--font-m); font-size:16px; cursor:pointer;
   }
   .prtempo button:active{ background:var(--yellow); color:var(--ink); }
-  #prBpm, #lnBpm{
+  #prBpm, #lnBpm, #mnBpm{
     display:flex; align-items:center; padding:0 10px; min-width:74px; justify-content:center;
     border-top:1px solid var(--line2); border-bottom:1px solid var(--line2);
     color:var(--yellow); font-size:13px; letter-spacing:.1em;
@@ -516,6 +516,55 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   .lev.lit text.fr{ fill:var(--ink); }
   #lnPlayhead{ stroke:var(--yellow); stroke-width:2; opacity:0; }
   #lnPlayhead.run{ opacity:.9; }
+
+  /* ── tune miner overlay — halo diagrams + melody drills ───────── */
+  #mineov{
+    position:fixed; inset:0; z-index:8350;  /* above the song editor — the melody editor opens from it */
+    background:var(--overlay); display:none; overflow-y:auto;
+    padding:calc(14px + env(safe-area-inset-top, 0px)) 14px calc(20px + env(safe-area-inset-bottom));
+  }
+  #mineov.open{ display:block; }
+  #mnclose{
+    min-width:48px; min-height:48px; flex:0 0 auto;
+    background:transparent; color:var(--red); border:1px solid var(--red);
+    font-family:var(--font-m); font-size:20px; cursor:pointer;
+  }
+  #mnclose:active{ background:var(--red); color:var(--ink); }
+  #mnStatus{
+    margin:2px 0 6px; min-height:20px;
+    font-size:13px; letter-spacing:.14em; color:var(--yellow); text-transform:uppercase;
+  }
+  #mnStatus b{ color:var(--cyan); font-weight:400; }
+  .mnhead{ display:flex; align-items:baseline; justify-content:center; gap:14px; }
+  #mnChord{
+    font-family:var(--font-h); font-weight:700; line-height:1;
+    font-size:clamp(34px, 9vw, 54px); color:var(--yellow);
+    text-shadow:0 0 18px color-mix(in srgb, var(--yellow) 30%, transparent);
+  }
+  #mnUp{ color:var(--cyan); font-size:13px; letter-spacing:.16em; text-transform:uppercase; }
+  #mnNotes{ text-align:center; color:var(--dim); font-size:12px; letter-spacing:.14em; min-height:16px; margin-top:2px; }
+  .mndiag{ margin-top:4px; }
+  .mndiag svg{ display:block; width:100%; max-width:430px; height:auto; margin:0 auto; }
+
+  /* halo dot states — the map drills' visual grammar on the small frame */
+  .halosvg g.hnote circle{ transition:filter .12s; }
+  .halosvg g.tgt{ animation:prpulse 1s ease-in-out infinite; transform-box:fill-box; transform-origin:center; }
+  .halosvg g.tgt  circle{ filter:drop-shadow(0 0 8px var(--yellow)) drop-shadow(0 0 3px var(--yellow)); }
+  .halosvg g.good circle{ filter:drop-shadow(0 0 9px var(--cyan)) drop-shadow(0 0 4px var(--cyan)); }
+  .halosvg g.bad  circle{ filter:drop-shadow(0 0 9px var(--red)) drop-shadow(0 0 4px var(--red)); }
+  .halosvg g.good, .halosvg g.bad{ transform:scale(1.1); transform-box:fill-box; transform-origin:center; }
+  @media (prefers-reduced-motion: reduce){ .halosvg g.tgt{ animation:none; transform:scale(1.16); } }
+
+  /* halo toggle in the chord modal */
+  .halorow{ display:flex; align-items:center; justify-content:center; gap:10px; margin-top:8px; flex-wrap:wrap; }
+  #haloBtn{
+    min-height:40px; padding:0 14px;
+    background:transparent; color:var(--cyan); border:1px solid var(--cyan);
+    font-family:var(--font-h); font-weight:600; font-size:12px; letter-spacing:.12em;
+    text-transform:uppercase; cursor:pointer;
+  }
+  #haloBtn.on{ background:var(--cyan); color:var(--ink); }
+  .halorow .hint{ color:var(--dim); font-size:10px; letter-spacing:.14em; text-transform:uppercase; }
 
   /* ── styles overlay (progressions per genre + key) ────────────── */
   #styleov{
@@ -827,7 +876,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
 
   /* notch clearance when rotated */
   @supports (padding: env(safe-area-inset-left)){
-    header, .controls, main, .pager, #modal, #mapov, #learnov, #songEd, #setEd, #tuner, #perf{
+    header, .controls, main, .pager, #modal, #mapov, #learnov, #mineov, #songEd, #setEd, #tuner, #perf{
       padding-left:calc(14px + env(safe-area-inset-left));
       padding-right:calc(14px + env(safe-area-inset-right));
     }
@@ -892,6 +941,11 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
           <button id="vprev" aria-label="Previous voicing">◄</button>
           <div id="vinfo"></div>
           <button id="vnext" aria-label="Next voicing">►</button>
+        </div>
+        <div class="halorow">
+          <button id="haloBtn" aria-pressed="false"
+                  title="Halo — every in-reach melody note around this shape">Halo</button>
+          <span class="hint" id="haloHint" style="display:none">TAP A DOT TO HEAR IT · RINGED DOTS = THE HELD SHAPE</span>
         </div>
       </div>
       <div class="mside">
@@ -1006,6 +1060,49 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   </div>
 </div>
 
+<div id="mineov" role="dialog" aria-modal="true" aria-label="Tune miner">
+  <div class="mapwrap">
+    <div class="maphead">
+      <div>
+        <h2 style="color:var(--yellow)">MINE://</h2>
+        <div class="mfull" id="mntun"></div>
+      </div>
+      <button id="mnclose" aria-label="Close">✕</button>
+    </div>
+    <div class="maprow">
+      <select class="ovtun" aria-label="Tuning"></select>
+      <select id="mnTune" aria-label="Tune to mine"></select>
+    </div>
+    <div class="lnrow" id="mnDrillRow">
+      <button class="prbtn" id="mnTap" title="Tap each melody note out of the halo">Tap It</button>
+      <button class="prbtn" id="mnHear" title="Play along — the mic advances the target">Hear Me</button>
+      <button class="prbtn" id="mnListen" title="Hear the tune mined out of the shapes at tempo">▶ Listen</button>
+      <div class="prtempo">
+        <button id="mnSlow" aria-label="Slower">−</button>
+        <div id="mnBpm">80 BPM</div>
+        <button id="mnFast" aria-label="Faster">+</button>
+      </div>
+    </div>
+    <div class="lnrow" id="mnEditRow" style="display:none">
+      <button class="prbtn" id="mnPrevC" title="Previous chord">◄</button>
+      <button class="prbtn" id="mnNextC" title="Next chord">►</button>
+      <button class="prbtn" id="mnUndo" title="Remove the last note added to this chord">Undo</button>
+      <button class="prbtn" id="mnClear" title="Clear this chord's melody notes">Clear</button>
+      <button class="prbtn" id="mnDone" title="Save the melody onto the song">Save Melody</button>
+    </div>
+    <div id="mnStatus"></div>
+    <div class="mnhead"><span id="mnChord"></span><span id="mnUp"></span></div>
+    <div id="mnNotes"></div>
+    <div class="mndiag" id="minediag"></div>
+    <div class="maplegend">
+      <span><b style="background:var(--yellow)"></b>ROOT</span>
+      <span><b style="background:var(--cyan)"></b>CHORD TONE</span>
+      <span><b class="hollow"></b>COLOUR</span>
+      <span>◎ RINGED = THE HELD SHAPE</span>
+    </div>
+  </div>
+</div>
+
 <div id="songEd" role="dialog" aria-modal="true" aria-label="Song editor">
   <div class="sewrap">
     <div class="sehead">
@@ -1030,6 +1127,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
       <button id="seSave">Save Song</button>
     </div>
     <div class="sebtns sesec">
+      <button id="seMelody" title="Tap the song's melody onto chord halos — feeds the MINE drill">Melody</button>
       <button id="sePrint" title="Print this song — diagrams + lyrics, black on white">Print</button>
       <button id="seExport" title="Download every song and set list as a JSON file">Export All</button>
       <button id="seImport" title="Load songs + set lists from an exported JSON file">Import</button>
@@ -2427,6 +2525,105 @@ function renderChordSVG(chord, tuning, opts = {}){
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   HALO — the chord shape as home base plus every in-reach melody
+   note around it: the fretboard shrunk to the five frets under the
+   hand. Notes colour by degree FROM THE CHORD ROOT in the map's
+   grammar (root / chord tone / colour); positions the shape itself
+   holds keep a ring so home base never disappears. The scale comes
+   from the chord's quality — natural minor under minor chords,
+   mixolydian under plain 7ths, major elsewhere — and the voicing's
+   own tones are always merged in, so odd shapes stay honest.
+   ═══════════════════════════════════════════════════════════════ */
+const HALO_SCALES = {
+  major: [0,2,4,5,7,9,11],
+  minor: [0,2,3,5,7,8,10],
+  mixo:  [0,2,4,5,7,9,10],
+};
+
+function chordScalePCs(chord, tuning, extraPCs){
+  const m = chord.name.match(/^([A-G][b#]?)/);
+  const rootPC = m ? ROOT_PC[m[1]] : 0;
+  const suffix = chord.name.slice(m ? m[1].length : 0);
+  const minor = /^m(?!aj)/.test(suffix);
+  const dom7 = !minor && /7/.test(suffix) && !/maj7|dim/.test(suffix);
+  const base = minor ? HALO_SCALES.minor : dom7 ? HALO_SCALES.mixo : HALO_SCALES.major;
+  const pcs = new Set(base.map(iv => (iv + rootPC) % 12));
+  chord.frets.forEach((f, s) => { if(f >= 0) pcs.add((tuning.pitches[s] + f) % 12); });
+  (extraPCs || []).forEach(pc => pcs.add(pc));
+  return { rootPC, pcs };
+}
+
+/* the fret window a hand holding this shape reaches — the chord
+   renderer's 5-fret window, opens included only at the nut */
+function shapeWindow(chord){
+  const fretted = chord.frets.filter(f => f > 0);
+  const maxF = Math.max(0, ...fretted);
+  const base = maxF > 5 ? Math.min(...fretted) : 1;
+  return { base, lo: base, hi: base + 4, opens: base === 1 };
+}
+
+function renderHaloSVG(chord, tuning, opts = {}){
+  const { rootPC, pcs } = opts.scale || chordScalePCs(chord, tuning);
+  const NSTR = tuning.strings.length;
+  const win = shapeWindow(chord);
+  const LEFT = 44, TOP = 48, GAP = 44, FRETH = 44;
+  const W = LEFT + GAP * (NSTR - 1) + 30, H = TOP + 5 * FRETH + 12;
+  const mi = i => LEFTY ? NSTR - 1 - i : i;
+  const sx = i => LEFT + mi(i) * GAP;
+  const fy = f => TOP + f * FRETH;                      // fret-line y (relative)
+  const dy = f => TOP + (f - .5) * FRETH;               // dot y (relative fret)
+  const OPENY = TOP - 22;
+  const rel = f => f - win.base + 1;
+
+  const P = [];
+  P.push(`<svg class="halosvg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'Share Tech Mono',monospace">`);
+
+  // string labels + grid
+  tuning.strings.forEach((s,i) =>
+    P.push(`<text x="${sx(i)}" y="15" fill="var(--cyan)" font-size="12" text-anchor="middle">${s}</text>`));
+  for(let f = 0; f <= 5; f++){
+    const y = fy(f);
+    if(f === 0 && win.opens)
+      P.push(`<rect x="${sx(0)-2}" y="${y-3.5}" width="${GAP*(NSTR-1)+4}" height="5" fill="var(--yellow)"/>`);
+    else
+      P.push(`<line x1="${sx(0)}" y1="${y}" x2="${sx(NSTR-1)}" y2="${y}" stroke="var(--line2)" stroke-width="1"/>`);
+  }
+  for(let i = 0; i < NSTR; i++)
+    P.push(`<line x1="${sx(i)}" y1="${fy(0)}" x2="${sx(i)}" y2="${fy(5)}" stroke="var(--line2)" stroke-width="1"/>`);
+  for(let f = win.lo; f <= win.hi; f++)                 // absolute fret numbers down the side
+    P.push(`<text x="14" y="${dy(rel(f)) + 4}" fill="var(--dim)" font-size="11" text-anchor="middle">${f}</text>`);
+
+  // every in-scale note under the hand, coloured by degree from the chord root
+  for(let s = 0; s < NSTR; s++){
+    for(let f = win.opens ? 0 : win.lo; f <= win.hi; f++){
+      if(f > 0 && f < win.lo) continue;
+      const pc = (tuning.pitches[s] + f) % 12;
+      if(!pcs.has(pc)) continue;
+      const iv = (pc - rootPC + 12) % 12;
+      const x = sx(s), y = f === 0 ? OPENY : dy(rel(f));
+      const name = NOTE_NAMES[pc];
+      P.push(`<g class="hnote" data-midi="${tuning.open[s] + f}" data-pc="${pc}" data-iv="${iv}" data-s="${s}" data-f="${f}" style="cursor:pointer">`);
+      P.push(`<circle cx="${x}" cy="${y}" r="20" fill="transparent"/>`);   // touch pad
+      if(chord.frets[s] === f)                          // home base keeps its ring
+        P.push(`<circle cx="${x}" cy="${y}" r="17.5" fill="none" stroke="var(--text)" stroke-width="2"/>`);
+      if(iv === 0){
+        P.push(`<circle cx="${x}" cy="${y}" r="13.5" fill="var(--yellow)"/>`);
+        P.push(`<text x="${x}" y="${y + 4}" fill="var(--ink)" font-size="11" font-weight="bold" text-anchor="middle">${name}</text>`);
+      }else if(iv === 3 || iv === 4 || iv === 7){
+        P.push(`<circle cx="${x}" cy="${y}" r="12.5" fill="var(--cyan)"/>`);
+        P.push(`<text x="${x}" y="${y + 4}" fill="var(--ink)" font-size="11" text-anchor="middle">${name}</text>`);
+      }else{
+        P.push(`<circle cx="${x}" cy="${y}" r="12" fill="var(--bg)" stroke="var(--red)" stroke-width="1.6"/>`);
+        P.push(`<text x="${x}" y="${y + 4}" fill="var(--red)" font-size="10.5" text-anchor="middle">${name}</text>`);
+      }
+      P.push(`</g>`);
+    }
+  }
+  P.push(`</svg>`);
+  return P.join("");
+}
+
+/* ═══════════════════════════════════════════════════════════════
    FRETBOARD HEAT MAP — the whole neck (frets 0–12), every in-key
    note plotted and coloured by scale degree: root / chord tones
    (3rd + 5th) / colour tones. Same pitch math as the key filter.
@@ -2835,6 +3032,7 @@ function render(){
 function ordinalFret(f){ return f === 0 ? "OPEN" : "fret " + f; }
 
 let modalState = null;   // { chord, voicings: [primary, ...alternates], idx }
+let modalHalo = false;   // halo view sticks across chords for the session
 
 function openModal(chord){
   const tuning = TUNINGS[state.tuning];
@@ -2860,7 +3058,12 @@ function renderModalView(){
 
   $("#mname").textContent = chord.name;
   $("#mfull").textContent = chord.full + "  ·  " + tuning.label;
-  $("#mdiag").innerHTML = renderChordSVG(view, tuning, { ornaments: true, labels: true, animate: true });
+  $("#mdiag").innerHTML = modalHalo
+    ? renderHaloSVG(view, tuning, {})
+    : renderChordSVG(view, tuning, { ornaments: true, labels: true, animate: true });
+  $("#haloBtn").classList.toggle("on", modalHalo);
+  $("#haloBtn").setAttribute("aria-pressed", String(modalHalo));
+  $("#haloHint").style.display = modalHalo ? "" : "none";
   strumChord(view, tuning);
 
   const bar = $("#vbar");
@@ -2951,6 +3154,14 @@ function setTuning(t){
   if($("#mapov").classList.contains("open")) drawMap();
   if($("#styleov").classList.contains("open")) drawStyles();
   if($("#learnov").classList.contains("open")) relearnTuning();
+  if($("#mineov").classList.contains("open")){
+    if(mine && mine.kind === "edit"){                   // a melody is per tuning — don't silently remap it
+      closeMine();
+      toast("MELODY EDIT CLOSED — MELODIES ARE PER TUNING");
+    }else{
+      drawMine();
+    }
+  }
   if($("#tuner").classList.contains("open")){
     $("#tuntun").textContent = TUNINGS[t].label;
     $("#tstrings").innerHTML = TUNINGS[t].strings.map(s => `<span>${s}</span>`).join("");
@@ -2962,12 +3173,14 @@ $("#chips").innerHTML = CATS.map(c =>
   `<button class="chip act" id="styChip" title="Blues / country / folk — standard progressions + genre scale maps">Styles</button>` +
   `<button class="chip act" id="mapChip" title="Fretboard map — every in-key note on the neck">Map</button>` +
   `<button class="chip act" id="lrnChip" title="Learn — banjo rolls + slide licks as animated tab">Learn</button>` +
+  `<button class="chip act" id="mineChip" title="Tune miner — pluck melodies out of the chord shapes, one lit note at a time">Mine</button>` +
   `<button class="chip act" id="tunChip" title="Tune up — mic pitch detection">Tuner</button>`;
 $("#chips").addEventListener("click", e => {
   const b = e.target.closest(".chip"); if(!b) return;
   if(b.id === "styChip"){ openStyles(); return; }
   if(b.id === "mapChip"){ openMap(); return; }
   if(b.id === "lrnChip"){ openLearn(); return; }
+  if(b.id === "mineChip"){ openMine(); return; }
   if(b.id === "tunChip"){ openTuner(); return; }
   state.cat = b.dataset.cat; state.page = 0;
   document.querySelectorAll(".chip[data-cat]").forEach(x => x.classList.toggle("on", x === b));
@@ -3104,7 +3317,9 @@ $("#seSave").addEventListener("click", () => {
   if(unknown.length &&
      !confirm(`// WARNING: not in the ${state.tuning} chord DB (kept, but no diagram):\n\n${unknown.join(" ")}\n\nSave anyway?`)) return;
   const songs = loadSongs();
-  songs[name] = { chords: toks.join(" "), lyrics };
+  // a melody tapped onto the song survives re-edits; the miner tolerates a changed sequence
+  const melody = songs[name] && typeof songs[name] === "object" ? songs[name].melody : undefined;
+  songs[name] = { chords: toks.join(" "), lyrics, ...(melody ? { melody } : {}) };
   storeSongs(songs);
   state.song = name;
   // grid follows the chord list; with lyrics-only songs, the unique tagged chords
@@ -3178,11 +3393,17 @@ $("#mdiag").addEventListener("touchend", e => {
   mSwiped = Math.abs(dx) >= 50;
   if(mSwiped) stepVoicing(dx < 0 ? 1 : -1);
 }, { passive:true });
-$("#mdiag").addEventListener("click", () => {
+$("#mdiag").addEventListener("click", e => {
   if(mSwiped){ mSwiped = false; return; }     // the click that trails a swipe
   if(!modalState) return;
+  const g = e.target.closest("g.hnote");      // halo view: tap a dot to hear that one note
+  if(g){ pluck(+g.dataset.midi, 0, .34); return; }
   const v = modalState.voicings[modalState.idx];
   strumChord({ frets: v.frets }, TUNINGS[state.tuning]);
+});
+$("#haloBtn").addEventListener("click", () => {
+  modalHalo = !modalHalo;
+  if(modalState) renderModalView();
 });
 
 /* ── fretboard heat map ───────────────────────────────────────── */
@@ -4129,6 +4350,477 @@ $("#lnFast").addEventListener("click", () => setLsnBpm(lsnBpm + 10));
 $("#lnclose").addEventListener("click", closeLearn);
 $("#learnov").addEventListener("click", e => { if(e.target === e.currentTarget) closeLearn(); });
 
+/* ═══════════════════════════════════════════════════════════════
+   TUNE MINER — pluck melodies out of chord shapes, one lit note at
+   a time on the halo. Built-in tunes are authored as roman-numeral
+   chords + semitone offsets from the tonic, then MINED onto the
+   current tuning at load: chords resolve in the tuning's home key,
+   the tonic octave that lands the most notes wins, and each note is
+   placed on the string/fret nearest the hand inside the held
+   shape's window. Saved songs join the list once a melody has been
+   tapped onto them in the editor (see MELODY EDIT below).
+   Three modes: TAP IT advances on the right dot, HEAR ME listens on
+   the mic (same pitch detection as the tuner), LISTEN plays the
+   whole arrangement — melody over soft strums — at tempo.
+   Clean-pass times persist per tuning × tune × mode.
+   ═══════════════════════════════════════════════════════════════ */
+/* built-in tunes: c = chord degree, n = melody notes as
+   [semitones-from-tonic, eighth-note-slots] */
+const TW_A = [
+  { c:"I",  n:[[0,2],[0,2]] },  { c:"I",  n:[[7,2],[7,2]] },
+  { c:"IV", n:[[9,2],[9,2]] },  { c:"I",  n:[[7,4]] },
+  { c:"IV", n:[[5,2],[5,2]] },  { c:"I",  n:[[4,2],[4,2]] },
+  { c:"V7", n:[[2,2],[2,2]] },  { c:"I",  n:[[0,4]] },
+];
+const TW_B = [
+  { c:"I",  n:[[7,2],[7,2]] },  { c:"IV", n:[[5,2],[5,2]] },
+  { c:"I",  n:[[4,2],[4,2]] },  { c:"V7", n:[[2,4]] },
+];
+const ODE_A = [
+  { c:"I",  n:[[4,2],[4,2]] },  { c:"I",  n:[[5,2],[7,2]] },
+  { c:"I",  n:[[7,2],[5,2]] },  { c:"I",  n:[[4,2],[2,2]] },
+  { c:"I",  n:[[0,2],[0,2]] },  { c:"I",  n:[[2,2],[4,2]] },
+];
+const TUNE_LIBRARY = [
+  { name:"Twinkle Twinkle", steps:[ ...TW_A, ...TW_B, ...TW_B, ...TW_A ] },
+  { name:"Ode to Joy", steps:[
+      ...ODE_A, { c:"V7", n:[[4,3],[2,1]] }, { c:"V7", n:[[2,4]] },
+      ...ODE_A, { c:"V7", n:[[2,3],[0,1]] }, { c:"I",  n:[[0,4]] },
+      { c:"V7", n:[[2,2],[2,2]] },        { c:"I",  n:[[4,2],[0,2]] },
+      { c:"V7", n:[[2,2],[4,1],[5,1]] },  { c:"I",  n:[[4,2],[0,2]] },
+      { c:"V7", n:[[2,2],[4,1],[5,1]] },  { c:"V7", n:[[4,2],[2,2]] },
+      { c:"I",  n:[[0,2],[2,2]] },        { c:"V7", n:[[-5,4]] },
+      ...ODE_A, { c:"V7", n:[[2,3],[0,1]] }, { c:"I",  n:[[0,4]] } ] },
+  { name:"Row Your Boat", steps:[
+      { c:"I", n:[[0,3],[0,3]] },              { c:"I", n:[[0,2],[2,1],[4,3]] },
+      { c:"I", n:[[4,2],[2,1],[4,2],[5,1]] },  { c:"I", n:[[7,6]] },
+      { c:"I", n:[[12,1],[12,1],[12,1]] },     { c:"I", n:[[7,1],[7,1],[7,1]] },
+      { c:"I", n:[[4,1],[4,1],[4,1]] },        { c:"I", n:[[0,1],[0,1],[0,1]] },
+      { c:"V7", n:[[7,2],[5,1],[4,2],[2,1]] }, { c:"I", n:[[0,6]] } ] },
+  { name:"Happy Birthday", steps:[
+      { c:"I",  n:[[-5,1],[-5,1]] },  { c:"I",  n:[[-3,2],[-5,2]] },
+      { c:"V7", n:[[0,2],[-1,4]] },   { c:"V7", n:[[-5,1],[-5,1]] },
+      { c:"V7", n:[[-3,2],[-5,2]] },  { c:"I",  n:[[2,2],[0,4]] },
+      { c:"I",  n:[[-5,1],[-5,1]] },  { c:"I",  n:[[7,2],[4,2]] },
+      { c:"IV", n:[[0,2],[-1,2],[-3,2]] }, { c:"IV", n:[[5,1],[5,1]] },
+      { c:"IV", n:[[4,2],[0,2]] },    { c:"V7", n:[[2,2]] },  { c:"I", n:[[0,4]] } ] },
+];
+const MINE_KEYS = { gCEA:0, DGBE:7, DGBD:7, DGBbD:7, EADGBE:0 };  // home tonic pc per tuning
+
+/* place one pitch inside the held shape's window — octave-folding
+   until it lands, then nearest the hand's anchor fret, nudged toward
+   the top strings where melody rings clear of the chord */
+function mineNote(midi, chord, tuning){
+  const win = shapeWindow(chord);
+  for(const o of [0, 12, -12, 24, -24]){
+    const m = midi + o;
+    let best = null;
+    for(let s = 0; s < tuning.pitches.length; s++){
+      const f = m - tuning.open[s];
+      if(f < 0 || f > 12) continue;
+      if(!((f === 0 && win.opens) || (f >= win.lo && f <= win.hi))) continue;
+      const anchor = chord.frets[s] > 0 ? chord.frets[s] : win.base;
+      const cost = Math.abs(f - anchor) - s * .1;
+      if(!best || cost < best.cost) best = { s, f, midi: m, cost };
+    }
+    if(best) return best;
+  }
+  return null;
+}
+
+/* resolve a built-in tune for a tuning: degrees → real chords in the
+   home key, pick the tonic octave that lands the most notes, mine
+   each note into its chord's window */
+function mineTune(tune, tuningKey){
+  const tuning = TUNINGS[tuningKey];
+  const keyPC = MINE_KEYS[tuningKey] !== undefined ? MINE_KEYS[tuningKey] : 0;
+  const list = CHORD_LIBRARY[tuningKey] || [];
+  const chords = tune.steps.map(st => {
+    const name = degreeChord(st.c, keyPC);
+    return { name, chord: list.find(c => normName(c.name) === normName(name)) };
+  });
+  let bestSteps = null, bestHits = -1;
+  for(let tonic = 36 + keyPC; tonic <= 72 + keyPC; tonic += 12){
+    let hits = 0;
+    const steps = tune.steps.map((st, i) => {
+      const chord = chords[i].chord || { name: chords[i].name, frets: tuning.pitches.map(() => 0) };
+      const notes = [];
+      st.n.forEach(([off, dur]) => {
+        const hit = mineNote(tonic + off, chord, tuning);
+        if(hit){ notes.push({ s: hit.s, f: hit.f, midi: hit.midi, dur: dur || 2 }); hits++; }
+      });
+      return { name: chords[i].name, chord, notes };
+    });
+    if(hits >= bestHits){ bestHits = hits; bestSteps = steps; }   // ties → higher octave, melody on top
+  }
+  const total = tune.steps.reduce((a, st) => a + st.n.length, 0);
+  return { steps: bestSteps.filter(st => st.notes.length), dropped: total - bestHits };
+}
+
+/* a saved song with a tapped-in melody, as drill steps */
+function mineSong(name){
+  const raw = loadSongs()[name];
+  const mel = raw && raw.melody;
+  if(!mel || mel.tuning !== state.tuning || !mel.steps) return null;
+  const built = buildPerfFor(name, 0);
+  if(!built) return null;
+  const tuning = TUNINGS[state.tuning];
+  const steps = [];
+  built.seq.forEach((sq, i) => {
+    const notes = (mel.steps[i] || []).map(([s, f]) => ({ s, f, midi: tuning.open[s] + f, dur: 2 }));
+    if(notes.length && sq.chord) steps.push({ name: sq.name, chord: sq.chord, notes });
+  });
+  return steps.length ? { steps, dropped: 0 } : null;
+}
+
+let mine = null;      // drill: { kind:"drill", tune, steps, si, ni, mode, … } · edit: { kind:"edit", song, seq, mel, si }
+let mineBpm = 80;
+
+/* best clean-pass times per tuning × tune × mode (localStorage) */
+const MINE_STORE = "chordware.mine";
+function mineBestMs(tuneName, mode, ms){
+  let all = {};
+  try{ all = JSON.parse(localStorage.getItem(MINE_STORE)) || {}; }catch(e){}
+  const k = [state.tuning, tuneName, mode].join("|");
+  if(all[k] === undefined || ms < all[k]) all[k] = ms;
+  try{ localStorage.setItem(MINE_STORE, JSON.stringify(all)); }catch(e){/* private mode */}
+  return all[k];
+}
+
+const mnStatus = html => { $("#mnStatus").innerHTML = html; };
+const mineNoteEl = n => $(`#minediag g[data-s="${n.s}"][data-f="${n.f}"]`);
+const mineTotal = () => mine.steps.reduce((a, s) => a + s.notes.length, 0);
+const mineDone  = () => mine.steps.slice(0, mine.si).reduce((a, s) => a + s.notes.length, 0) + mine.ni;
+
+function mineStrum(chord, gain){
+  let k = 0;
+  chord.frets.forEach((f, i) => {
+    if(f < 0) return;
+    pluck(TUNINGS[state.tuning].open[i] + f, k * .03, gain);
+    k++;
+  });
+}
+
+function mineStopTimers(){
+  if(mine){ clearInterval(mine.timer); clearTimeout(mine.timer2); clearTimeout(mine.wait); }
+  stopPracMic();
+}
+
+function mineRenderStep(){
+  const st = mine.steps[mine.si];
+  const t = TUNINGS[state.tuning];
+  $("#mnChord").textContent = st.name;
+  const nxt = mine.steps[mine.si + 1];
+  $("#mnUp").textContent = nxt ? "NEXT// " + nxt.name : "— LAST CHORD —";
+  $("#mnNotes").textContent = "";
+  $("#minediag").innerHTML = renderHaloSVG(st.chord, t, {
+    scale: chordScalePCs(st.chord, t, st.notes.map(n => (t.pitches[n.s] + n.f) % 12)),
+  });
+  if(mine.mode !== "listen") mineTarget();
+}
+
+/* light the next melody note; mined notes keep their cyan glow, so
+   the vein you've dug through the shape stays visible */
+function mineTarget(){
+  document.querySelectorAll("#minediag g.tgt, #minediag g.bad")
+    .forEach(el => el.classList.remove("tgt", "bad"));
+  const n = mine.steps[mine.si].notes[mine.ni];
+  const el = mineNoteEl(n);
+  if(el) el.classList.add("tgt");
+  const t = TUNINGS[state.tuning];
+  const name = NOTE_NAMES[(t.pitches[n.s] + n.f) % 12];
+  if(mine.mode === "tap")
+    mnStatus(`TAP THE LIT NOTE · <b>${name}</b> · ${mineDone() + 1}/${mineTotal()}`);
+  else if(mine.mode === "hear")
+    mnStatus(`PLAY THE LIT NOTE · <b>${name}</b> · ${t.strings[n.s]} STRING ` +
+      `${n.f === 0 ? "OPEN" : "FRET " + n.f} · ${mineDone() + 1}/${mineTotal()}`);
+}
+
+function mineAdvance(){
+  const st = mine.steps[mine.si];
+  mine.ni++;
+  if(mine.ni >= st.notes.length){
+    mine.ni = 0; mine.si++;
+    if(mine.si >= mine.steps.length){ mineFinish(); return; }
+    mineRenderStep();
+    mineStrum(mine.steps[mine.si].chord, .1);           // hear the new home base arrive
+    return;
+  }
+  mineTarget();
+}
+
+function mineFinish(){
+  const ms = Math.round(performance.now() - mine.t0);
+  let msg = `TUNE MINED · ${fmtSecs(ms)}`;
+  if(mine.misses === 0){
+    const best = mineBestMs(mine.tune, mine.mode, ms);
+    msg += ` CLEAN · BEST ${fmtSecs(best)}`;
+  }else{
+    msg += ` · ${mine.misses} MISS${mine.misses > 1 ? "ES" : ""}`;
+  }
+  mnStatus(msg + " — AGAIN FROM THE TOP");
+  mine.si = 0; mine.ni = 0; mine.misses = 0; mine.t0 = 0;
+  mine.wait = setTimeout(() => { if(mine && mine.kind === "drill") mineRenderStep(); }, 2200);
+}
+
+/* ── HEAR ME — same mic + pitch detection as the tuner ─────────── */
+async function mineHearStart(){
+  mnStatus("// REQUESTING MIC… //");
+  const ok = await pracMicStart();
+  if(!mine || mine.mode !== "hear" || !$("#mineov").classList.contains("open")){ stopPracMic(); return; }
+  if(!ok){
+    mnStatus("// MIC BLOCKED — ALLOW ACCESS AND TAP HEAR ME AGAIN //");
+    mine.mode = "tap"; syncMineBtns();
+    mine.wait = setTimeout(mineTarget, 1600);
+    return;
+  }
+  mine.timer = setInterval(mineHearTick, 90);
+  mineTarget();
+}
+function mineHearTick(){
+  if(!mine || mine.mode !== "hear" || !pracAnalyser) return;
+  if(mine.mute > 0){ mine.mute--; return; }             // deaf while the last string rings
+  pracAnalyser.getFloatTimeDomainData(pracBuf);
+  const f = detectPitch(pracBuf, AC.sampleRate);
+  if(f < 0){ mine.hold = 0; return; }
+  const heard = Math.round(69 + 12 * Math.log2(f / 440));
+  const want = mine.steps[mine.si].notes[mine.ni].midi;
+  const ok = heard === want || heard === want + 12 || heard === want - 12;
+  mine.hold = ok ? mine.hold + 1 : 0;
+  if(mine.hold < 2) return;
+  mine.hold = 0; mine.mute = 4;
+  if(mineDone() === 0) mine.t0 = performance.now();
+  const el = mineNoteEl(mine.steps[mine.si].notes[mine.ni]);
+  if(el){ el.classList.remove("tgt"); el.classList.add("good"); }
+  mineAdvance();
+}
+
+/* ── LISTEN — the arrangement plays itself, looping at tempo ───── */
+function mineListenStep(){
+  if(!mine || mine.mode !== "listen") return;
+  const st = mine.steps[mine.si], n = st.notes[mine.ni];
+  if(mine.ni === 0) mineStrum(st.chord, .09);
+  const el = mineNoteEl(n);
+  document.querySelectorAll("#minediag g.tgt").forEach(x => x.classList.remove("tgt"));
+  if(el) el.classList.add("tgt");
+  pluck(n.midi, 0, .34);
+  mnStatus(`LISTEN · <b>${st.name}</b> · NOTE ${mineDone() + 1}/${mineTotal()}`);
+  mine.timer2 = setTimeout(() => {
+    if(!mine || mine.mode !== "listen") return;
+    if(el){ el.classList.remove("tgt"); el.classList.add("good"); }
+    mine.ni++;
+    if(mine.ni >= st.notes.length){
+      mine.ni = 0; mine.si++;
+      if(mine.si >= mine.steps.length) mine.si = 0;     // loop the tune
+      mineRenderStep();
+    }
+    mineListenStep();
+  }, (n.dur || 2) * 30000 / mineBpm);
+}
+
+function syncMineBtns(){
+  const m = mine && mine.kind === "drill" ? mine.mode : "";
+  $("#mnTap").classList.toggle("on", m === "tap");
+  $("#mnHear").classList.toggle("on", m === "hear");
+  $("#mnListen").classList.toggle("on", m === "listen");
+}
+function setMineMode(m){
+  if(!mine || mine.kind !== "drill") return;
+  mineStopTimers();
+  Object.assign(mine, { mode: m, si: 0, ni: 0, misses: 0, t0: 0, hold: 0, mute: 0 });
+  syncMineBtns();
+  mineRenderStep();
+  if(m === "hear") mineHearStart();
+  if(m === "listen"){ audioCtx(); mineListenStep(); }
+  syncWakeLock();
+}
+
+/* ── overlay plumbing ──────────────────────────────────────────── */
+function drawMineList(){
+  const sel = $("#mnTune");
+  const cur = sel.value;
+  const esc = n => n.replace(/"/g, "&quot;");
+  const songs = loadSongs();
+  const mined = Object.keys(songs).sort().filter(n => {
+    const m = songs[n] && songs[n].melody;
+    return m && m.tuning === state.tuning && (m.steps || []).some(a => a && a.length);
+  });
+  sel.disabled = false;
+  sel.innerHTML =
+    `<optgroup label="TUNES">` +
+      TUNE_LIBRARY.map((t, i) => `<option value="t:${i}">${t.name}</option>`).join("") +
+    `</optgroup>` +
+    (mined.length
+      ? `<optgroup label="MY SONGS">` + mined.map(n => `<option value="s:${esc(n)}">♪ ${n}</option>`).join("") + `</optgroup>`
+      : "");
+  if([...sel.options].some(o => o.value === cur)) sel.value = cur;
+}
+
+function mineLoad(){
+  mineStopTimers();
+  const v = $("#mnTune").value;
+  let data = null, label = "";
+  if(v.startsWith("t:")){
+    const t = TUNE_LIBRARY[+v.slice(2)];
+    data = mineTune(t, state.tuning);
+    label = t.name;
+  }else if(v.startsWith("s:")){
+    label = v.slice(2);
+    data = mineSong(label);
+  }
+  if(!data || !data.steps.length){
+    mine = null;
+    $("#mnChord").textContent = ""; $("#mnUp").textContent = ""; $("#minediag").innerHTML = "";
+    mnStatus("// NOTHING TO MINE — TAP A MELODY ONTO A SONG IN THE EDITOR //");
+    syncMineBtns();
+    return;
+  }
+  mine = { kind:"drill", tune: label, steps: data.steps, si:0, ni:0,
+           mode:"tap", misses:0, t0:0, hold:0, mute:0 };
+  syncMineBtns();
+  mineRenderStep();
+  mineStrum(mine.steps[0].chord, .1);
+  if(data.dropped) toast(data.dropped + " NOTES OUT OF REACH — SKIPPED");
+  syncWakeLock();
+}
+
+function drawMine(){
+  $("#mntun").textContent = TUNINGS[state.tuning].label;
+  $("#mnDrillRow").style.display = "";
+  $("#mnEditRow").style.display = "none";
+  drawMineList();
+  mineLoad();
+}
+function openMine(){
+  drawMine();
+  $("#mineov").classList.add("open");
+  document.body.style.overflow = "hidden";
+  syncWakeLock();
+}
+function closeMine(){
+  if(mine && mine.kind === "edit" && mine.dirty &&
+     !confirm("Discard melody edits? SAVE MELODY keeps them.")) return;
+  mineStopTimers();
+  mine = null;
+  $("#mineov").classList.remove("open");
+  // the melody editor opens over the song editor — keep the page locked if it's still up
+  document.body.style.overflow = $("#songEd").classList.contains("open") ? "hidden" : "";
+  syncWakeLock();
+}
+
+$("#minediag").addEventListener("click", e => {
+  const g = e.target.closest("g.hnote");
+  if(!g || !mine) return;
+  if(mine.kind === "edit"){ mineEditTap(g); return; }
+  pluck(+g.dataset.midi, 0, .32);
+  if(mine.mode === "listen") return;                    // listening: dots are just tappable notes
+  const n = mine.steps[mine.si].notes[mine.ni];
+  if(+g.dataset.s === n.s && +g.dataset.f === n.f){
+    if(mineDone() === 0) mine.t0 = performance.now();
+    g.classList.remove("tgt");
+    g.classList.add("good");
+    mineAdvance();
+  }else{
+    mine.misses++;
+    g.classList.add("bad");
+    setTimeout(() => g.classList.remove("bad"), 500);
+  }
+});
+
+$("#mnTap").addEventListener("click", () => setMineMode("tap"));
+$("#mnHear").addEventListener("click", () => setMineMode(mine && mine.mode === "hear" ? "tap" : "hear"));
+$("#mnListen").addEventListener("click", () => setMineMode(mine && mine.mode === "listen" ? "tap" : "listen"));
+function setMineBpm(v){
+  mineBpm = Math.max(40, Math.min(240, v));
+  $("#mnBpm").textContent = mineBpm + " BPM";
+}
+$("#mnSlow").addEventListener("click", () => setMineBpm(mineBpm - 10));
+$("#mnFast").addEventListener("click", () => setMineBpm(mineBpm + 10));
+$("#mnTune").addEventListener("change", mineLoad);
+$("#mnclose").addEventListener("click", closeMine);
+$("#mineov").addEventListener("click", e => { if(e.target === e.currentTarget) closeMine(); });
+
+/* ── MELODY EDIT — tap the tune onto a saved song's halos ──────── */
+function openMineEdit(songName){
+  const built = buildPerfFor(songName, 0);
+  if(!built || !built.seq.length){ toast("ADD CHORDS TO THE SONG FIRST"); return; }
+  const raw = loadSongs()[songName];
+  const prev = raw && raw.melody && raw.melody.tuning === state.tuning ? raw.melody.steps : null;
+  mineStopTimers();
+  mine = {
+    kind:"edit", song: songName, seq: built.seq,
+    mel: built.seq.map((_, i) => (prev && prev[i] ? prev[i].slice() : [])),
+    si: 0,
+  };
+  $("#mntun").textContent = TUNINGS[state.tuning].label;
+  $("#mnDrillRow").style.display = "none";
+  $("#mnEditRow").style.display = "";
+  const sel = $("#mnTune");
+  sel.innerHTML = `<option>♪ ${escHTML(songName)} — MELODY EDIT</option>`;
+  sel.disabled = true;
+  mineEditRender();
+  $("#mineov").classList.add("open");
+  document.body.style.overflow = "hidden";
+  syncWakeLock();
+}
+
+function mineEditRender(){
+  const sq = mine.seq[mine.si];
+  const t = TUNINGS[state.tuning];
+  $("#mnChord").textContent = sq.name;
+  const nxt = mine.seq[mine.si + 1];
+  $("#mnUp").textContent = nxt ? "NEXT// " + nxt.name : "— LAST CHORD —";
+  $("#minediag").innerHTML = sq.chord
+    ? renderHaloSVG(sq.chord, t, {})
+    : `<div class="orn-none" style="text-align:center;padding:30px 0">// NO DIAGRAM FOR ${escHTML(sq.name)} — SKIP THIS CHORD //</div>`;
+  mnStatus(`MELODY EDIT · CHORD <b>${mine.si + 1}/${mine.seq.length}</b> — TAP THE HALO TO LAY THE TUNE · ◄ ► TO MOVE`);
+  mineEditNotes();
+}
+function mineEditNotes(){
+  const t = TUNINGS[state.tuning];
+  const cur = mine.mel[mine.si];
+  $("#mnNotes").textContent = cur.length
+    ? "NOTES:// " + cur.map(([s, f]) => noteAt(t, s, f) + "·" + f).join("  ")
+    : "// NO NOTES ON THIS CHORD YET //";
+}
+function mineEditTap(g){
+  pluck(+g.dataset.midi, 0, .34);
+  mine.mel[mine.si].push([+g.dataset.s, +g.dataset.f]);
+  mine.dirty = true;
+  g.classList.add("good");
+  setTimeout(() => g.classList.remove("good"), 350);
+  mineEditNotes();
+}
+function mineEditStep(d){
+  if(!mine || mine.kind !== "edit") return;
+  const n = mine.si + d;
+  if(n < 0 || n >= mine.seq.length) return;
+  mine.si = n;
+  mineEditRender();
+}
+$("#mnPrevC").addEventListener("click", () => mineEditStep(-1));
+$("#mnNextC").addEventListener("click", () => mineEditStep(1));
+$("#mnUndo").addEventListener("click", () => {
+  if(mine && mine.kind === "edit"){ mine.mel[mine.si].pop(); mine.dirty = true; mineEditNotes(); }
+});
+$("#mnClear").addEventListener("click", () => {
+  if(mine && mine.kind === "edit"){ mine.mel[mine.si] = []; mine.dirty = true; mineEditNotes(); }
+});
+$("#mnDone").addEventListener("click", () => {
+  if(!mine || mine.kind !== "edit") return;
+  const songs = loadSongs();
+  if(songs[mine.song] !== undefined){
+    const d = songData(songs[mine.song]);
+    const hasNotes = mine.mel.some(a => a.length);
+    songs[mine.song] = { chords: d.chords, lyrics: d.lyrics,
+      ...(hasNotes ? { melody: { tuning: state.tuning, steps: mine.mel } } : {}) };
+    storeSongs(songs);
+    toast(hasNotes ? "MELODY SAVED — MINE IT FROM THE MINE CHIP" : "MELODY CLEARED");
+  }
+  mine.dirty = false;
+  closeMine();
+});
+
 /* ── performance view — big chord + lyric autoscroll, for playing live.
    [Chord] tags in the lyrics drive the sequence; otherwise the chord
    list does. Keyboard arrows / space / page keys advance, so Bluetooth
@@ -4311,7 +5003,7 @@ function closePerf(){
 let wakeLock = null, AWAKE = false;
 try{ AWAKE = localStorage.getItem("chordware.awake") === "1"; }catch(e){}
 async function syncWakeLock(){
-  const want = AWAKE || !!perf || !!prac || !!lsn;       // hands are on the instrument during a drill or lesson too
+  const want = AWAKE || !!perf || !!prac || !!lsn || !!mine;   // hands are on the instrument during a drill or lesson too
   if(want && !wakeLock && document.visibilityState === "visible"){
     try{
       if("wakeLock" in navigator){
@@ -4402,6 +5094,17 @@ $("#stSave").addEventListener("click", () => {
   closeSetEditor();
   refreshSongSel();
   render();
+});
+
+/* melody editor — the tune lives on a SAVED song, so the sequence
+   it indexes against can't drift while you're tapping it in */
+$("#seMelody").addEventListener("click", () => {
+  const name = $("#seName").value.trim();
+  if(!name || loadSongs()[name] === undefined){
+    toast("SAVE THE SONG FIRST — MELODY LIVES ON A SAVED SONG");
+    return;
+  }
+  openMineEdit(name);
 });
 
 /* ── song backup — export/import everything as one JSON file ──── */
@@ -4606,6 +5309,7 @@ document.addEventListener("keydown", e => {
   if(e.key === "Escape"){
     if($("#perf").classList.contains("open")) return closePerf();
     if($("#tuner").classList.contains("open")) return closeTuner();
+    if($("#mineov").classList.contains("open")) return closeMine();
     if($("#setEd").classList.contains("open")) return closeSetEditor();
     if($("#songEd").classList.contains("open")) return closeSongEditor();
     if($("#styleov").classList.contains("open")) return closeStyles();
@@ -4623,6 +5327,11 @@ document.addEventListener("keydown", e => {
   if($("#modal").classList.contains("open")){
     if(e.key === "ArrowLeft")  stepVoicing(-1);
     if(e.key === "ArrowRight") stepVoicing(1);
+    return;
+  }
+  if($("#mineov").classList.contains("open")){
+    if(e.key === "ArrowLeft")  mineEditStep(-1);        // no-ops outside melody edit
+    if(e.key === "ArrowRight") mineEditStep(1);
     return;
   }
   if($("#songEd").classList.contains("open") || $("#setEd").classList.contains("open") ||
