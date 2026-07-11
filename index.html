@@ -995,7 +995,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     </div>
     <div class="mapscroll" id="lnTab"></div>
     <div class="maplegend" id="lnHint">
-      <span><b style="background:var(--red)"></b>T · I · M · F — THUMB / INDEX / MIDDLE / FRAIL</span>
+      <span><b style="background:var(--red)"></b>T · I · M · R · F — THUMB / INDEX / MIDDLE / RING / FRAIL</span>
       <span><b class="hollow"></b>NUMBERS = FRETS · × = MUTED</span>
     </div>
   </div>
@@ -3524,54 +3524,71 @@ $("#styprogs").addEventListener("click", e => {
 
 /* ═══════════════════════════════════════════════════════════════
    LEARN — technique lessons as animated tab. Two kinds:
-   · ROLLS — banjo right-hand picking patterns for any 4-string
-     tuning. A roll is string order + timing, independent of the
-     chord, so you pick any shape from the library and the frets
-     come from what you're holding. Strings are numbered banjo
-     style: 1st = highest pitch. t is in eighth-note slots.
-   · LICKS — authored left-hand phrases per tuning (frets are
-     absolute). Slides are ev {sl:from, to:target}; the audio runs
-     the chromatic steps so it whines like a slide should.
+   · ROLLS — right-hand picking patterns for ANY tuning. A roll is
+     string order + timing, independent of the chord, so you pick
+     any shape from the library and the frets come from what you're
+     holding. Events name strings by ROLE, not index: "1"/"2"/"3"
+     count down from the top string (banjo style), "B" is the lowest
+     sounded string of the held chord and "A" the alternate bass one
+     sounded string above it — so the same roll lands on a 4-string
+     uke and a 6-string guitar, where the bass roles follow the
+     chord past its muted strings. t is in eighth-note slots.
+   · LICKS — authored left-hand phrases per tuning (string indices
+     and frets are absolute). Slides are ev {sl:from, to:target};
+     the audio runs the chromatic steps so it whines like a slide
+     should.
    Playback loops the tab strip with a sweeping playhead; SND
    toggles between hearing the notes and a bare metronome tick.
    ═══════════════════════════════════════════════════════════════ */
 const ROLL_LESSONS = [
   { name:"Forward Roll", steps:8,
     blurb:"The engine of bluegrass banjo: thumb–index–middle rolling toward the floor. 3rd–2nd–1st twice, then 3rd–1st to fill the bar. Keep it even — speed comes later.",
-    ev:[ {t:0,s:1,fin:"T"},{t:1,s:2,fin:"I"},{t:2,s:3,fin:"M"},{t:3,s:1,fin:"T"},
-         {t:4,s:2,fin:"I"},{t:5,s:3,fin:"M"},{t:6,s:1,fin:"T"},{t:7,s:3,fin:"M"} ] },
+    ev:[ {t:0,s:"3",fin:"T"},{t:1,s:"2",fin:"I"},{t:2,s:"1",fin:"M"},{t:3,s:"3",fin:"T"},
+         {t:4,s:"2",fin:"I"},{t:5,s:"1",fin:"M"},{t:6,s:"3",fin:"T"},{t:7,s:"1",fin:"M"} ] },
   { name:"Backward Roll", steps:8,
     blurb:"The forward roll mirrored: middle–index–thumb climbing away from the floor. Great under melody notes on the 1st string.",
-    ev:[ {t:0,s:3,fin:"M"},{t:1,s:2,fin:"I"},{t:2,s:1,fin:"T"},{t:3,s:3,fin:"M"},
-         {t:4,s:2,fin:"I"},{t:5,s:1,fin:"T"},{t:6,s:3,fin:"M"},{t:7,s:2,fin:"I"} ] },
+    ev:[ {t:0,s:"1",fin:"M"},{t:1,s:"2",fin:"I"},{t:2,s:"3",fin:"T"},{t:3,s:"1",fin:"M"},
+         {t:4,s:"2",fin:"I"},{t:5,s:"3",fin:"T"},{t:6,s:"1",fin:"M"},{t:7,s:"2",fin:"I"} ] },
   { name:"Forward-Reverse Roll", steps:8,
-    blurb:"Out and back in one bar — the thumb drops to the 4th string at the turn, which is what gives it that rolling-wave shape.",
-    ev:[ {t:0,s:1,fin:"T"},{t:1,s:2,fin:"I"},{t:2,s:3,fin:"M"},{t:3,s:0,fin:"T"},
-         {t:4,s:3,fin:"M"},{t:5,s:2,fin:"I"},{t:6,s:1,fin:"T"},{t:7,s:3,fin:"M"} ] },
+    blurb:"Out and back in one bar — the thumb drops to the bass string at the turn, which is what gives it that rolling-wave shape.",
+    ev:[ {t:0,s:"3",fin:"T"},{t:1,s:"2",fin:"I"},{t:2,s:"1",fin:"M"},{t:3,s:"B",fin:"T"},
+         {t:4,s:"1",fin:"M"},{t:5,s:"2",fin:"I"},{t:6,s:"3",fin:"T"},{t:7,s:"1",fin:"M"} ] },
   { name:"Alternating Thumb Roll", steps:8,
-    blurb:"The thumb bounces between the 4th and 3rd strings while index and middle answer — the classic boom-chick engine behind old-time and country backup.",
-    ev:[ {t:0,s:0,fin:"T"},{t:1,s:2,fin:"I"},{t:2,s:1,fin:"T"},{t:3,s:3,fin:"M"},
-         {t:4,s:0,fin:"T"},{t:5,s:2,fin:"I"},{t:6,s:1,fin:"T"},{t:7,s:3,fin:"M"} ] },
+    blurb:"The thumb bounces between the two bass strings while index and middle answer — the classic boom-chick engine behind old-time and country backup.",
+    ev:[ {t:0,s:"B",fin:"T"},{t:1,s:"2",fin:"I"},{t:2,s:"A",fin:"T"},{t:3,s:"1",fin:"M"},
+         {t:4,s:"B",fin:"T"},{t:5,s:"2",fin:"I"},{t:6,s:"A",fin:"T"},{t:7,s:"1",fin:"M"} ] },
   { name:"Pinch Pattern", steps:8,
     blurb:"Thumb strikes a bass string, then index + middle pinch two strings together. The half-speed feel makes it the easiest roll to sing over.",
-    ev:[ {t:0,s:0,fin:"T"},{t:2,s:2,fin:"I"},{t:2,s:3,fin:"M"},
-         {t:4,s:1,fin:"T"},{t:6,s:2,fin:"I"},{t:6,s:3,fin:"M"} ] },
+    ev:[ {t:0,s:"B",fin:"T"},{t:2,s:"2",fin:"I"},{t:2,s:"1",fin:"M"},
+         {t:4,s:"A",fin:"T"},{t:6,s:"2",fin:"I"},{t:6,s:"1",fin:"M"} ] },
   { name:"Foggy Mountain Roll", steps:8,
     blurb:"Earl Scruggs' signature: index and middle trade on the top strings while the thumb answers below — 2-1-3-1 here, with the 3rd string standing in for the banjo's 5th.",
-    ev:[ {t:0,s:2,fin:"I"},{t:1,s:3,fin:"M"},{t:2,s:1,fin:"T"},{t:3,s:3,fin:"M"},
-         {t:4,s:2,fin:"I"},{t:5,s:3,fin:"M"},{t:6,s:1,fin:"T"},{t:7,s:3,fin:"M"} ] },
+    ev:[ {t:0,s:"2",fin:"I"},{t:1,s:"1",fin:"M"},{t:2,s:"3",fin:"T"},{t:3,s:"1",fin:"M"},
+         {t:4,s:"2",fin:"I"},{t:5,s:"1",fin:"M"},{t:6,s:"3",fin:"T"},{t:7,s:"1",fin:"M"} ] },
   { name:"Index-Lead Roll", steps:8,
     blurb:"A lead pattern for backup: the index opens each group on the 2nd string and the thumb keeps the pulse underneath. Swap it in under vocals where a forward roll feels too busy.",
-    ev:[ {t:0,s:2,fin:"I"},{t:1,s:1,fin:"T"},{t:2,s:3,fin:"M"},{t:3,s:1,fin:"T"},
-         {t:4,s:2,fin:"I"},{t:5,s:1,fin:"T"},{t:6,s:3,fin:"M"},{t:7,s:1,fin:"T"} ] },
+    ev:[ {t:0,s:"2",fin:"I"},{t:1,s:"3",fin:"T"},{t:2,s:"1",fin:"M"},{t:3,s:"3",fin:"T"},
+         {t:4,s:"2",fin:"I"},{t:5,s:"3",fin:"T"},{t:6,s:"1",fin:"M"},{t:7,s:"3",fin:"T"} ] },
   { name:"Middle-Lead Roll", steps:8,
     blurb:"The mirror lead: middle opens every group on the 1st string with the thumb answering — puts the melody voice on top, so it's the one for picking out tunes.",
-    ev:[ {t:0,s:3,fin:"M"},{t:1,s:1,fin:"T"},{t:2,s:2,fin:"I"},{t:3,s:1,fin:"T"},
-         {t:4,s:3,fin:"M"},{t:5,s:1,fin:"T"},{t:6,s:2,fin:"I"},{t:7,s:1,fin:"T"} ] },
+    ev:[ {t:0,s:"1",fin:"M"},{t:1,s:"3",fin:"T"},{t:2,s:"2",fin:"I"},{t:3,s:"3",fin:"T"},
+         {t:4,s:"1",fin:"M"},{t:5,s:"3",fin:"T"},{t:6,s:"2",fin:"I"},{t:7,s:"3",fin:"T"} ] },
+  { name:"Travis Pattern", steps:8,
+    blurb:"Merle Travis' engine, straight off the guitar: the thumb alternates bass and the string above it on every beat while the fingers answer on top — the pinch on ONE anchors the bar. On four strings the 'bass' is simply your lowest pair.",
+    ev:[ {t:0,s:"B",fin:"T"},{t:0,s:"1",fin:"M"},{t:2,s:"A",fin:"T"},{t:3,s:"2",fin:"I"},
+         {t:4,s:"B",fin:"T"},{t:5,s:"1",fin:"M"},{t:6,s:"A",fin:"T"},{t:7,s:"2",fin:"I"} ] },
+  { name:"Folk Arpeggio · 6/8", steps:6,
+    blurb:"The House-of-the-Rising-Sun ripple: bass note, then climb the top strings and fall back — six eighth notes to the bar, count ONE-two-three-FOUR-five-six.",
+    ev:[ {t:0,s:"B",fin:"T"},{t:1,s:"3",fin:"I"},{t:2,s:"2",fin:"M"},{t:3,s:"1",fin:"R"},
+         {t:4,s:"2",fin:"M"},{t:5,s:"3",fin:"I"} ] },
+  { name:"Waltz Pinch", steps:6,
+    blurb:"The pinch pattern in 3/4 — bass on ONE, two pinches after: BOOM · chick · chick. Drop it under the country waltz progressions in STYLES and you're done.",
+    ev:[ {t:0,s:"B",fin:"T"},{t:2,s:"2",fin:"I"},{t:2,s:"1",fin:"M"},
+         {t:4,s:"2",fin:"I"},{t:4,s:"1",fin:"M"} ] },
   { name:"Clawhammer Bum-Ditty", steps:8,
-    blurb:"The old-time down-picking engine — not a roll at all: strike a melody note with the back of a nail (F = frail), brush the strings, then the thumb catches the 4th. On a reentrant uke that's the high-g drone — exactly the banjo 5th string's job. BUM · DIT-TY.",
-    ev:[ {t:0,s:3,fin:"F"},{t:2,s:1,fin:"F"},{t:2,s:2,fin:"F"},{t:2,s:3,fin:"F"},{t:3,s:0,fin:"T"},
-         {t:4,s:3,fin:"F"},{t:6,s:1,fin:"F"},{t:6,s:2,fin:"F"},{t:6,s:3,fin:"F"},{t:7,s:0,fin:"T"} ] },
+    blurb:"The old-time down-picking engine — not a roll at all: strike a melody note with the back of a nail (F = frail), brush the strings, then the thumb catches the bass. On a reentrant uke that's the high-g drone — exactly the banjo 5th string's job. BUM · DIT-TY.",
+    ev:[ {t:0,s:"1",fin:"F"},{t:2,s:"3",fin:"F"},{t:2,s:"2",fin:"F"},{t:2,s:"1",fin:"F"},{t:3,s:"B",fin:"T"},
+         {t:4,s:"1",fin:"F"},{t:6,s:"3",fin:"F"},{t:6,s:"2",fin:"F"},{t:6,s:"1",fin:"F"},{t:7,s:"B",fin:"T"} ] },
 ];
 
 const SLIDE_LESSONS = {
@@ -3592,6 +3609,24 @@ const SLIDE_LESSONS = {
       blurb:"Bar 11–12 material in C: slide into E♭ on the A string, walk E♭–C–B♭–G down to the root, and land on the V. Tag it onto any 12-bar in C.",
       ev:[ {t:0,s:3,sl:5,to:6},{t:1,s:3,f:3},{t:2,s:3,f:1},{t:3,s:2,f:3},
            {t:4,s:1,f:0},{t:6,s:1,sl:6,to:7} ] },
+  ],
+  DGBE: [   // baritone — authored in E blues (E · G · A · B♭ · B · D)
+    { name:"Slide into the ♭3", steps:8,
+      blurb:"THE blues move in E — and on a baritone all four open strings sit in E blues (D G B E = ♭7 ♭3 5 root). Slide up into the ♭3 (G) on the top string and let the low D answer.",
+      ev:[ {t:0,s:3,f:0},{t:1,s:3,sl:2,to:3},{t:3,s:1,f:2},{t:4,s:2,f:0},
+           {t:5,s:3,sl:2,to:3},{t:6,s:3,f:0},{t:7,s:0,f:0} ] },
+    { name:"Double-Stop Slide to the IV", steps:8,
+      blurb:"Sneak into the IV from a half step below: the G+B pair fretted at 2 is the top of A major. Slide in, sit on it, then slip off to the open pair — instant E-to-A rocking.",
+      ev:[ {t:0,s:3,f:0},{t:1,s:1,sl:1,to:2},{t:1,s:2,sl:1,to:2},{t:3,s:1,f:2},{t:3,s:2,f:2},
+           {t:5,s:1,sl:2,to:0},{t:5,s:2,sl:2,to:0},{t:7,s:3,f:0} ] },
+    { name:"♭5 Wobble", steps:8,
+      blurb:"A → B♭ → B on the top string: sliding through the blue note instead of picking it. Rock it back down and resolve through the ♭3 to the open root.",
+      ev:[ {t:0,s:3,f:5},{t:1,s:3,sl:5,to:6},{t:2,s:3,sl:6,to:7},{t:4,s:3,sl:7,to:6},
+           {t:5,s:3,f:5},{t:6,s:3,f:3},{t:7,s:3,f:0} ] },
+    { name:"Turnaround Walk-Down", steps:8,
+      blurb:"Bar 11–12 in E: slide into the ♭7 (D) on the B string, walk D–B–A–G down to the open root, then slide ♭5→5 into the V. Tag it onto any 12-bar in E.",
+      ev:[ {t:0,s:2,sl:2,to:3},{t:1,s:2,f:0},{t:2,s:1,f:2},{t:3,s:1,f:0},
+           {t:4,s:3,f:0},{t:6,s:1,sl:3,to:4} ] },
   ],
   DGBD: [   // open G — authored in G blues (G · B♭ · C · D♭ · D · F)
     { name:"Slide into the ♭3", steps:8,
@@ -3629,14 +3664,47 @@ const SLIDE_LESSONS = {
       ev:[ {t:0,s:3,sl:2,to:3},{t:1,s:3,f:0},{t:2,s:2,f:2},{t:3,s:1,f:3},
            {t:4,s:1,f:0},{t:6,s:1,sl:6,to:7} ] },
   ],
+  EADGBE: [ // guitar — open-position E blues (E · G · A · B♭ · B · D)
+    { name:"Slide into the ♭3", steps:8,
+      blurb:"THE open-position E blues move, straight off the porch: growl it on the low E — slide up into the ♭3 (G), answer with the A-string B and the open D, and land the octave.",
+      ev:[ {t:0,s:0,f:0},{t:1,s:0,sl:2,to:3},{t:3,s:1,f:2},{t:4,s:2,f:0},
+           {t:5,s:0,sl:2,to:3},{t:6,s:0,f:0},{t:7,s:2,f:2} ] },
+    { name:"Double-Stop Slide to the IV", steps:8,
+      blurb:"The classic E-blues double stop: G+B fretted at 2 is the top of A major. Slide into it from a half step below over the low-E drone, sit, then slip off to the open strings to come home.",
+      ev:[ {t:0,s:0,f:0},{t:1,s:3,sl:1,to:2},{t:1,s:4,sl:1,to:2},{t:3,s:3,f:2},{t:3,s:4,f:2},
+           {t:5,s:3,sl:2,to:0},{t:5,s:4,sl:2,to:0},{t:7,s:0,f:0} ] },
+    { name:"♭5 Wobble", steps:8,
+      blurb:"A → B♭ → B on the high E: sliding through the blue note instead of picking it — the same frets as the uke versions, top string. Fall back through the ♭3 to the open root.",
+      ev:[ {t:0,s:5,f:5},{t:1,s:5,sl:5,to:6},{t:2,s:5,sl:6,to:7},{t:4,s:5,sl:7,to:6},
+           {t:5,s:5,f:5},{t:6,s:5,f:3},{t:7,s:5,f:0} ] },
+    { name:"Turnaround Walk-Down", steps:8,
+      blurb:"Bar 11–12 in E: slide into the ♭7 (D) on the B string, walk down through A and G to the D-string E, then slide ♭5→5 on the A string to land the V — the most-played turnaround in the blues.",
+      ev:[ {t:0,s:4,sl:2,to:3},{t:1,s:4,f:0},{t:2,s:3,f:2},{t:3,s:3,f:0},
+           {t:4,s:2,f:2},{t:6,s:1,sl:1,to:2} ] },
+  ],
 };
 
 function lessonsFor(tuningKey){
   const out = [];
-  if(TUNINGS[tuningKey].strings.length === 4)
-    ROLL_LESSONS.forEach(l => out.push({ ...l, kind:"roll" }));
+  ROLL_LESSONS.forEach(l => out.push({ ...l, kind:"roll" }));   // roles fit any string count
   (SLIDE_LESSONS[tuningKey] || []).forEach(l => out.push({ ...l, kind:"lick" }));
   return out;
+}
+
+/* resolve a roll's string ROLE to a string index for this chord:
+   "1"/"2"/"3" from the top, "B" lowest sounded, "A" the alternate
+   bass above it. Numeric s (licks) passes through untouched. */
+function rollString(role, chord, NSTR){
+  if(typeof role === "number") return role;
+  if(role === "B" || role === "A"){
+    let b = 0;
+    while(b < NSTR - 1 && chord.frets[b] < 0) b++;
+    if(role === "B") return b;
+    let a = b + 1;
+    while(a < NSTR - 1 && chord.frets[a] < 0) a++;
+    return a;
+  }
+  return NSTR - +role;
 }
 
 /* slide audio: pluck the start, run quiet chromatic steps into the
@@ -3680,7 +3748,8 @@ function renderLessonTab(lesson, chord, tuning){
         P.push(`<text x="${ex(off + t)}" y="${H - 4}" fill="var(--dim)" font-size="11" text-anchor="middle">${t / 2 + 1}</text>`);
     }
     lesson.ev.forEach(e => {
-      const x = ex(off + e.t), y = sy(e.s);
+      const si = rollString(e.s, chord, NSTR);
+      const x = ex(off + e.t), y = sy(si);
       P.push(`<g class="lev" data-t="${off + e.t}">`);
       if(e.sl !== undefined){                           // slide: from-fret, slanted connector, to-fret
         const x2 = x + STEP * .55;
@@ -3690,7 +3759,7 @@ function renderLessonTab(lesson, chord, tuning){
         P.push(`<circle cx="${x2}" cy="${y}" r="11"/>`);
         P.push(`<text class="fr" x="${x2}" y="${y + 3.8}" font-size="11" text-anchor="middle">${e.to}</text>`);
       }else{
-        const f = e.f !== undefined ? e.f : chord.frets[e.s];
+        const f = e.f !== undefined ? e.f : chord.frets[si];
         if(f < 0){
           P.push(`<text class="mute" x="${x}" y="${y + 4.5}" font-size="14" text-anchor="middle">×</text>`);
         }else{
@@ -3725,9 +3794,10 @@ function lnChord(){
 }
 
 function lnEventAudio(e, chord, tuning, when){
-  if(e.sl !== undefined) return slideNotes(tuning.open[e.s] + e.sl, tuning.open[e.s] + e.to, when);
-  const f = e.f !== undefined ? e.f : chord.frets[e.s];
-  if(f >= 0) pluck(tuning.open[e.s] + f, when, .3);
+  const si = rollString(e.s, chord, tuning.pitches.length);
+  if(e.sl !== undefined) return slideNotes(tuning.open[si] + e.sl, tuning.open[si] + e.to, when);
+  const f = e.f !== undefined ? e.f : chord.frets[si];
+  if(f >= 0) pluck(tuning.open[si] + f, when, .3);
 }
 
 function lnScheduleLoop(){
@@ -3787,7 +3857,7 @@ function drawLearn(){
   $("#lntun").textContent = TUNINGS[state.tuning].label;
   if(!lessons.length){
     $("#lnLesson").innerHTML = ""; $("#lnChord").style.display = "none";
-    $("#lnBlurb").textContent = "// NO LESSONS FOR THIS TUNING YET — ROLLS ARE FOUR-STRING //";
+    $("#lnBlurb").textContent = "// NO LESSONS FOR THIS TUNING YET //";
     $("#lnTab").innerHTML = ""; $("#lnPlay").disabled = true;
     return;
   }
@@ -3806,7 +3876,7 @@ function drawLearn(){
 
 function relearnTuning(){                                // repopulate the per-tuning selects, then draw
   const list = chordList();
-  const home = { gCEA:"C", DGBE:"G", DGBD:"G" }[state.tuning];
+  const home = { gCEA:"C", DGBE:"G", DGBD:"G", DGBbD:"Gm", EADGBE:"E" }[state.tuning];
   $("#lnChord").innerHTML = list.map(c => `<option value="${c.name}">CHORD:// ${c.name}</option>`).join("");
   if(home && list.some(c => c.name === home)) $("#lnChord").value = home;
   $("#lnLesson").innerHTML = "";                         // force drawLearn to rebuild for this tuning
