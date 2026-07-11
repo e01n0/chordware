@@ -555,16 +555,65 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   .halosvg g.good, .halosvg g.bad{ transform:scale(1.1); transform-box:fill-box; transform-origin:center; }
   @media (prefers-reduced-motion: reduce){ .halosvg g.tgt{ animation:none; transform:scale(1.16); } }
 
-  /* halo toggle in the chord modal */
+  /* halo toggle + find-it quiz in the chord modal */
   .halorow{ display:flex; align-items:center; justify-content:center; gap:10px; margin-top:8px; flex-wrap:wrap; }
-  #haloBtn{
+  #haloBtn, #mFindBtn{
     min-height:40px; padding:0 14px;
     background:transparent; color:var(--cyan); border:1px solid var(--cyan);
     font-family:var(--font-h); font-weight:600; font-size:12px; letter-spacing:.12em;
     text-transform:uppercase; cursor:pointer;
   }
-  #haloBtn.on{ background:var(--cyan); color:var(--ink); }
+  #haloBtn.on, #mFindBtn.on{ background:var(--cyan); color:var(--ink); }
   .halorow .hint{ color:var(--dim); font-size:10px; letter-spacing:.14em; text-transform:uppercase; }
+  #mFindStatus{
+    margin-top:8px; text-align:center; min-height:18px;
+    font-size:13px; letter-spacing:.14em; color:var(--yellow); text-transform:uppercase;
+  }
+  #mFindStatus b{ color:var(--cyan); font-weight:400; }
+  /* the quiz darkens every dot except the roots — rings stay, they're
+     the shape you're holding, not the answer */
+  .halosvg.quiz g.hnote:not(.reveal):not([data-iv="0"]) circle:last-of-type{
+    fill:var(--bg2); stroke:var(--line2); stroke-width:1.6;
+  }
+  .halosvg.quiz g.hnote:not(.reveal):not([data-iv="0"]) text{ opacity:0; }
+
+  /* ── tuning forge — custom tunings + machine-forged libraries ── */
+  #tunEd{
+    position:fixed; inset:0; z-index:8500;   /* over the tuner, whose picker can open it */
+    background:var(--overlay); display:none; overflow-y:auto;
+    padding:calc(14px + env(safe-area-inset-top, 0px)) 14px calc(20px + env(safe-area-inset-bottom));
+  }
+  #tunEd.open{ display:block; }
+  #tfClose{
+    min-width:48px; min-height:48px; flex:0 0 auto;
+    background:transparent; color:var(--red); border:1px solid var(--red);
+    font-family:var(--font-m); font-size:20px; cursor:pointer;
+  }
+  #tfClose:active{ background:var(--red); color:var(--ink); }
+  .tfrow{ display:flex; gap:6px; flex-wrap:wrap; }
+  .tfrow select{
+    flex:1 0 64px; min-height:44px; max-width:92px;
+    background:var(--bg2); color:var(--yellow);
+    border:1px solid var(--line2); border-radius:0;
+    font-family:var(--font-m); font-size:13px; padding:0 6px;
+  }
+  #tfPreview{ margin-top:8px; color:var(--cyan); font-size:13px; letter-spacing:.12em; min-height:18px; }
+  #tfDelete{ border-color:var(--red) !important; color:var(--red) !important; }
+
+  /* ── ABC import (opens over the tune miner) ───────────────────── */
+  #abcEd{
+    position:fixed; inset:0; z-index:8500;
+    background:var(--overlay); display:none; overflow-y:auto;
+    padding:calc(14px + env(safe-area-inset-top, 0px)) 14px calc(20px + env(safe-area-inset-bottom));
+  }
+  #abcEd.open{ display:block; }
+  #abClose{
+    min-width:48px; min-height:48px; flex:0 0 auto;
+    background:transparent; color:var(--red); border:1px solid var(--red);
+    font-family:var(--font-m); font-size:20px; cursor:pointer;
+  }
+  #abClose:active{ background:var(--red); color:var(--ink); }
+  #abText{ min-height:220px; }
 
   /* ── styles overlay (progressions per genre + key) ────────────── */
   #styleov{
@@ -876,7 +925,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
 
   /* notch clearance when rotated */
   @supports (padding: env(safe-area-inset-left)){
-    header, .controls, main, .pager, #modal, #mapov, #learnov, #mineov, #songEd, #setEd, #tuner, #perf{
+    header, .controls, main, .pager, #modal, #mapov, #learnov, #mineov, #songEd, #setEd, #tunEd, #abcEd, #tuner, #perf{
       padding-left:calc(14px + env(safe-area-inset-left));
       padding-right:calc(14px + env(safe-area-inset-right));
     }
@@ -945,8 +994,11 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
         <div class="halorow">
           <button id="haloBtn" aria-pressed="false"
                   title="Halo — every in-reach melody note around this shape">Halo</button>
+          <button id="mFindBtn" aria-pressed="false"
+                  title="Quiz — the halo goes dark, tap the asked degree">Find It</button>
           <span class="hint" id="haloHint" style="display:none">TAP A DOT TO HEAR IT · RINGED DOTS = THE HELD SHAPE</span>
         </div>
+        <div id="mFindStatus" style="display:none"></div>
       </div>
       <div class="mside">
         <div class="msec">
@@ -1077,6 +1129,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
       <button class="prbtn" id="mnTap" title="Tap each melody note out of the halo">Tap It</button>
       <button class="prbtn" id="mnHear" title="Play along — the mic advances the target">Hear Me</button>
       <button class="prbtn" id="mnListen" title="Hear the tune mined out of the shapes at tempo">▶ Listen</button>
+      <button class="prbtn" id="mnAbc" title="Paste an ABC tune (thesession.org…) — it becomes a saved song, melody mined onto this tuning">ABC</button>
       <div class="prtempo">
         <button id="mnSlow" aria-label="Slower">−</button>
         <div id="mnBpm">80 BPM</div>
@@ -1130,8 +1183,9 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
       <button id="seMelody" title="Tap the song's melody onto chord halos — feeds the MINE drill">Melody</button>
       <button id="sePrint" title="Print this song — diagrams + lyrics, black on white">Print</button>
       <button id="seExport" title="Download every song and set list as a JSON file">Export All</button>
-      <button id="seImport" title="Load songs + set lists from an exported JSON file">Import</button>
-      <input id="seFile" type="file" accept=".json,application/json" style="display:none">
+      <button id="seImport" title="Load a CHORDWARE backup — or a ChordPro / plain-text song file">Import</button>
+      <button id="sePro" title="Download this song as a ChordPro file">.pro ↓</button>
+      <input id="seFile" type="file" accept=".json,.pro,.chopro,.cho,.crd,.txt,application/json,text/plain" style="display:none">
     </div>
   </div>
 </div>
@@ -1152,6 +1206,56 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     <div class="sebtns">
       <button id="stCancel">Cancel</button>
       <button id="stSave">Save Set</button>
+    </div>
+  </div>
+</div>
+
+<div id="abcEd" role="dialog" aria-modal="true" aria-label="ABC import">
+  <div class="sewrap">
+    <div class="sehead">
+      <h2>ABC IMPORT://</h2>
+      <button id="abClose" aria-label="Close">✕</button>
+    </div>
+    <label for="abText">Paste an ABC tune — thesession.org, abcnotation.com…</label>
+    <textarea id="abText" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+              placeholder="X:1&#10;T:Egan's Polka&#10;M:2/4&#10;L:1/8&#10;K:D&#10;&quot;D&quot;FA AB|&quot;D&quot;FA AB|…"></textarea>
+    <div class="sehint"><b>&quot;G&quot;-style chord names</b> over the notes become the shapes the tune is
+      mined onto — with no chords it all sits over the key's home chord. Saved as a song with the
+      melody placed on the current tuning; repeats play once through.</div>
+    <div class="sebtns">
+      <button id="abCancel">Cancel</button>
+      <button id="abImport">Mine It</button>
+    </div>
+  </div>
+</div>
+
+<div id="tunEd" role="dialog" aria-modal="true" aria-label="Tuning forge">
+  <div class="sewrap">
+    <div class="sehead">
+      <h2>TUNING FORGE://</h2>
+      <button id="tfClose" aria-label="Close">✕</button>
+    </div>
+    <label for="tfName">Name</label>
+    <input id="tfName" type="text" autocomplete="off" autocorrect="off" spellcheck="false"
+           placeholder="dobro open D">
+    <label>Open strings · in diagram order, left to right · pick each note</label>
+    <div class="tfrow" id="tfStrings"></div>
+    <div id="tfPreview"></div>
+    <div class="sebtns sesec">
+      <button id="tfAdd">+ String</button>
+      <button id="tfRemove">− String</button>
+    </div>
+    <div class="sehint">The leftmost string is the one nearest your chin — reentrant is fine
+      (the uke's high g lives there, and gets a lowercase label automatically). <b>FORGE</b>
+      machine-searches a full chord library for the tuning: all 12 roots × major, minor, 7,
+      m7, maj7, 6, m6, sus2, sus4, add9, dim7 and aug — same rules as the built-in libraries.
+      Diagrams, the map, key filtering, rolls, drills and the tune miner all follow.</div>
+    <div class="sebtns">
+      <button id="tfCancel">Cancel</button>
+      <button id="tfSave">Forge Library</button>
+    </div>
+    <div class="sebtns sesec">
+      <button id="tfDelete" style="display:none">Delete This Tuning</button>
     </div>
   </div>
 </div>
@@ -2856,6 +2960,141 @@ function degreeChord(tok, keyPC){
 /* ═══════════════════════════════════════════════════════════════
    APP STATE + UI
    ═══════════════════════════════════════════════════════════════ */
+
+/* ── CUSTOM TUNINGS — the tuning forge's engine ──────────────────
+   A custom tuning is open-string MIDI notes + a name; its chord
+   library is machine-searched client-side with the same rules and
+   scoring as tools/generate-voicings.mjs, cached in localStorage
+   (keyed by the string notes, so editing a tuning re-forges), and
+   merged into TUNINGS / CHORD_LIBRARY at boot — after that every
+   feature treats it exactly like a built-in.
+   (This block sits below the APP STATE marker on purpose: the node
+   tools evaluate the script's head, and this needs the browser.) */
+const GEN_QUALITIES = [   // mirrors tools/generate-voicings.mjs
+  { suf:"",     full:"major",        iv:[0,4,7],    req:[0,4,7],   cats:["major"] },
+  { suf:"m",    full:"minor",        iv:[0,3,7],    req:[0,3,7],   cats:["minor"] },
+  { suf:"7",    full:"dominant 7",   iv:[0,4,7,10], req:[0,4,10],  cats:["seventh"] },
+  { suf:"m7",   full:"minor 7",      iv:[0,3,7,10], req:[0,3,10],  cats:["minor","seventh"] },
+  { suf:"maj7", full:"major 7",      iv:[0,4,7,11], req:[0,4,11],  cats:["seventh"] },
+  { suf:"6",    full:"major 6",      iv:[0,4,7,9],  req:[0,4,9],   cats:["major","colour"] },
+  { suf:"m6",   full:"minor 6",      iv:[0,3,7,9],  req:[0,3,9],   cats:["minor","colour"] },
+  { suf:"sus2", full:"suspended 2",  iv:[0,2,7],    req:[0,2,7],   cats:["colour"] },
+  { suf:"sus4", full:"suspended 4",  iv:[0,5,7],    req:[0,5,7],   cats:["colour"] },
+  { suf:"add9", full:"add 9",        iv:[0,2,4,7],  req:[0,2,4],   cats:["major","colour"] },
+  { suf:"dim7", full:"diminished 7", iv:[0,3,6,9],  req:[0,3,6,9], cats:["colour"] },
+  { suf:"aug",  full:"augmented",    iv:[0,4,8],    req:[0,4,8],   cats:["colour"] },
+];
+const GEN_MAXFRET = 9, GEN_SIG = "v1";
+
+function bestVoicing(tuning, rootPC, q){
+  const chordPCs = q.iv.map(x => (x + rootPC) % 12);
+  const reqPCs = q.req.map(x => (x + rootPC) % 12);
+  const NSTR = tuning.pitches.length;
+  const allowed = tuning.pitches.map(p => {
+    const a = [];
+    for(let f = 0; f <= GEN_MAXFRET; f++) if(chordPCs.includes((p + f) % 12)) a.push(f);
+    return a;
+  });
+  const muteOpts = NSTR >= 5 ? [0,1,2] : [0];
+  let best = null, bestScore = Infinity;
+  for(const mute of muteOpts){
+    const live = NSTR - mute;
+    if(allowed.slice(mute).some(a => !a.length)) continue;
+    const idx = new Array(live).fill(0);
+    while(true){
+      const frets = new Array(mute).fill(-1)
+        .concat(idx.map((k,j) => allowed[mute + j][k]));
+      const pcs = frets.slice(mute).map((f,j) => (tuning.pitches[mute + j] + f) % 12);
+      if(reqPCs.every(p => pcs.includes(p))){
+        const fretted = frets.filter(f => f > 0);
+        const maxF = Math.max(0, ...fretted);
+        const minF = fretted.length ? Math.min(...fretted) : 0;
+        const span = fretted.length ? maxF - minF : 0;
+        if(span <= 4 && !(maxF > 5 && frets.some(f => f === 0))){
+          const opens = frets.filter(f => f === 0).length;
+          const distinct = new Set(fretted).size;
+          const has5th = pcs.includes((rootPC + 7) % 12) || q.iv.length === 3;
+          const bassRoot = NSTR < 5 || pcs[0] === rootPC;
+          const score = span * 3 + maxF * 1.2 + minF - opens * 1.5
+                      + distinct * 0.7 + (has5th ? 0 : 1.5) + (maxF > 5 ? 3 : 0)
+                      + mute * 1.2 + (bassRoot ? 0 : 2);
+          if(score < bestScore){ bestScore = score; best = frets; }
+        }
+      }
+      let i = live - 1;
+      while(i >= 0 && idx[i] === allowed[mute + i].length - 1){ idx[i] = 0; i--; }
+      if(i < 0) break;
+      idx[i]++;
+    }
+  }
+  if(!best) return null;
+  const fretted = best.filter(f => f > 0);
+  const minF = fretted.length ? Math.min(...fretted) : 1;
+  return { frets: best, fingers: best.map(f => f <= 0 ? 0 : Math.min(4, f - minF + 1)) };
+}
+
+function generateLibrary(tuning){
+  const out = [];
+  for(let r = 0; r < 12; r++){
+    for(const q of GEN_QUALITIES){
+      const v = bestVoicing(tuning, r, q);
+      if(!v) continue;
+      out.push({ name: SPELL[r] + q.suf, full: SPELL[r].replace("b","♭") + " " + q.full,
+                 frets: v.frets, fingers: v.fingers, cats: q.cats.slice(), ornaments: [] });
+    }
+  }
+  return out;
+}
+
+function tuningFromMidis(name, mids){
+  const strings = mids.map((m, i) => {
+    let n = NOTE_NAMES[m % 12];
+    if(i < mids.length - 1 && m > mids[i + 1]) n = n.toLowerCase();   // reentrant, like the uke's high g
+    return n;
+  });
+  return { label: strings.join("") + (name ? " · " + name : ""),
+           group: "CUSTOM", strings, pitches: mids.map(m => m % 12), open: mids.slice() };
+}
+
+const CUST_STORE = "chordware.tunings", CUSTLIB_STORE = "chordware.tuninglibs";
+function loadCustomTunings(){
+  try{ return JSON.parse(localStorage.getItem(CUST_STORE)) || {}; }
+  catch(e){ return {}; }
+}
+function storeCustomTunings(c){
+  try{ localStorage.setItem(CUST_STORE, JSON.stringify(c)); }catch(e){/* private mode */}
+}
+const libSig = t => GEN_SIG + ":" + t.open.join(",");
+function storeCustomLib(key, t, lib){
+  try{
+    const all = JSON.parse(localStorage.getItem(CUSTLIB_STORE)) || {};
+    all[key] = { sig: libSig(t), lib };
+    localStorage.setItem(CUSTLIB_STORE, JSON.stringify(all));
+  }catch(e){/* quota or private mode — regenerated next boot instead */}
+}
+function dropCustomLib(key){
+  try{
+    const all = JSON.parse(localStorage.getItem(CUSTLIB_STORE)) || {};
+    delete all[key];
+    localStorage.setItem(CUSTLIB_STORE, JSON.stringify(all));
+  }catch(e){}
+}
+(function installCustomTunings(){
+  const cust = loadCustomTunings();
+  let cached = {};
+  try{ cached = JSON.parse(localStorage.getItem(CUSTLIB_STORE)) || {}; }catch(e){}
+  for(const [key, t] of Object.entries(cust)){
+    TUNINGS[key] = t;
+    const hit = cached[key];
+    if(hit && hit.sig === libSig(t)){
+      CHORD_LIBRARY[key] = hit.lib;
+    }else{
+      CHORD_LIBRARY[key] = generateLibrary(t);
+      storeCustomLib(key, t, CHORD_LIBRARY[key]);
+    }
+  }
+})();
+
 let PAGE_SIZE = 6;   // recomputed by applyGridLayout() to match the responsive grid
 const CATS = [
   { id:"all",      label:"All"       },
@@ -3050,6 +3289,7 @@ function openModal(chord){
 }
 
 function renderModalView(){
+  mFindStop();                                          // a redraw wipes the SVG the quiz is lit on
   const { chord, voicings, idx } = modalState;
   const tuning = TUNINGS[state.tuning];
   const v = voicings[idx];
@@ -3112,9 +3352,92 @@ function stepVoicing(d){
 }
 
 function closeModal(){
+  mFindStop();
   modalState = null;
   $("#modal").classList.remove("open");
   document.body.style.overflow = "";
+}
+
+/* ── FIND IT on the halo — the map quiz scoped to one shape ──────
+   The halo goes dark (roots stay as anchors, the shape's rings stay
+   — they're what you're holding, not the answer) and you tap the
+   asked degree. Ten prompts a round; best per tuning × chord. */
+const HFIND_STORE = "chordware.halofind";
+const HFIND_ROUND = 10;
+let mFind = null;
+
+function hfindBest(chordName, score){
+  let all = {};
+  try{ all = JSON.parse(localStorage.getItem(HFIND_STORE)) || {}; }catch(e){}
+  const k = state.tuning + "|" + chordName;
+  if(all[k] === undefined || score > all[k]) all[k] = score;
+  try{ localStorage.setItem(HFIND_STORE, JSON.stringify(all)); }catch(e){/* private mode */}
+  return all[k];
+}
+const mFindClear = () => document.querySelectorAll("#mdiag g.reveal, #mdiag g.good, #mdiag g.bad")
+  .forEach(g => g.classList.remove("reveal", "good", "bad"));
+
+function mFindStop(){
+  if(mFind) clearTimeout(mFind.wait);
+  mFind = null;
+  const svg = $("#mdiag svg");
+  if(svg) svg.classList.remove("quiz");
+  mFindClear();
+  $("#mFindBtn").classList.remove("on");
+  $("#mFindBtn").setAttribute("aria-pressed", "false");
+  $("#mFindStatus").style.display = "none";
+}
+function mFindStart(){
+  if(!modalHalo){ modalHalo = true; renderModalView(); }
+  const ivs = [...new Set([...document.querySelectorAll("#mdiag g.hnote")].map(g => +g.dataset.iv))]
+    .filter(iv => iv !== 0);
+  if(!ivs.length) return;
+  mFind = { ivs, n: 0, score: 0, target: -1, lock: false };
+  $("#mdiag svg").classList.add("quiz");
+  $("#mFindBtn").classList.add("on");
+  $("#mFindBtn").setAttribute("aria-pressed", "true");
+  $("#mFindStatus").style.display = "";
+  mFindPrompt();
+}
+function mFindPrompt(){
+  mFindClear();
+  mFind.n++;
+  let iv = mFind.target;
+  while(iv === mFind.target && mFind.ivs.length > 1)
+    iv = mFind.ivs[Math.floor(Math.random() * mFind.ivs.length)];
+  if(mFind.ivs.length === 1) iv = mFind.ivs[0];
+  mFind.target = iv;
+  mFind.lock = false;
+  $("#mFindStatus").innerHTML =
+    `FIND IT · TAP A <b>${DEGREE_NAMES[iv]}</b> · ${mFind.n}/${HFIND_ROUND} · SCORE ${mFind.score}`;
+}
+function mFindTap(g){
+  if(mFind.lock) return;
+  mFind.lock = true;
+  g.classList.add("reveal");
+  const right = +g.dataset.iv === mFind.target;
+  if(right){
+    g.classList.add("good");
+    pluck(+g.dataset.midi, 0, .32);
+    mFind.score++;
+  }else{
+    g.classList.add("bad");
+    document.querySelectorAll(`#mdiag g.hnote[data-iv="${mFind.target}"]`)
+      .forEach(el => el.classList.add("reveal", "good"));   // show where they all were
+  }
+  const done = mFind.n >= HFIND_ROUND;
+  mFind.wait = setTimeout(() => {
+    if(!mFind) return;
+    if(done){
+      const best = hfindBest(modalState ? modalState.chord.name : "", mFind.score);
+      const msg = `ROUND OVER · ${mFind.score}/${HFIND_ROUND} · BEST ${best}/${HFIND_ROUND} — TAP FIND IT TO RUN IT BACK`;
+      mFindStop();
+      $("#mFindStatus").style.display = "";
+      $("#mFindStatus").innerHTML = msg;
+    }else{
+      mFindPrompt();
+    }
+  }, right ? 700 : 1600);
 }
 
 /* ── wire up controls ─────────────────────────────────────────── */
@@ -3122,7 +3445,8 @@ function closeModal(){
    styles, learn, tuner) — one builder fills them all, one setter keeps
    them in sync, redraws whatever's open, and persists the choice */
 const tuningSel = $("#tuning");
-function fillTuningSelect(sel){
+function fillTuningOptions(sel){
+  sel.innerHTML = "";
   const groups = new Map();
   Object.keys(TUNINGS).forEach(k => {
     if(!CHORD_LIBRARY[k]) return;
@@ -3140,8 +3464,20 @@ function fillTuningSelect(sel){
     });
     sel.appendChild(og);
   }
+  const forge = document.createElement("option");
+  forge.value = "__forge__"; forge.textContent = "+ CUSTOM TUNING…";
+  sel.appendChild(forge);
   sel.value = state.tuning;
-  sel.addEventListener("change", () => setTuning(sel.value));
+}
+function fillTuningSelect(sel){
+  fillTuningOptions(sel);
+  sel.addEventListener("change", () => {
+    if(sel.value === "__forge__"){ sel.value = state.tuning; openTuningForge(); return; }
+    setTuning(sel.value);
+  });
+}
+function rebuildTuningSelects(){
+  document.querySelectorAll("#tuning, .ovtun").forEach(fillTuningOptions);
 }
 fillTuningSelect(tuningSel);
 document.querySelectorAll(".ovtun").forEach(fillTuningSelect);
@@ -3167,6 +3503,97 @@ function setTuning(t){
     $("#tstrings").innerHTML = TUNINGS[t].strings.map(s => `<span>${s}</span>`).join("");
   }
 }
+
+/* ── tuning forge overlay — name + open strings in, library out ── */
+function tfMidiOptions(sel, midi){
+  let html = "";
+  for(let m = 36; m <= 84; m++)     // C2 … C6
+    html += `<option value="${m}"${m === midi ? " selected" : ""}>${NOTE_NAMES[m % 12]}${Math.floor(m / 12) - 1}</option>`;
+  sel.innerHTML = html;
+}
+function tfAddString(midi){
+  const sel = document.createElement("select");
+  sel.setAttribute("aria-label", "Open string note");
+  tfMidiOptions(sel, midi);
+  sel.addEventListener("change", tfPreview);
+  $("#tfStrings").appendChild(sel);
+  tfPreview();
+}
+const tfMidis = () => [...document.querySelectorAll("#tfStrings select")].map(s => +s.value);
+function tfPreview(){
+  const t = tuningFromMidis("", tfMidis());
+  $("#tfPreview").textContent = "STRINGS:// " + t.strings.join(" · ");
+}
+function openTuningForge(){
+  const cur = TUNINGS[state.tuning];
+  const isCustom = !!loadCustomTunings()[state.tuning];
+  $("#tfName").value = isCustom ? cur.label.split(" · ").slice(1).join(" · ") : "";
+  $("#tfStrings").innerHTML = "";
+  cur.open.forEach(m => tfAddString(m));      // current tuning as the starting template
+  $("#tfDelete").style.display = isCustom ? "" : "none";
+  $("#tunEd").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+function closeTuningForge(){
+  $("#tunEd").classList.remove("open");
+  document.body.style.overflow = document.querySelector(
+    "#modal.open, #mapov.open, #styleov.open, #learnov.open, #mineov.open, #songEd.open, #setEd.open, #tuner.open"
+  ) ? "hidden" : "";
+}
+$("#tfAdd").addEventListener("click", () => {
+  const mids = tfMidis();
+  if(mids.length >= 8) return;
+  tfAddString(Math.min(84, (mids[mids.length - 1] || 60) + 5));
+});
+$("#tfRemove").addEventListener("click", () => {
+  const sels = document.querySelectorAll("#tfStrings select");
+  if(sels.length <= 3){ toast("THREE STRINGS MINIMUM"); return; }
+  sels[sels.length - 1].remove();
+  tfPreview();
+});
+$("#tfSave").addEventListener("click", () => {
+  const name = $("#tfName").value.trim();
+  if(!name){ alert("Name the tuning first."); return; }
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 24);
+  if(!slug){ alert("The name needs at least one letter or digit."); return; }
+  const key = "cust_" + slug;
+  if(loadCustomTunings()[key] && !confirm(`“${name}” already exists — re-forge it?`)) return;
+  const t = tuningFromMidis(name, tfMidis());
+  toast("FORGING CHORD LIBRARY…");
+  setTimeout(() => {                          // let the toast paint before the search takes the thread
+    const lib = generateLibrary(t);
+    if(!lib.length){ toast("NO PLAYABLE CHORDS — CHECK THE STRINGS"); return; }
+    const cust = loadCustomTunings();
+    cust[key] = t;
+    storeCustomTunings(cust);
+    storeCustomLib(key, t, lib);
+    TUNINGS[key] = t;
+    CHORD_LIBRARY[key] = lib;
+    VOICING_CACHE.clear();
+    rebuildTuningSelects();
+    closeTuningForge();
+    setTuning(key);
+    toast(`FORGED ${t.strings.join("")} · ${lib.length} CHORDS`);
+  }, 60);
+});
+$("#tfDelete").addEventListener("click", () => {
+  const key = state.tuning;
+  if(!loadCustomTunings()[key]) return;
+  if(!confirm(`Delete tuning “${TUNINGS[key].label}” and its chord library?\n(Practice bests and song melodies for it stay stored.)`)) return;
+  const cust = loadCustomTunings();
+  delete cust[key];
+  storeCustomTunings(cust);
+  dropCustomLib(key);
+  delete TUNINGS[key];
+  delete CHORD_LIBRARY[key];
+  closeTuningForge();
+  setTuning("gCEA");
+  rebuildTuningSelects();
+  toast("TUNING DELETED");
+});
+$("#tfClose").addEventListener("click", closeTuningForge);
+$("#tfCancel").addEventListener("click", closeTuningForge);
+$("#tunEd").addEventListener("click", e => { if(e.target === e.currentTarget) closeTuningForge(); });
 
 $("#chips").innerHTML = CATS.map(c =>
   `<button class="chip${c.id === state.cat ? " on" : ""}" data-cat="${c.id}">${c.label}</button>`).join("") +
@@ -3274,6 +3701,10 @@ $("#seLyrics").addEventListener("paste", () => {
     if(/^https?:\/\/\S+$/.test(el.value.trim())){
       // no server, and browsers block cross-site reads — a URL can't be fetched
       toast("CAN'T FETCH URLS — COPY THE SONG TEXT ITSELF");
+      return;
+    }
+    if(/^K:/m.test(el.value) && /^[TXML]:/m.test(el.value)){
+      toast("LOOKS LIKE ABC — PASTE IT INTO MINE › ABC INSTEAD");
       return;
     }
     const r = tabToTags(el.value);
@@ -3396,8 +3827,12 @@ $("#mdiag").addEventListener("touchend", e => {
 $("#mdiag").addEventListener("click", e => {
   if(mSwiped){ mSwiped = false; return; }     // the click that trails a swipe
   if(!modalState) return;
-  const g = e.target.closest("g.hnote");      // halo view: tap a dot to hear that one note
-  if(g){ pluck(+g.dataset.midi, 0, .34); return; }
+  const g = e.target.closest("g.hnote");      // halo view: tap a dot — quiz answer, or just hear it
+  if(g){
+    if(mFind) mFindTap(g);
+    else pluck(+g.dataset.midi, 0, .34);
+    return;
+  }
   const v = modalState.voicings[modalState.idx];
   strumChord({ frets: v.frets }, TUNINGS[state.tuning]);
 });
@@ -3405,6 +3840,7 @@ $("#haloBtn").addEventListener("click", () => {
   modalHalo = !modalHalo;
   if(modalState) renderModalView();
 });
+$("#mFindBtn").addEventListener("click", () => { mFind ? mFindStop() : mFindStart(); });
 
 /* ── fretboard heat map ───────────────────────────────────────── */
 const mapKeySel = $("#mapKey");
@@ -4467,7 +4903,8 @@ function mineSong(name){
   const tuning = TUNINGS[state.tuning];
   const steps = [];
   built.seq.forEach((sq, i) => {
-    const notes = (mel.steps[i] || []).map(([s, f]) => ({ s, f, midi: tuning.open[s] + f, dur: 2 }));
+    // a melody note is [string, fret] with an optional third slot of eighth-note duration (ABC imports carry rhythm)
+    const notes = (mel.steps[i] || []).map(([s, f, d]) => ({ s, f, midi: tuning.open[s] + f, dur: d || 2 }));
     if(notes.length && sq.chord) steps.push({ name: sq.name, chord: sq.chord, notes });
   });
   return steps.length ? { steps, dropped: 0 } : null;
@@ -4821,6 +5258,185 @@ $("#mnDone").addEventListener("click", () => {
   closeMine();
 });
 
+/* ── ABC IMPORT — paste a tune, mine it. A pragmatic single-voice
+   ABC reader: T:/L:/K: headers, key signatures with modes (Em,
+   Ador, Dmix…), accidentals persisting to the bar line, octave
+   marks, durations against the L: unit, "G"-style chord names.
+   Grace notes, ornaments, slurs and inline fields are stripped;
+   repeats play once through; bracket chords keep their first note.
+   The result is saved as a song whose chord list is the annotation
+   sequence (or the key's home chord when the ABC has none) with
+   the melody mined onto the current tuning — instantly drillable. */
+function parseABC(text){
+  const LPC = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
+  const lines = text.split(/\r?\n/).map(l => l.replace(/%.*$/, ""));
+  let title = "", keyStr = "", unit = "", bodyAt = -1;
+  for(let i = 0; i < lines.length; i++){
+    const m = lines[i].match(/^([A-Za-z]):(.*)$/);
+    if(!m) continue;
+    if(m[1] === "T"){ if(!title) title = m[2].trim(); }
+    else if(m[1] === "L") unit = m[2].trim();
+    else if(m[1] === "K"){ keyStr = m[2].trim(); bodyAt = i + 1; break; }
+  }
+  if(bodyAt < 0) return null;
+  const km = keyStr.match(/^([A-G])([b#]?)\s*([A-Za-z]*)/);
+  if(!km) return null;
+  const tonicPC = (LPC[km[1]] + (km[2] === "#" ? 1 : km[2] === "b" ? -1 : 0) + 12) % 12;
+  let modeW = km[3].toLowerCase();
+  if(modeW.length > 3) modeW = modeW.slice(0, 3);
+  const MODE_OFF = { "":0, maj:0, ion:0, m:3, min:3, aeo:3, dor:10, phr:8, lyd:7, mix:5, loc:1 };
+  const off = MODE_OFF[modeW] !== undefined ? MODE_OFF[modeW] : 0;
+  const majPC = (tonicPC + off) % 12;
+  const SH = {0:0, 7:1, 2:2, 9:3, 4:4, 11:5, 6:6, 1:7};
+  const FL = {0:0, 5:1, 10:2, 3:3, 8:4, 1:5, 6:6, 11:7};
+  const nSig = km[2] === "b" ? -(FL[majPC] || 0)
+             : km[2] === "#" ? (SH[majPC] || 0)
+             : SH[majPC] !== undefined ? SH[majPC] : -(FL[majPC] || 0);
+  const sig = {};
+  const sigOrder = nSig >= 0 ? "FCGDAEB" : "BEADGCF";
+  for(let i = 0; i < Math.abs(nSig); i++) sig[sigOrder[i]] = nSig >= 0 ? 1 : -1;
+  const um = (unit || "1/8").match(/(\d+)\s*\/\s*(\d+)/);
+  const unitEighths = um ? 8 * (+um[1] / +um[2]) : 1;
+
+  const body = lines.slice(bodyAt).filter(l => !/^[A-Za-z]:/.test(l)).join(" ");
+  const events = [];
+  let chord = null, barAcc = {};
+  const durOf = d => {
+    if(!d) return 1;
+    const dm = d.match(/^(\d+)?(?:\/(\d*))?$/);
+    if(!dm) return 1;
+    const num = dm[1] ? +dm[1] : 1;
+    const den = d.includes("/") ? (dm[2] ? +dm[2] : 2) : 1;
+    return num / den;
+  };
+  const pushNote = m => {
+    const [, acc, letter, oct, d] = m;
+    const L = letter.toUpperCase();
+    let midi = 60 + LPC[L] + (letter === letter.toLowerCase() ? 12 : 0);
+    for(const c of (oct || "")) midi += c === "'" ? 12 : -12;
+    const akey = L + Math.floor(midi / 12);            // an accidental holds for that letter+octave to the bar line
+    let delta;
+    if(acc){
+      delta = acc === "=" ? 0
+        : (acc.match(/\^/g) || []).length - (acc.match(/_/g) || []).length;
+      barAcc[akey] = delta;
+    }else{
+      delta = barAcc[akey] !== undefined ? barAcc[akey] : (sig[L] || 0);
+    }
+    events.push({ midi: midi + delta, dur: Math.max(.5, durOf(d) * unitEighths), chord });
+  };
+
+  let i = 0;
+  while(i < body.length){
+    const ch = body[i];
+    if(ch === '"'){                                    // "G" chord annotation (or "^text" — chords only)
+      const j = body.indexOf('"', i + 1);
+      if(j < 0) break;
+      const c = body.slice(i + 1, j).trim();
+      if(/^[A-G]/.test(c)) chord = c;
+      i = j + 1; continue;
+    }
+    if(ch === "!" || ch === "{"){                      // ornaments + grace notes
+      const close = ch === "!" ? "!" : "}";
+      const j = body.indexOf(close, i + 1);
+      i = j < 0 ? i + 1 : j + 1; continue;
+    }
+    if(ch === "["){
+      const rest = body.slice(i);
+      if(/^\[[12]/.test(rest)){ i += 2; continue; }    // 1st/2nd ending markers — both play
+      const j = body.indexOf("]", i + 1);
+      if(j > 0 && /^[A-Za-z]:/.test(body.slice(i + 1, j))){ i = j + 1; continue; }   // inline [K:]/[M:] field
+      const nm = j > 0 && body.slice(i + 1, j).match(/^([_^=]+)?([A-Ga-g])([,']*)((?:\d+)?(?:\/\d*)?)/);
+      if(nm) pushNote(nm);                             // [CEG] bracket chord — keep the first note
+      i = j > 0 ? j + 1 : i + 1;
+      while(i < body.length && /[\d\/]/.test(body[i])) i++;   // chord duration
+      continue;
+    }
+    if(ch === "|" || ch === ":"){ barAcc = {}; i++; continue; }
+    if(ch === "z" || ch === "Z" || ch === "x"){        // rests — the drill doesn't wait for silence
+      i++;
+      while(i < body.length && /[\d\/]/.test(body[i])) i++;
+      continue;
+    }
+    if(/^\(\d/.test(body.slice(i))){ i += 2; continue; }   // tuplet marker — timing approximated
+    const m = body.slice(i).match(/^([_^=]+)?([A-Ga-g])([,']*)((?:\d+)?(?:\/\d*)?)/);
+    if(m){ pushNote(m); i += m[0].length; continue; }
+    i++;                                               // slurs, ties, broken rhythm, spaces…
+  }
+  return events.length ? { title, tonicPC, minor: off === 3, events } : null;
+}
+
+/* fold the tune toward the instrument's range, group notes by chord
+   annotation, and mine every note into its chord's halo window */
+function abcToMineSong(p){
+  const t = TUNINGS[state.tuning];
+  const list = chordList();
+  const find = n => list.find(c => normName(c.name) === normName(n))
+    || (n.includes("/") ? list.find(c => normName(c.name) === normName(n.split("/")[0])) : null);
+  const centre = t.open.reduce((a, b) => a + b, 0) / t.open.length + 6;
+  const avg = p.events.reduce((a, e) => a + e.midi, 0) / p.events.length;
+  const shift = Math.round((centre - avg) / 12) * 12;
+  const homeName = SPELL[p.tonicPC] + (p.minor ? "m" : "");
+  const steps = [];
+  let cur = null;
+  for(const ev of p.events){
+    const cname = ev.chord || homeName;
+    if(!cur || cur.name !== cname){ cur = { name: cname, notes: [] }; steps.push(cur); }
+    cur.notes.push(ev);
+  }
+  let dropped = 0;
+  const chordsField = [], melSteps = [];
+  for(const st of steps){
+    const chord = find(st.name);
+    chordsField.push(st.name);
+    const arr = [];
+    if(chord){
+      for(const ev of st.notes){
+        const hit = mineNote(ev.midi + shift, chord, t);
+        if(hit) arr.push([hit.s, hit.f, Math.round(ev.dur * 2) / 2]);
+        else dropped++;
+      }
+    }else{
+      dropped += st.notes.length;
+    }
+    melSteps.push(arr);
+  }
+  if(!melSteps.some(a => a.length)) return null;
+  return { chords: chordsField.join(" "), melody: { tuning: state.tuning, steps: melSteps }, dropped };
+}
+
+function closeAbc(){
+  $("#abcEd").classList.remove("open");
+  document.body.style.overflow = document.querySelector(
+    "#modal.open, #mapov.open, #styleov.open, #learnov.open, #mineov.open, #songEd.open, #setEd.open, #tuner.open"
+  ) ? "hidden" : "";
+}
+$("#mnAbc").addEventListener("click", () => {
+  $("#abText").value = "";
+  $("#abcEd").classList.add("open");
+  document.body.style.overflow = "hidden";
+});
+$("#abClose").addEventListener("click", closeAbc);
+$("#abCancel").addEventListener("click", closeAbc);
+$("#abcEd").addEventListener("click", e => { if(e.target === e.currentTarget) closeAbc(); });
+$("#abImport").addEventListener("click", () => {
+  const p = parseABC($("#abText").value);
+  if(!p){ toast("COULDN'T READ THAT AS ABC — NEEDS A K: LINE AND NOTES"); return; }
+  const s = abcToMineSong(p);
+  if(!s){ toast("NO MINEABLE NOTES — CHECK THE TUNE"); return; }
+  const name = (p.title || "abc tune").toLowerCase();
+  const songs = loadSongs();
+  if(songs[name] !== undefined && !confirm(`“${name}” already exists — overwrite it?`)) return;
+  songs[name] = { chords: s.chords, lyrics: "", melody: s.melody };
+  storeSongs(songs);
+  refreshSongSel();
+  closeAbc();
+  drawMineList();
+  $("#mnTune").value = "s:" + name;
+  mineLoad();
+  toast(`MINED “${name.toUpperCase()}”` + (s.dropped ? ` · ${s.dropped} NOTES OUT OF REACH` : ""));
+});
+
 /* ── performance view — big chord + lyric autoscroll, for playing live.
    [Chord] tags in the lyrics drive the sequence; otherwise the chord
    list does. Keyboard arrows / space / page keys advance, so Bluetooth
@@ -5107,6 +5723,49 @@ $("#seMelody").addEventListener("click", () => {
   openMineEdit(name);
 });
 
+/* ── ChordPro — the [Am]-inline format is chordware's own, so import
+   is mostly directive translation: {title} names the song, section
+   directives become [Verse]/[Chorus] labels, comments stay as text,
+   everything else ({artist}, {key}, {capo}, # lines…) is dropped.
+   Plain tab-format text falls through to the paste converter. ──── */
+function chordproToSong(text){
+  const lines = text.split(/\r?\n/);
+  let title = "";
+  const out = [];
+  for(const raw of lines){
+    const l = raw.trim();
+    if(l.startsWith("#")) continue;                     // chordpro comment line
+    const d = l.match(/^\{([^:}]+):?\s*([^}]*)\}$/);
+    if(d){
+      const key = d[1].trim().toLowerCase(), val = d[2].trim();
+      if(key === "title" || key === "t") title = val;
+      else if(key === "start_of_chorus" || key === "soc") out.push("[Chorus]");
+      else if(key === "start_of_verse"  || key === "sov") out.push("[Verse]");
+      else if(key === "start_of_bridge" || key === "sob") out.push("[Bridge]");
+      else if((key === "comment" || key === "c" || key === "ci" || key === "cb") && val) out.push(val);
+      continue;                                         // end_of_*, meta… dropped
+    }
+    out.push(raw);
+  }
+  return { title, lyrics: out.join("\n").replace(/\n{3,}/g, "\n\n").trim() };
+}
+
+$("#sePro").addEventListener("click", () => {
+  const name = $("#seName").value.trim() || "untitled";
+  const lyrics = $("#seLyrics").value.trim();
+  const chords = $("#seChords").value.trim();
+  if(!lyrics && !chords){ toast("NOTHING TO EXPORT YET"); return; }
+  const body = lyrics
+    ? lyrics.replace(/\[([^\]\r\n]{1,12})\]/g, (m, t) => isChordTag(t) ? m : `{comment: ${t}}`)
+    : chords.split(/\s+/).filter(Boolean).map(c => `[${c}]`).join(" ");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([`{title: ${name}}\n\n${body}\n`], { type: "text/plain" }));
+  a.download = name.replace(/[^\w-]+/g, "_") + ".chordpro";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast("CHORDPRO EXPORTED");
+});
+
 /* ── song backup — export/import everything as one JSON file ──── */
 $("#seExport").addEventListener("click", () => {
   const data = { app: "chordware", version: 1, songs: loadSongs(), setlists: loadSets() };
@@ -5129,9 +5788,18 @@ $("#seFile").addEventListener("change", e => {
       storeSets({ ...loadSets(), ...(d.setlists || {}) });
       refreshSongSel();
       toast("IMPORTED " + Object.keys(d.songs || {}).length + " SONGS · " + Object.keys(d.setlists || {}).length + " SETS");
-    }catch(err){
-      alert("That doesn't look like a CHORDWARE export file.");
+      return;
+    }catch(err){/* not a backup — try it as a ChordPro / tab-format song */}
+    const cp = chordproToSong(r.result);
+    if(!cp.lyrics){
+      alert("That doesn't look like a CHORDWARE export or a ChordPro file.");
+      return;
     }
+    const tab = tabToTags(cp.lyrics);                   // chord-lines-above-lyrics files convert too
+    if(cp.title || !$("#seName").value.trim())
+      $("#seName").value = cp.title || f.name.replace(/\.[^.]*$/, "");
+    $("#seLyrics").value = tab.text;
+    toast("SONG IMPORTED — REVIEW AND SAVE");
   };
   r.readAsText(f);
   e.target.value = "";
@@ -5308,6 +5976,8 @@ applyTheme(document.documentElement.dataset.theme || "", false);
 document.addEventListener("keydown", e => {
   if(e.key === "Escape"){
     if($("#perf").classList.contains("open")) return closePerf();
+    if($("#tunEd").classList.contains("open")) return closeTuningForge();
+    if($("#abcEd").classList.contains("open")) return closeAbc();
     if($("#tuner").classList.contains("open")) return closeTuner();
     if($("#mineov").classList.contains("open")) return closeMine();
     if($("#setEd").classList.contains("open")) return closeSetEditor();
@@ -5336,7 +6006,8 @@ document.addEventListener("keydown", e => {
   }
   if($("#songEd").classList.contains("open") || $("#setEd").classList.contains("open") ||
      $("#tuner").classList.contains("open") || $("#mapov").classList.contains("open") ||
-     $("#styleov").classList.contains("open") || $("#learnov").classList.contains("open")) return;
+     $("#styleov").classList.contains("open") || $("#learnov").classList.contains("open") ||
+     $("#tunEd").classList.contains("open") || $("#abcEd").classList.contains("open")) return;
   if(e.key === "ArrowLeft"  && state.page > 0){ state.page--; render(); }
   if(e.key === "ArrowRight"){ const pages = Math.ceil(filtered().length / PAGE_SIZE); if(state.page < pages - 1){ state.page++; render(); } }
 });
