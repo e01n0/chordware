@@ -980,6 +980,10 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     </div>
     <div class="maprow">
       <select class="ovtun" aria-label="Tuning"></select>
+      <button class="prbtn on" id="lnRolls" aria-pressed="true" title="Right-hand picking patterns — pick any chord to roll over">Rolls</button>
+      <button class="prbtn" id="lnLicks" aria-pressed="false" title="Blues slide licks written for this tuning">Slide Licks</button>
+    </div>
+    <div class="maprow">
       <select id="lnLesson" aria-label="Lesson"></select>
       <select id="lnChord" aria-label="Chord to roll over"></select>
     </div>
@@ -3784,10 +3788,11 @@ function renderLessonTab(lesson, chord, tuning){
 /* ── lesson playback: schedule one loop of audio, scroll the tab past
    the fixed playhead with rAF (bars are identical, so snapping back a
    bar at the loop point is seamless), light events as they sound ── */
-let lsn = null;                                          // { playing, t0, raf, loopTimer } — selection lives in the selects
-let lsnBpm = 70, lsnSnd = true;
+let lsn = null;                                          // { playing, t0, raf, loopTimer } — selection lives in the selects + lsnKind
+let lsnBpm = 70, lsnSnd = true, lsnKind = "roll";        // "roll" | "lick" — which half of the lesson book is open
 
-function lnLesson(){ return lessonsFor(state.tuning)[+$("#lnLesson").value]; }
+function lnLessons(){ return lessonsFor(state.tuning).filter(l => l.kind === lsnKind); }
+function lnLesson(){ return lnLessons()[+$("#lnLesson").value]; }
 function lnChord(){
   const list = chordList();
   return list.find(c => c.name === $("#lnChord").value) || list[0];
@@ -3851,10 +3856,29 @@ function lnStart(){
   syncWakeLock();
 }
 
+function syncLnKind(){
+  const r = lsnKind === "roll";
+  $("#lnRolls").classList.toggle("on", r);
+  $("#lnLicks").classList.toggle("on", !r);
+  $("#lnRolls").setAttribute("aria-pressed", r);
+  $("#lnLicks").setAttribute("aria-pressed", !r);
+}
+function setLnKind(k){
+  if(lsnKind === k) return;
+  lsnKind = k;
+  $("#lnLesson").innerHTML = "";                         // force drawLearn to rebuild for this kind
+  drawLearn();
+}
 function drawLearn(){
   lnStop();
-  const lessons = lessonsFor(state.tuning);
   $("#lntun").textContent = TUNINGS[state.tuning].label;
+  const hasLicks = (SLIDE_LESSONS[state.tuning] || []).length > 0;
+  $("#lnLicks").disabled = !hasLicks;
+  if(lsnKind === "lick" && !hasLicks){                   // tuning has no licks yet — fall back to rolls
+    lsnKind = "roll"; $("#lnLesson").innerHTML = "";
+  }
+  syncLnKind();
+  const lessons = lnLessons();
   if(!lessons.length){
     $("#lnLesson").innerHTML = ""; $("#lnChord").style.display = "none";
     $("#lnBlurb").textContent = "// NO LESSONS FOR THIS TUNING YET //";
@@ -3863,9 +3887,9 @@ function drawLearn(){
   }
   $("#lnPlay").disabled = false;
   const sel = $("#lnLesson");
-  if(sel.options.length !== lessons.length)              // tuning changed — rebuild the list
+  if(sel.options.length !== lessons.length)              // tuning or kind changed — rebuild the list
     sel.innerHTML = lessons.map((l, i) =>
-      `<option value="${i}">${l.kind === "roll" ? "ROLL" : "LICK"}:// ${l.name}</option>`).join("");
+      `<option value="${i}">${l.name}</option>`).join("");
   const l = lessons[+sel.value] || lessons[0];
   const roll = l.kind === "roll";
   $("#lnChord").style.display = roll ? "" : "none";
@@ -3892,6 +3916,8 @@ function closeLearn(){
   $("#learnov").classList.remove("open");
   document.body.style.overflow = "";
 }
+$("#lnRolls").addEventListener("click", () => setLnKind("roll"));
+$("#lnLicks").addEventListener("click", () => setLnKind("lick"));
 $("#lnLesson").addEventListener("change", drawLearn);
 $("#lnChord").addEventListener("change", drawLearn);
 $("#lnPlay").addEventListener("click", () => { lsn ? lnStop() : lnStart(); });
