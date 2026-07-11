@@ -508,6 +508,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   #lnTab svg{ display:block; min-width:640px; width:100%; height:auto; }
   .lev circle{ fill:var(--bg2); stroke:var(--cyan); stroke-width:1.6; }
   .lev text.fr{ fill:var(--cyan); }
+  .lev text.slf{ fill:var(--dim); }
   .lev text.fin{ fill:var(--red); }
   .lev text.mute{ fill:var(--dim); }
   .lev .sl{ stroke:var(--red); stroke-width:2; fill:none; }
@@ -3837,6 +3838,42 @@ const SLIDE_LESSONS = {
   ],
 };
 
+/* ── progression lessons — the licks stitched into real changes.
+   Composed from the vocabulary above by name, one lick per 8-slot
+   bar, with chord names riding over the tab, so every move is
+   learned where it actually lives in the form. PROG_VOICES holds
+   the two strings + frets that voice each tuning's IV and V as
+   barred double-stops, for the composed sit-on-the-chord bars. ── */
+const PROG_VOICES = {
+  gCEA:   { pair:[1,2], IV:5, V:7, I:"C",  iv:"F",  v:"G"  },
+  DGBE:   { pair:[1,2], IV:2, V:4, I:"E",  iv:"A",  v:"B"  },
+  DGBD:   { pair:[2,3], IV:5, V:7, I:"G",  iv:"C",  v:"D"  },
+  DGBbD:  { pair:[2,3], IV:5, V:7, I:"Gm", iv:"Cm", v:"Dm" },
+  EADGBE: { pair:[3,4], IV:2, V:4, I:"E",  iv:"A",  v:"B"  },
+};
+for(const [tk, arr] of Object.entries(SLIDE_LESSONS)){
+  const { pair, IV, V, I, iv, v } = PROG_VOICES[tk];
+  const lick = re => arr.find(l => re.test(l.name)).ev;
+  const at   = (ev, bar) => ev.map(e => ({ ...e, t: e.t + bar * 8 }));
+  const sit  = f => [ {t:0,s:pair[0],sl:f-1,to:f},{t:0,s:pair[1],sl:f-1,to:f},   // slide onto the chord and ride it
+                      {t:3,s:pair[0],f},{t:3,s:pair[1],f},{t:6,s:pair[0],f},{t:6,s:pair[1],f} ];
+  const bars = seq => ({ marks: seq.map((b, i) => ({ t: i * 8, c: b[1] })),
+                         ev: seq.flatMap((b, i) => at(b[0], i)) });
+  arr.unshift(
+    { name:"Question & Answer · 2 bars", steps:16, ...bars([
+        [lick(/^Slide into/), I], [lick(/^Down-Home/), I] ]),
+      blurb:`Blues talks in pairs: the ♭3 slide asks the question, the down-home run answers it. Two bars over the ${I}, looped — trade them with yourself until the conversation feels inevitable.` },
+    { name:"The Last Four Bars", steps:32, ...bars([
+        [sit(V), v], [lick(/Fall$/), `${v}→${iv}`], [lick(/^Turnaround/), I], [sit(V), v] ]),
+      blurb:`Bars 9–12 of the 12-bar — the part everyone hears: slide onto the ${v}, fall through the ${iv}, walk the turnaround down and tag the ${v} to send it round again. Follow the chord names over the tab.` },
+    { name:"12-Bar Slide Blues", steps:96, ...bars([
+        [lick(/^Slide into/), I], [lick(/^Boogie/), I], [lick(/Rub$/), I], [lick(/^Down-Home/), I],
+        [lick(/^Double-Stop/), iv], [sit(IV), iv], [lick(/^Slide into/), I], [lick(/^Train/), I],
+        [sit(V), v], [lick(/Fall$/), `${v}→${iv}`], [lick(/^Turnaround/), I], [sit(V), v] ]),
+      blurb:`The whole form in ${I} with every lick where it lives: the ♭3 slide and boogie open it, the rub and the run fill it, double-stops carry the ${iv} bars, the whistle answers, then the ${v}–${iv} fall and the turnaround bring it home. Chord names ride over the tab — twelve bars, round and round.` },
+  );
+}
+
 function lessonsFor(tuningKey){
   const out = [];
   ROLL_LESSONS.forEach(l => out.push({ ...l, kind:"roll" }));   // roles fit any string count
@@ -3861,12 +3898,15 @@ function rollString(role, chord, NSTR){
 }
 
 /* slide audio: pluck the start, run quiet chromatic steps into the
-   target — a plucked-string slide is exactly that ramp of re-attacks */
+   target — a plucked-string slide is exactly that ramp of re-attacks.
+   The ramp is squeezed to land inside one eighth-note at the current
+   tempo, so long slides never smear into the next note. */
 function slideNotes(m0, m1, when, gain = .3){
   pluck(m0, when, gain);
   const dir = m1 > m0 ? 1 : -1, n = Math.abs(m1 - m0);
+  const dt = Math.min(.055, (30 / lsnBpm) * .8 / n);
   for(let k = 1; k <= n; k++)
-    pluck(m0 + k * dir, when + .05 + k * .055, k === n ? gain * .75 : .07);
+    pluck(m0 + k * dir, when + .05 + k * dt, k === n ? gain * .75 : .07);
 }
 
 /* the tab strip: strings as horizontal lines (1st string on top, like
@@ -3875,12 +3915,15 @@ function slideNotes(m0, m1, when, gain = .3){
 function renderLessonTab(lesson, chord, tuning){
   const NSTR = tuning.strings.length;
   const STEP = 64, X0 = 58, TOP = 30, SG = 42;
-  const REPS = REDUCED_MOTION ? 1 : 3;                  // bars rendered — playback slides them through a one-bar window
-  const W = X0 + lesson.steps * STEP + 14;              // the visible window stays one bar wide
+  const BAR = lesson.steps > 12 ? 8 : lesson.steps;     // progression lessons run many 8-slot bars
+  const WIN = lesson.steps <= 12 ? lesson.steps : 8;    // the visible window stays about one bar wide
+  const REPS = REDUCED_MOTION ? 1 : (lesson.steps > 16 ? 2 : 3);   // copies rendered — playback slides them through the window
+  const W = X0 + (REDUCED_MOTION ? lesson.steps : WIN) * STEP + 14;
   const H = TOP + (NSTR - 1) * SG + 40;
   const sy = s => TOP + (NSTR - 1 - s) * SG;            // s0 (lowest position) at the bottom
   const ex = t => X0 + (t + .5) * STEP;
-  const P = [`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'Share Tech Mono',monospace">`];
+  const wide = REDUCED_MOTION && lesson.steps > WIN;    // static long strip — let the panel scroll it
+  const P = [`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'Share Tech Mono',monospace"${wide ? ` style="min-width:${lesson.steps * 48}px"` : ""}>`];
 
   // static furniture: string lines + labels stay put while the time grid scrolls
   for(let s = 0; s < NSTR; s++){
@@ -3894,21 +3937,22 @@ function renderLessonTab(lesson, chord, tuning){
   P.push(`<g clip-path="url(#lnClip)"><g id="lnScroll">`);
   for(let r = 0; r < REPS; r++){
     const off = r * lesson.steps;
-    for(let t = 0; t < lesson.steps + (r === REPS - 1 ? 1 : 0); t++){   // beat grid — heavier on the quarters
-      const x = X0 + (off + t) * STEP;
-      P.push(`<line x1="${x}" y1="${TOP - 8}" x2="${x}" y2="${sy(0) + 8}" stroke="var(--line${t % 2 ? "2" : ""})" stroke-width="${t % 2 ? .5 : 1}"/>`);
+    for(let t = 0; t < lesson.steps + (r === REPS - 1 ? 1 : 0); t++){   // beat grid — heavier on the quarters, heaviest at bar lines
+      const x = X0 + (off + t) * STEP, bl = t % BAR === 0;
+      P.push(`<line x1="${x}" y1="${TOP - 8}" x2="${x}" y2="${sy(0) + 8}" stroke="var(--line${!bl && t % 2 ? "2" : ""})" stroke-width="${bl ? 1.6 : t % 2 ? .5 : 1}"/>`);
       if(t < lesson.steps && t % 2 === 0)
-        P.push(`<text x="${ex(off + t)}" y="${H - 4}" fill="var(--dim)" font-size="11" text-anchor="middle">${t / 2 + 1}</text>`);
+        P.push(`<text x="${ex(off + t)}" y="${H - 4}" fill="var(--dim)" font-size="11" text-anchor="middle">${(t % BAR) / 2 + 1}</text>`);
     }
+    (lesson.marks || []).forEach(m =>                   // chord names ride the grid, naming each change as it arrives
+      P.push(`<text x="${X0 + (off + m.t) * STEP + 5}" y="14" fill="var(--yellow)" font-size="11" letter-spacing=".1em">${m.c}</text>`));
     lesson.ev.forEach(e => {
       const si = rollString(e.s, chord, NSTR);
       const x = ex(off + e.t), y = sy(si);
       P.push(`<g class="lev" data-t="${off + e.t}">`);
-      if(e.sl !== undefined){                           // slide: from-fret, slanted connector, to-fret
-        const x2 = x + STEP * .55;
-        P.push(`<line class="sl" x1="${x + 11}" y1="${y + 4}" x2="${x2 - 11}" y2="${y - 4}"/>`);
-        P.push(`<circle cx="${x}" cy="${y}" r="11"/>`);
-        P.push(`<text class="fr" x="${x}" y="${y + 3.8}" font-size="11" text-anchor="middle">${e.sl}</text>`);
+      if(e.sl !== undefined){                           // slide: small from-fret gliding up the connector into the target
+        const x2 = x + STEP * .5;
+        P.push(`<text class="slf" x="${x - 4}" y="${y + 3.5}" font-size="9" text-anchor="middle">${e.sl}</text>`);
+        P.push(`<line class="sl" x1="${x + 4}" y1="${y + 4}" x2="${x2 - 11}" y2="${y - 4}"/>`);
         P.push(`<circle cx="${x2}" cy="${y}" r="11"/>`);
         P.push(`<text class="fr" x="${x2}" y="${y + 3.8}" font-size="11" text-anchor="middle">${e.to}</text>`);
       }else{
