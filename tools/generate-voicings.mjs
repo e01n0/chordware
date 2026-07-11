@@ -29,6 +29,8 @@ const html = fs.readFileSync(PATH, 'utf8');
 const js = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)]
   .map(m => m[1]).sort((a, b) => b.length - a.length)[0];
 const head = js.slice(0, js.lastIndexOf('/*', js.indexOf('APP STATE')));
+// the head includes a few browser-API constants (e.g. REDUCED_MOTION)
+globalThis.matchMedia ??= () => ({ matches: false });
 const ctx = {};
 new Function('x', head + '; x.TUNINGS = TUNINGS; x.LIB = CHORD_LIBRARY;')(ctx);
 const { TUNINGS, LIB } = ctx;
