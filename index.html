@@ -1047,6 +1047,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
       <span><b style="background:var(--cyan)"></b>CHORD TONE · 3RD / 5TH</span>
       <span><b class="hollow"></b>COLOUR TONE · 2·4·6·7</span>
     </div>
+    <div id="mapbarre"></div>
   </div>
 </div>
 
@@ -1072,6 +1073,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
       <span><b class="hollow"></b>COLOUR</span>
       <span id="styscale"></span>
     </div>
+    <div id="stybarre"></div>
     <div id="styprogs"></div>
   </div>
 </div>
@@ -2839,6 +2841,92 @@ function renderFretMap(tuningKey, rootPC, scale, vertical){
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   SLIDE BARRES — in an open tuning a straight bar IS a chord, so
+   the whole neck reads as one chord per fret. If the open strings
+   spell a major or minor triad, this strip names the barre chord at
+   every fret 0–12 and flags the picked key's I / IV / V (the blues
+   chords) plus the ♭III and ♭VII passing bars slide players lean
+   on. Tunings whose open strings don't spell a chord get no strip.
+   ═══════════════════════════════════════════════════════════════ */
+function openChordOf(tuning){
+  const pcs = [...new Set(tuning.pitches)];
+  for(const r of pcs){
+    const rel = new Set(pcs.map(p => (p - r + 12) % 12));
+    if(rel.size <= 3 && rel.has(4) && [...rel].every(x => x === 0 || x === 4 || x === 7))
+      return { rootPC: r, minor: false };
+    if(rel.size <= 3 && rel.has(3) && [...rel].every(x => x === 0 || x === 3 || x === 7))
+      return { rootPC: r, minor: true };
+  }
+  return null;
+}
+
+function renderBarreStrip(tuningKey, keyPC){
+  const tuning = TUNINGS[tuningKey];
+  const oc = openChordOf(tuning);
+  if(!oc) return "";
+  const CELL = 56, X0 = 8, TOP = 6, H = 100;
+  const W = X0 + 13 * CELL + 8;
+  const DEG = oc.minor ? { 0:"i", 3:"♭III", 5:"iv", 7:"v", 10:"♭VII" }
+                       : { 0:"I", 3:"♭III", 5:"IV", 7:"V", 10:"♭VII" };
+  const P = [`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'Share Tech Mono',monospace" style="min-width:660px">`];
+  for(let f = 0; f <= 12; f++){
+    const x = X0 + f * CELL;
+    const rootPC = (oc.rootPC + f) % 12;
+    const name = SPELL[rootPC] + (oc.minor ? "m" : "");
+    const iv = (rootPC - keyPC + 12) % 12;
+    const deg = DEG[iv];
+    P.push(`<g data-fret="${f}" style="cursor:pointer">`);
+    if(iv === 0){                                       // home — the I bar
+      P.push(`<rect x="${x + 2}" y="${TOP + 14}" width="${CELL - 8}" height="40" fill="var(--yellow)"/>`);
+      P.push(`<text x="${x + CELL / 2 - 2}" y="${TOP + 40}" fill="var(--ink)" font-size="16" font-weight="bold" text-anchor="middle">${name}</text>`);
+    }else if(iv === 5 || iv === 7){                     // the other blues chords — IV and V bars
+      P.push(`<rect x="${x + 2}" y="${TOP + 14}" width="${CELL - 8}" height="40" fill="var(--cyan)"/>`);
+      P.push(`<text x="${x + CELL / 2 - 2}" y="${TOP + 40}" fill="var(--ink)" font-size="16" font-weight="bold" text-anchor="middle">${name}</text>`);
+    }else if(iv === 3 || iv === 10){                    // ♭III / ♭VII — the slide passing bars
+      P.push(`<rect x="${x + 2}" y="${TOP + 14}" width="${CELL - 8}" height="40" fill="none" stroke="var(--red)" stroke-width="1.6"/>`);
+      P.push(`<text x="${x + CELL / 2 - 2}" y="${TOP + 40}" fill="var(--red)" font-size="15" text-anchor="middle">${name}</text>`);
+    }else{
+      P.push(`<line x1="${x + 2}" y1="${TOP + 14}" x2="${x + 2}" y2="${TOP + 54}" stroke="var(--line)" stroke-width="1"/>`);
+      P.push(`<text x="${x + CELL / 2 - 2}" y="${TOP + 40}" fill="var(--dim)" font-size="13" text-anchor="middle">${name}</text>`);
+    }
+    if(deg) P.push(`<text x="${x + CELL / 2 - 2}" y="${TOP + 8}" fill="var(--${iv === 0 ? "yellow" : iv === 5 || iv === 7 ? "cyan" : "red"})" font-size="11" letter-spacing=".08em" text-anchor="middle">${deg}</text>`);
+    P.push(`<text x="${x + CELL / 2 - 2}" y="${H - 8}" fill="var(--dim)" font-size="11" text-anchor="middle">${f === 0 ? "OPEN" : f}</text>`);
+    P.push(`</g>`);
+  }
+  P.push(`</svg>`);
+  return P.join("");
+}
+
+/* the strip in a titled box, with the blues bars spelled out — shared
+   by the STYLES and MAP overlays (empty string for non-open tunings) */
+function barreBoxHTML(tuningKey, keyPC){
+  const svg = renderBarreStrip(tuningKey, keyPC);
+  if(!svg) return "";
+  const oc = openChordOf(TUNINGS[tuningKey]);
+  const m = oc.minor;
+  const fretOf = iv => (keyPC + iv - oc.rootPC + 24) % 12;
+  const nameOf = iv => SPELL[(keyPC + iv) % 12] + (m ? "m" : "");
+  const fr = f => f === 0 ? "OPEN & 12" : "FRET " + f;
+  const summary =
+    `<span><b style="background:var(--yellow)"></b>${m ? "i" : "I"} ${nameOf(0)} — ${fr(fretOf(0))}</span>` +
+    `<span><b style="background:var(--cyan)"></b>${m ? "iv" : "IV"} ${nameOf(5)} — ${fr(fretOf(5))} · ${m ? "v" : "V"} ${nameOf(7)} — ${fr(fretOf(7))}</span>` +
+    `<span><b class="hollow"></b>♭III — ${fretOf(3)} · ♭VII — ${fretOf(10)}</span>`;
+  return `<div class="prog">
+    <h3>// SLIDE BARRES — ONE STRAIGHT BAR PER CHORD</h3>
+    <div class="mapscroll">${svg}</div>
+    <div class="maplegend" style="margin-top:8px">${summary}</div>
+  </div>`;
+}
+
+function barreStrum(el, tuningKey){
+  const g = el.closest("[data-fret]");
+  if(!g) return false;
+  const t = TUNINGS[tuningKey];
+  strumChord({ frets: t.pitches.map(() => +g.dataset.fret) }, t);
+  return true;
+}
+
+/* ═══════════════════════════════════════════════════════════════
    AUDIO — Karplus-Strong plucked strings, no samples, works offline.
    A pluck is a noise burst run through a delay-line averaging loop;
    a strum is one pluck per sounding string, slightly staggered.
@@ -3867,6 +3955,7 @@ function drawMap(){
   const { rootPC, scale } = mapScalePCs();
   $("#mapdiag").classList.toggle("vert", vertical);
   $("#mapdiag").innerHTML = renderFretMap(state.tuning, rootPC, scale, vertical);
+  $("#mapbarre").innerHTML = barreBoxHTML(state.tuning, rootPC);
   $("#maptun").textContent = TUNINGS[state.tuning].label + "  ·  FRETS 0–12";
 }
 mapPortrait.addEventListener("change", () => {
@@ -4143,6 +4232,7 @@ function drawStyles(){
   $("#styscale").textContent = "· " + SCALES[g.scale].label + " SCALE";
   $("#stymap").classList.toggle("vert", vertical);
   $("#stymap").innerHTML = renderFretMap(state.tuning, keyPC, scale, vertical);
+  $("#stybarre").innerHTML = barreBoxHTML(state.tuning, keyPC);
   $("#styprogs").innerHTML = g.progs.map(p => {
     const chords = p.deg.map(d => degreeChord(d, keyPC));
     return `<div class="prog">
@@ -4172,6 +4262,8 @@ $("#stymap").addEventListener("click", e => {
   const g = e.target.closest("[data-midi]");
   if(g) pluck(+g.dataset.midi, 0, .32);
 });
+$("#stybarre").addEventListener("click", e => barreStrum(e.target, state.tuning));
+$("#mapbarre").addEventListener("click", e => barreStrum(e.target, state.tuning));
 $("#styprogs").addEventListener("click", e => {
   const b = e.target.closest("[data-chords]"); if(!b) return;
   state.song = ""; state.setlist = "";
