@@ -1100,6 +1100,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     <div class="lnrow">
       <button class="prbtn" id="lnPlay" title="Loop the pattern at tempo">▶ Play</button>
       <button class="prbtn" id="lnSnd" title="Hear the pattern, or just a metronome tick while you play it">SND NOTES</button>
+      <button class="prbtn on" id="lnSwing" aria-pressed="true" title="Long-short shuffle eighths — the feel these licks are written for. Toggle for straight time.">SWING</button>
       <div class="prtempo">
         <button id="lnSlow" aria-label="Slower">−</button>
         <div id="lnBpm">70 BPM</div>
@@ -2939,7 +2940,7 @@ function audioCtx(){
 }
 const midiHz = m => 440 * Math.pow(2, (m - 69) / 12);
 
-function pluck(midi, when = 0, gain = .3){
+function pluck(midi, when = 0, gain = .3, glide = null){
   try{
     const ctx = audioCtx();
     const sr = ctx.sampleRate;
@@ -2951,11 +2952,19 @@ function pluck(midi, when = 0, gain = .3){
     for(let i = N; i < len; i++) d[i] = (d[i - N] + d[i - N + 1]) * .4975;
     const src = ctx.createBufferSource();
     src.buffer = buf;
+    const t0 = ctx.currentTime + when;
+    let tail = 1.2;
+    if(glide){                                 // replaying the buffer faster/slower IS a pitch bend
+      src.playbackRate.setValueAtTime(1, t0 + glide.at);
+      src.playbackRate.exponentialRampToValueAtTime(
+        midiHz(glide.to) / midiHz(midi), t0 + glide.at + glide.dur);
+      tail = Math.max(tail, glide.at + glide.dur + .5);
+    }
     const g = ctx.createGain();
     g.gain.value = gain;
-    g.gain.setTargetAtTime(0, ctx.currentTime + when + 1.2, .12);
+    g.gain.setTargetAtTime(0, t0 + tail, .12);
     src.connect(g); g.connect(ctx.destination);
-    src.start(ctx.currentTime + when);
+    src.start(t0);
   }catch(e){/* no audio available — stay silent */}
 }
 
@@ -4289,10 +4298,13 @@ $("#styprogs").addEventListener("click", e => {
      chord past its muted strings. t is in eighth-note slots.
    · LICKS — authored left-hand phrases per tuning (string indices
      and frets are absolute). Slides are ev {sl:from, to:target};
-     the audio runs the chromatic steps so it whines like a slide
-     should.
-   Playback loops the tab strip with a sweeping playhead; SND
-   toggles between hearing the notes and a bare metronome tick.
+     the audio bends a single pluck up (or down) into the target so
+     it whines like a slide should.
+   The whole lesson sits on the page — long ones wrap into rows like
+   printed tab — so you can read ahead while the playhead sweeps.
+   Eighths swing long-short by default (SWING toggles it straight;
+   compound-meter lessons always play straight). SND toggles between
+   hearing the notes and a bare metronome tick.
    ═══════════════════════════════════════════════════════════════ */
 const ROLL_LESSONS = [
   { name:"Forward Roll", steps:8,
@@ -4646,92 +4658,100 @@ function rollString(role, chord, NSTR){
   return NSTR - +role;
 }
 
-/* slide audio: pluck the start, run quiet chromatic steps into the
-   target — a plucked-string slide is exactly that ramp of re-attacks.
-   The ramp is squeezed to land inside one eighth-note at the current
-   tempo, so long slides never smear into the next note. */
-function slideNotes(m0, m1, when, gain = .3){
-  pluck(m0, when, gain);
-  const dir = m1 > m0 ? 1 : -1, n = Math.abs(m1 - m0);
-  const dt = Math.min(.055, (30 / lsnBpm) * .8 / n);
-  for(let k = 1; k <= n; k++)
-    pluck(m0 + k * dir, when + .05 + k * dt, k === n ? gain * .75 : .07);
+/* slide audio: ONE pluck whose pitch glides continuously into the
+   target — a real slide is a single attack that whines, not a run of
+   re-picked frets. dur is the room until the next note; the start
+   note speaks for a moment, then the glide fills the rest. */
+function slideNotes(m0, m1, when, dur = .3, gain = .34){
+  const at = Math.min(.08, dur * .25);
+  pluck(m0, when, gain, { to: m1, at, dur: Math.max(.08, dur - at) });
 }
 
 /* the tab strip: strings as horizontal lines (1st string on top, like
    real tab), one column per eighth-note slot, events as fret circles.
-   Rolls read frets from the held chord; licks carry their own. */
+   The WHOLE lesson is on the page — long lessons wrap into rows of
+   bars like printed tab, sized to fit the panel — so you can always
+   read ahead of the sweeping playhead. Rolls read frets from the
+   held chord; licks carry their own. */
+let lnGeo = null;                                       // layout the playhead animation needs
 function renderLessonTab(lesson, chord, tuning){
   const NSTR = tuning.strings.length;
-  const STEP = 64, X0 = 58, TOP = 30, SG = 42;
   const BAR = lesson.steps > 12 ? 8 : lesson.steps;     // progression lessons run many 8-slot bars
-  const WIN = lesson.steps <= 12 ? lesson.steps : 8;    // the visible window stays about one bar wide
-  const REPS = REDUCED_MOTION ? 1 : (lesson.steps > 16 ? 2 : 3);   // copies rendered — playback slides them through the window
-  const W = X0 + (REDUCED_MOTION ? lesson.steps : WIN) * STEP + 14;
-  const H = TOP + (NSTR - 1) * SG + 40;
-  const sy = s => TOP + (NSTR - 1 - s) * SG;            // s0 (lowest position) at the bottom
-  const ex = t => X0 + (t + .5) * STEP;
-  const wide = REDUCED_MOTION && lesson.steps > WIN;    // static long strip — let the panel scroll it
-  const P = [`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'Share Tech Mono',monospace"${wide ? ` style="min-width:${lesson.steps * 48}px"` : ""}>`];
+  const cw = $("#lnTab").clientWidth || 700;
+  const perRow = lesson.steps <= 16 ? lesson.steps      // short lessons: one row
+               : (cw >= 880 && lesson.steps % 32 === 0 ? 32 : 16);   // wide panels take 4 bars a row, narrow 2
+  const rows = Math.ceil(lesson.steps / perRow);
+  const [STEP, SG, R, F] =                              // metrics shrink as rows hold more bars
+    perRow > 16 ? [40, 36, 11, 12] : perRow > 8 ? [44, 36, 9, 10] : [64, 42, 11, 11];
+  const X0 = 58, TOP = 30;
+  const rowH = TOP + (NSTR - 1) * SG + 40;
+  const W = X0 + perRow * STEP + 14;
+  const H = rowH * rows;
+  lnGeo = { X0, STEP, TOP, SG, rowH, perRow, rows, NSTR };
+  const sy = (r, s) => r * rowH + TOP + (NSTR - 1 - s) * SG;   // s0 (lowest position) at the bottom
+  const ex = t => X0 + (t % perRow + .5) * STEP;
+  const P = [`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'Share Tech Mono',monospace">`];
 
-  // static furniture: string lines + labels stay put while the time grid scrolls
-  for(let s = 0; s < NSTR; s++){
-    P.push(`<line x1="${X0 - 18}" y1="${sy(s)}" x2="${W - 6}" y2="${sy(s)}" stroke="var(--line2)" stroke-width="1"/>`);
-    P.push(`<text x="${X0 - 34}" y="${sy(s) + 4}" fill="var(--cyan)" font-size="13">${tuning.strings[s]}</text>`);
-  }
-
-  // the scrolling strip: REPS identical bars; the clip wrapper must NOT
-  // move, so the window stays put while the inner group translates
-  P.push(`<clipPath id="lnClip"><rect x="${X0 - 18}" y="0" width="${W - X0 + 12}" height="${H}"/></clipPath>`);
-  P.push(`<g clip-path="url(#lnClip)"><g id="lnScroll">`);
-  for(let r = 0; r < REPS; r++){
-    const off = r * lesson.steps;
-    for(let t = 0; t < lesson.steps + (r === REPS - 1 ? 1 : 0); t++){   // beat grid — heavier on the quarters, heaviest at bar lines
-      const x = X0 + (off + t) * STEP, bl = t % BAR === 0;
-      P.push(`<line x1="${x}" y1="${TOP - 8}" x2="${x}" y2="${sy(0) + 8}" stroke="var(--line${!bl && t % 2 ? "2" : ""})" stroke-width="${bl ? 1.6 : t % 2 ? .5 : 1}"/>`);
-      if(t < lesson.steps && t % 2 === 0)
-        P.push(`<text x="${ex(off + t)}" y="${H - 4}" fill="var(--dim)" font-size="11" text-anchor="middle">${(t % BAR) / 2 + 1}</text>`);
+  for(let r = 0; r < rows; r++){
+    const slots = Math.min(perRow, lesson.steps - r * perRow);
+    for(let s = 0; s < NSTR; s++){
+      P.push(`<line x1="${X0 - 18}" y1="${sy(r, s)}" x2="${X0 + slots * STEP + 6}" y2="${sy(r, s)}" stroke="var(--line2)" stroke-width="1"/>`);
+      P.push(`<text x="${X0 - 34}" y="${sy(r, s) + 4}" fill="var(--cyan)" font-size="${F + 2}">${tuning.strings[s]}</text>`);
     }
-    (lesson.marks || []).forEach(m =>                   // chord names ride the grid, naming each change as it arrives
-      P.push(`<text x="${X0 + (off + m.t) * STEP + 5}" y="14" fill="var(--yellow)" font-size="11" letter-spacing=".1em">${m.c}</text>`));
-    lesson.ev.forEach(e => {
-      const si = rollString(e.s, chord, NSTR);
-      const x = ex(off + e.t), y = sy(si);
-      P.push(`<g class="lev" data-t="${off + e.t}">`);
-      if(e.sl !== undefined){                           // slide: small from-fret gliding up the connector into the target
-        const x2 = x + STEP * .5;
-        P.push(`<text class="slf" x="${x - 4}" y="${y + 3.5}" font-size="9" text-anchor="middle">${e.sl}</text>`);
-        P.push(`<line class="sl" x1="${x + 4}" y1="${y + 4}" x2="${x2 - 11}" y2="${y - 4}"/>`);
-        P.push(`<circle cx="${x2}" cy="${y}" r="11"/>`);
-        P.push(`<text class="fr" x="${x2}" y="${y + 3.8}" font-size="11" text-anchor="middle">${e.to}</text>`);
-      }else{
-        const f = e.f !== undefined ? e.f : chord.frets[si];
-        if(f < 0){
-          P.push(`<text class="mute" x="${x}" y="${y + 4.5}" font-size="14" text-anchor="middle">×</text>`);
-        }else{
-          P.push(`<circle cx="${x}" cy="${y}" r="11"/>`);
-          P.push(`<text class="fr" x="${x}" y="${y + 3.8}" font-size="11" text-anchor="middle">${f}</text>`);
-        }
-      }
-      if(e.fin) P.push(`<text class="fin" x="${x}" y="${y - 15}" font-size="10" text-anchor="middle">${e.fin}</text>`);
-      P.push(`</g>`);
-    });
+    for(let t = 0; t <= slots; t++){                    // beat grid — heavier on the quarters, heaviest at bar lines
+      const ta = r * perRow + t, x = X0 + t * STEP, bl = ta % BAR === 0;
+      P.push(`<line x1="${x}" y1="${r * rowH + TOP - 8}" x2="${x}" y2="${sy(r, 0) + 8}" stroke="var(--line${!bl && ta % 2 ? "2" : ""})" stroke-width="${bl ? 1.6 : ta % 2 ? .5 : 1}"/>`);
+      if(t < slots && ta % 2 === 0)
+        P.push(`<text x="${ex(ta)}" y="${sy(r, 0) + 26}" fill="var(--dim)" font-size="${F}" text-anchor="middle">${(ta % BAR) / 2 + 1}</text>`);
+    }
   }
-  P.push(`</g></g>`);
+  (lesson.marks || []).forEach(m => {                   // chord names ride the grid, naming each change as it arrives
+    const r = Math.floor(m.t / perRow);
+    P.push(`<text x="${X0 + (m.t % perRow) * STEP + 5}" y="${r * rowH + 14}" fill="var(--yellow)" font-size="${F}" letter-spacing=".1em">${m.c}</text>`);
+  });
+  lesson.ev.forEach(e => {
+    const si = rollString(e.s, chord, NSTR);
+    const r = Math.floor(e.t / perRow);
+    const x = ex(e.t), y = sy(r, si), k = STEP / 64;
+    P.push(`<g class="lev" data-t="${e.t}">`);
+    if(e.sl !== undefined){                             // slide: small from-fret gliding up the connector into the target
+      const x2 = x + 32 * k;
+      P.push(`<text class="slf" x="${x - 4 * k}" y="${y + 3.5}" font-size="${F - 2}" text-anchor="middle">${e.sl}</text>`);
+      P.push(`<line class="sl" x1="${x + 4 * k}" y1="${y + 4}" x2="${x2 - R - 2}" y2="${y - 4}"/>`);
+      P.push(`<circle cx="${x2}" cy="${y}" r="${R}"/>`);
+      P.push(`<text class="fr" x="${x2}" y="${y + 3.6}" font-size="${F}" text-anchor="middle">${e.to}</text>`);
+    }else{
+      const f = e.f !== undefined ? e.f : chord.frets[si];
+      if(f < 0){
+        P.push(`<text class="mute" x="${x}" y="${y + 4.5}" font-size="${F + 3}" text-anchor="middle">×</text>`);
+      }else{
+        P.push(`<circle cx="${x}" cy="${y}" r="${R}"/>`);
+        P.push(`<text class="fr" x="${x}" y="${y + 3.6}" font-size="${F}" text-anchor="middle">${f}</text>`);
+      }
+    }
+    if(e.fin) P.push(`<text class="fin" x="${x}" y="${y - R - 4}" font-size="${F - 1}" text-anchor="middle">${e.fin}</text>`);
+    P.push(`</g>`);
+  });
 
-  // fixed over the first note column while the tab scrolls under it;
-  // with reduced motion the strip stays put and this sweeps instead
-  const phX = REDUCED_MOTION ? X0 : ex(0);
-  P.push(`<line id="lnPlayhead" x1="${phX}" y1="${TOP - 10}" x2="${phX}" y2="${sy(0) + 10}"/>`);
+  P.push(`<line id="lnPlayhead" x1="${X0}" y1="${TOP - 10}" x2="${X0}" y2="${sy(0, 0) + 10}"/>`);
   P.push(`</svg>`);
   return P.join("");
 }
 
-/* ── lesson playback: schedule one loop of audio, scroll the tab past
-   the fixed playhead with rAF (bars are identical, so snapping back a
-   bar at the loop point is seamless), light events as they sound ── */
-let lsn = null;                                          // { playing, t0, raf, loopTimer } — selection lives in the selects + lsnKind
-let lsnBpm = 70, lsnSnd = true, lsnKind = "roll";        // "roll" | "lick" — which half of the lesson book is open
+/* ── lesson playback: schedule each loop of audio on the audio clock
+   (no setTimeout drift), sweep the playhead across the wrapped rows
+   with rAF, light events as they sound. Eighths swing long-short —
+   the offbeat sits at the 2/3 triplet point — unless toggled straight;
+   compound-meter lessons (6/8, 3/4, 12/8) are already triplet grids
+   and always play straight. ── */
+let lsn = null;                                          // { playing, t0, ac0, raf, loopTimer } — selection lives in the selects + lsnKind
+let lsnBpm = 70, lsnSnd = true, lsnSwing = true, lsnKind = "roll";   // "roll" | "lick" — which half of the lesson book is open
+
+const lnSwings = l => lsnSwing && l.steps % 8 === 0;
+function lnSlotTime(l, t){                               // slot onset in eighth-note units, swung or straight
+  const sw = lnSwings(l) ? 2 / 3 : .5;
+  return Math.floor(t / 2) * 2 + (t % 2) * 2 * sw;
+}
 
 function lnLessons(){ return lessonsFor(state.tuning).filter(l => l.kind === lsnKind); }
 function lnLesson(){ return lnLessons()[+$("#lnLesson").value]; }
@@ -4740,37 +4760,56 @@ function lnChord(){
   return list.find(c => c.name === $("#lnChord").value) || list[0];
 }
 
-function lnEventAudio(e, chord, tuning, when){
+function lnEventAudio(l, e, chord, tuning, when, stepS){
   const si = rollString(e.s, chord, tuning.pitches.length);
-  if(e.sl !== undefined) return slideNotes(tuning.open[si] + e.sl, tuning.open[si] + e.to, when);
+  if(e.sl !== undefined){
+    const nt = l.ev.reduce((m, o) => o.t > e.t && o.t < m ? o.t : m, e.t + 2);   // room until the next note — capped so lazy slides stay lazy, not endless
+    const dur = (lnSlotTime(l, nt) - lnSlotTime(l, e.t)) * stepS;
+    return slideNotes(tuning.open[si] + e.sl, tuning.open[si] + e.to, when, dur * .9);
+  }
   const f = e.f !== undefined ? e.f : chord.frets[si];
   if(f >= 0) pluck(tuning.open[si] + f, when, .3);
 }
 
 function lnScheduleLoop(){
-  const l = lnLesson(), stepS = 30 / lsnBpm;             // eighth notes against a quarter-note BPM
-  if(lsnSnd) l.ev.forEach(e => lnEventAudio(e, lnChord(), TUNINGS[state.tuning], e.t * stepS));
-  for(let t = 0; t < l.steps; t += 2) pluck(98, t * stepS, lsnSnd ? .05 : .12);   // tick on the quarters
-  lsn.loopTimer = setTimeout(lnScheduleLoop, l.steps * stepS * 1000);
+  const l = lnLesson(), stepS = 30 / lsnBpm, loopS = l.steps * stepS;   // eighth notes against a quarter-note BPM
+  const now = AC ? AC.currentTime : performance.now() / 1000;
+  if(lsn.ac0 === undefined){                             // first loop: pin the epoch on the audio clock…
+    lsn.ac0 = now + .08;
+    lsn.t0 = performance.now() + 80;                     // …and line the visual clock up with it
+  }
+  while(lsn.ac0 < now) lsn.ac0 += loopS;                 // slept in a background tab — skip whole bars, stay on grid
+  const base = lsn.ac0 - now;
+  if(lsnSnd){
+    const chord = lnChord(), tuning = TUNINGS[state.tuning];
+    l.ev.forEach(e => lnEventAudio(l, e, chord, tuning, base + lnSlotTime(l, e.t) * stepS, stepS));
+  }
+  for(let t = 0; t < l.steps; t += 2) pluck(98, base + t * stepS, lsnSnd ? .05 : .12);   // tick on the quarters
+  lsn.ac0 += loopS;
+  lsn.loopTimer = setTimeout(lnScheduleLoop, Math.max(60, (base + loopS - .25) * 1000));
 }
 
 function lnFrame(){
   if(!lsn || !lsn.playing) return;
   const l = lnLesson(), stepMs = 30000 / lsnBpm, loopMs = l.steps * stepMs;
-  const tl = (performance.now() - lsn.t0) % loopMs;
-  if(REDUCED_MOTION){                                    // strip stays put, the playhead sweeps
-    const ph = $("#lnPlayhead");
-    if(ph){
-      const x = 58 + (tl / stepMs) * 64;                 // X0/STEP from the renderer
-      ph.setAttribute("x1", x); ph.setAttribute("x2", x);
-    }
-  }else{                                                 // playhead stays put, the tab scrolls under it
-    const sc = $("#lnScroll");
-    if(sc) sc.setAttribute("transform", `translate(${-(tl / stepMs) * 64} 0)`);
+  const raw = performance.now() - lsn.t0;
+  const tl = raw < 0 ? 0 : raw % loopMs;
+  // clock time → grid position in slots: with swing the offbeat lands late
+  const sw = lnSwings(l) ? 2 / 3 : .5;
+  const pairMs = 2 * stepMs, aMs = 2 * sw * stepMs;
+  const p = Math.floor(tl / pairMs), phMs = tl - p * pairMs;
+  const u = p * 2 + (phMs < aMs ? phMs / aMs : 1 + (phMs - aMs) / (pairMs - aMs));
+  const G = lnGeo, ph = $("#lnPlayhead");
+  if(G && ph){
+    const row = Math.min(G.rows - 1, Math.floor(u / G.perRow));
+    const x = G.X0 + (u - row * G.perRow) * G.STEP;
+    ph.setAttribute("x1", x); ph.setAttribute("x2", x);
+    ph.setAttribute("y1", row * G.rowH + G.TOP - 10);
+    ph.setAttribute("y2", row * G.rowH + G.TOP + (G.NSTR - 1) * G.SG + 10);
   }
   document.querySelectorAll("#lnTab .lev").forEach(g => {
-    const t = +g.dataset.t * stepMs;
-    g.classList.toggle("lit", tl >= t && tl < t + stepMs * .9);
+    const t = +g.dataset.t;
+    g.classList.toggle("lit", u >= t && u < t + .9);
   });
   lsn.raf = requestAnimationFrame(lnFrame);
 }
@@ -4782,13 +4821,11 @@ function lnStop(){
   $("#lnPlay").textContent = "▶ Play";
   const ph = $("#lnPlayhead");
   if(ph) ph.classList.remove("run");
-  const sc = $("#lnScroll");
-  if(sc) sc.setAttribute("transform", "translate(0 0)");  // rewind the strip to bar one
   document.querySelectorAll("#lnTab .lev.lit").forEach(g => g.classList.remove("lit"));
   syncWakeLock();
 }
 function lnStart(){
-  audioCtx();                                            // user gesture — unlock audio before the first scheduled pluck
+  try{ audioCtx(); }catch(e){}                           // user gesture — unlock audio before the first scheduled pluck
   lsn = { playing: true, t0: performance.now() };
   $("#lnPlay").classList.add("on");
   $("#lnPlay").textContent = "◼ Stop";
@@ -4834,6 +4871,7 @@ function drawLearn(){
       `<option value="${i}">${l.name}</option>`).join("");
   const l = lessons[+sel.value] || lessons[0];
   const roll = l.kind === "roll";
+  $("#lnSwing").disabled = l.steps % 8 !== 0;            // compound meters don't swing
   $("#lnChord").style.display = roll ? "" : "none";
   $("#lnHint").style.display = roll ? "" : "none";
   $("#lnBlurb").textContent = l.blurb;
@@ -4849,9 +4887,9 @@ function relearnTuning(){                                // repopulate the per-t
   drawLearn();
 }
 function openLearn(){
-  relearnTuning();
-  $("#learnov").classList.add("open");
+  $("#learnov").classList.add("open");                   // open first — the tab wraps to the panel's real width
   document.body.style.overflow = "hidden";
+  relearnTuning();
 }
 function closeLearn(){
   lnStop();
@@ -4867,6 +4905,19 @@ $("#lnSnd").addEventListener("click", () => {
   lsnSnd = !lsnSnd;
   $("#lnSnd").textContent = lsnSnd ? "SND NOTES" : "SND TICK";
   $("#lnSnd").classList.toggle("on", !lsnSnd);
+});
+$("#lnSwing").addEventListener("click", () => {
+  lsnSwing = !lsnSwing;
+  $("#lnSwing").textContent = lsnSwing ? "SWING" : "STRAIGHT";
+  $("#lnSwing").classList.toggle("on", lsnSwing);
+  $("#lnSwing").setAttribute("aria-pressed", lsnSwing);
+  if(lsn){ lnStop(); lnStart(); }                        // retime cleanly from the top
+});
+let lnRsz = 0;
+addEventListener("resize", () => {                       // rotated the tablet — re-wrap the tab rows for the new width
+  if(!$("#learnov").classList.contains("open") || lsn) return;
+  clearTimeout(lnRsz);
+  lnRsz = setTimeout(drawLearn, 150);
 });
 function setLsnBpm(v){
   lsnBpm = Math.max(40, Math.min(240, v));
