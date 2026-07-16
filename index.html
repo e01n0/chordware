@@ -2950,16 +2950,22 @@ function pluck(midi, when = 0, gain = .3, glide = null){
     const d = buf.getChannelData(0);
     for(let i = 0; i < N; i++) d[i] = Math.random() * 2 - 1;
     for(let i = N; i < len; i++) d[i] = (d[i - N] + d[i - N + 1]) * .4975;
+    if(glide){                                 // bend baked into the buffer: re-read the pluck at a
+      const ratio = midiHz(glide.to) / midiHz(midi);   // sweeping rate — no AudioParam automation, so it
+      const a0 = glide.at * sr, a1 = (glide.at + glide.dur) * sr;   // glides identically on every browser
+      const out = new Float32Array(len);
+      let pos = 0;
+      for(let i = 0; i < len && pos < len - 1; i++){
+        const j = Math.floor(pos), fr = pos - j;
+        out[i] = d[j] * (1 - fr) + d[j + 1] * fr;
+        pos += i <= a0 ? 1 : Math.pow(ratio, Math.min(1, (i - a0) / (a1 - a0)));   // exponential sweep = even pitch glide
+      }
+      d.set(out);
+    }
     const src = ctx.createBufferSource();
     src.buffer = buf;
     const t0 = ctx.currentTime + when;
-    let tail = 1.2;
-    if(glide){                                 // replaying the buffer faster/slower IS a pitch bend
-      src.playbackRate.setValueAtTime(1, t0 + glide.at);
-      src.playbackRate.exponentialRampToValueAtTime(
-        midiHz(glide.to) / midiHz(midi), t0 + glide.at + glide.dur);
-      tail = Math.max(tail, glide.at + glide.dur + .5);
-    }
+    const tail = glide ? Math.max(1.2, glide.at + glide.dur + .5) : 1.2;
     const g = ctx.createGain();
     g.gain.value = gain;
     g.gain.setTargetAtTime(0, t0 + tail, .12);
@@ -6229,7 +6235,13 @@ render();
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       if(hadController && !reloaded){ reloaded = true; location.reload(); }
     });
-    navigator.serviceWorker.register("sw.js").catch(() => {/* offline support degrades gracefully */});
+    navigator.serviceWorker.register("sw.js").then(reg => {
+      // an installed PWA resumes from the switcher without navigating, so it
+      // never re-checks for deploys — poke the worker whenever we come back
+      document.addEventListener("visibilitychange", () => {
+        if(document.visibilityState === "visible") reg.update().catch(() => {});
+      });
+    }).catch(() => {/* offline support degrades gracefully */});
   }
 })();
 </script>
