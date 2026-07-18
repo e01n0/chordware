@@ -695,6 +695,15 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     font-family:var(--font-m); font-size:14px; padding:10px 12px; outline:none;
   }
   .sewrap input:focus, .sewrap textarea:focus{ border-color:var(--cyan); }
+  .selabel{ display:flex; align-items:flex-end; justify-content:space-between; gap:10px; margin-top:14px; }
+  .selabel label{ margin:0 0 5px; flex:1; }
+  #sePaste{
+    flex:0 0 auto; min-height:38px; padding:0 14px; margin-bottom:2px;
+    background:transparent; border:1px solid var(--cyan); color:var(--cyan);
+    font-family:var(--font-h); font-weight:600; font-size:12px; letter-spacing:.14em;
+    text-transform:uppercase; cursor:pointer;
+  }
+  #sePaste:active{ background:var(--cyan); color:var(--ink); }
   .sewrap textarea{ min-height:190px; resize:vertical; line-height:1.7; color:var(--text); }
   .sehint{ margin-top:6px; font-size:11px; color:var(--dim); line-height:1.6; letter-spacing:.04em; }
   .sehint b{ color:var(--cyan); font-weight:normal; }
@@ -958,7 +967,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     <select id="keySel" aria-label="Song key"></select>
     <select id="songSel" aria-label="Saved songs"></select>
     <button id="perfBtn" title="Performance mode — step through the song fullscreen">▶</button>
-    <button id="saveSong" title="Save / edit the current song (chords + lyrics)">Save</button>
+    <button id="saveSong" title="Add a song — paste it from a tab/chord site, or list its chords">+ Song</button>
     <button id="delSong" style="display:none" title="Delete selected song">Del</button>
   </div>
 </div>
@@ -1168,16 +1177,20 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     <label for="seName">Name</label>
     <input id="seName" type="text" autocomplete="off" autocorrect="off" spellcheck="false"
            placeholder="wagon wheel">
-    <label for="seChords">Chords · space-separated</label>
+    <div class="selabel">
+      <label for="seLyrics">Song · paste it straight from a tab/chord site</label>
+      <button id="sePaste" title="Paste the song from the clipboard — chord lines over the words convert automatically">📋 Paste</button>
+    </div>
+    <textarea id="seLyrics" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+              placeholder="Paste the whole song here — chords sitting over the words just work:&#10;&#10;C                         G&#10;Heading down south to the land of the pines&#10;&#10;…or type lyrics with inline tags like [Am]"></textarea>
+    <div class="sehint"><b>Just paste</b> — copy a song from any tab/chord site and paste it above
+      (or hit 📋 Paste). Chord lines sitting over the words become inline <b>[Am]</b> tags on the
+      right syllable, <b>[Verse]</b>/<b>[Chorus]</b> headers stay as section labels, and the chord
+      list below fills itself in. Performance mode steps tag to tag, highlighting the lyric as you
+      play; with no tags it steps through the chord list instead.</div>
+    <label for="seChords">Chords · fills in from a pasted song — or list them yourself</label>
     <input id="seChords" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
            placeholder="Am F C G">
-    <label for="seLyrics">Lyrics · optional</label>
-    <textarea id="seLyrics" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-              placeholder="[C]Heading down south to the [G]land of the pines&#10;I'm [Am]thumbing my way into [F]North Caroline"></textarea>
-    <div class="sehint"><b>Paste a song straight from a tab/chord site</b> — chord lines sitting
-      above the lyrics convert to inline tags automatically, and <b>[Verse]</b>/<b>[Chorus]</b> headers
-      are kept as section labels. Or tag changes by hand as <b>[Am]</b>. Performance mode steps
-      tag to tag, highlighting the lyric as you play; with no tags it steps through the chord list instead.</div>
     <div class="sebtns">
       <button id="seCancel">Cancel</button>
       <button id="seSave">Save Song</button>
@@ -3344,6 +3357,12 @@ function refreshSongSel(){
     `</optgroup>`;
   sel.value = state.setlist ? "set:" + state.setlist : state.song ? "song:" + state.song : "";
   $("#delSong").style.display = (state.song || state.setlist) ? "" : "none";
+  // the same button adds when nothing is selected and edits when something is
+  const sb = $("#saveSong");
+  sb.textContent = (state.song || state.setlist) ? "Edit" : "+ Song";
+  sb.title = state.setlist ? "Edit the selected set list"
+           : state.song    ? "Edit the selected song (chords + lyrics)"
+           : "Add a song — paste it from a tab/chord site, or list its chords";
 }
 
 function render(){
@@ -3798,24 +3817,42 @@ function tabToTags(text){
   return { text: out.join("\n"), converted };
 }
 
-$("#seLyrics").addEventListener("paste", () => {
-  setTimeout(() => {                            // run after the paste lands
-    const el = $("#seLyrics");
-    if(/^https?:\/\/\S+$/.test(el.value.trim())){
-      // no server, and browsers block cross-site reads — a URL can't be fetched
-      toast("CAN'T FETCH URLS — COPY THE SONG TEXT ITSELF");
-      return;
-    }
-    if(/^K:/m.test(el.value) && /^[TXML]:/m.test(el.value)){
-      toast("LOOKS LIKE ABC — PASTE IT INTO MINE › ABC INSTEAD");
-      return;
-    }
-    const r = tabToTags(el.value);
-    if(r.converted){
-      el.value = r.text;
-      toast("TAB FORMAT → INLINE TAGS · " + r.converted + " LINES");
-    }
-  }, 0);
+/* one path for the paste event and the 📋 button: URLs and ABC get
+   redirected, tab-format chord lines convert to inline tags, and the
+   chord list fills itself from the tags — pasting is the whole job */
+function absorbPastedSong(){
+  const el = $("#seLyrics");
+  if(/^https?:\/\/\S+$/.test(el.value.trim())){
+    // no server, and browsers block cross-site reads — a URL can't be fetched
+    toast("CAN'T FETCH URLS — COPY THE SONG TEXT ITSELF");
+    return;
+  }
+  if(/^K:/m.test(el.value) && /^[TXML]:/m.test(el.value)){
+    toast("LOOKS LIKE ABC — PASTE IT INTO MINE › ABC INSTEAD");
+    return;
+  }
+  const r = tabToTags(el.value);
+  if(r.converted) el.value = r.text;
+  const tags = [...new Set([...el.value.matchAll(LYRIC_TAG)].map(m => m[1]).filter(isChordTag))];
+  if(tags.length && !$("#seChords").value.trim()) $("#seChords").value = tags.join(" ");
+  if((r.converted || tags.length) && !$("#seName").value.trim()){
+    toast("CHORDS TAGGED — NAME IT AND SAVE");
+    $("#seName").focus();
+  }else if(r.converted){
+    toast("TAB FORMAT → INLINE TAGS · " + r.converted + " LINES");
+  }
+}
+$("#seLyrics").addEventListener("paste", () => setTimeout(absorbPastedSong, 0));   // run after the paste lands
+
+$("#sePaste").addEventListener("click", async () => {
+  let text = "";
+  try{ text = (await navigator.clipboard.readText()) || ""; }
+  catch(e){ toast("CLIPBOARD BLOCKED — TAP THE SONG BOX AND PASTE"); $("#seLyrics").focus(); return; }
+  if(!text.trim()){ toast("CLIPBOARD EMPTY — COPY THE SONG FIRST"); return; }
+  const el = $("#seLyrics");
+  if(el.value.trim() && !confirm("Replace the song text with the clipboard?")) return;
+  el.value = text;
+  absorbPastedSong();
 });
 
 function openSongEditor(){
@@ -3842,7 +3879,7 @@ $("#seSave").addEventListener("click", () => {
   const lyrics = $("#seLyrics").value.replace(/\s+$/, "");
   const tagged = [...lyrics.matchAll(LYRIC_TAG)].map(m => m[1]).filter(isChordTag);
   if(!toks.some(knownChord) && !tagged.some(knownChord)){
-    alert("Add a space-separated chord list (e.g. Am F C G)\nor tag chords in the lyrics like [Am] —\nor just paste a song from a tab/chord site into the lyrics box.");
+    alert("Paste a song from a tab/chord site into the song box —\nor add a space-separated chord list (e.g. Am F C G)\nor tag chords in the lyrics like [Am].");
     return;
   }
   // slash chords (G/B) fall back to their root diagram, so don't warn on them
@@ -5825,7 +5862,7 @@ function renderSetEditor(){
     : `<div class="stEmpty">// EMPTY — TAP SONGS BELOW TO BUILD THE SET //</div>`;
   $("#stAvail").innerHTML = songs.length
     ? songs.map(n => `<button data-add="${escHTML(n)}">♪ ${escHTML(n)}</button>`).join("")
-    : `<div class="stEmpty">// NO SAVED SONGS YET — SAVE SOME FIRST //</div>`;
+    : `<div class="stEmpty">// NO SAVED SONGS YET — ADD SOME WITH + SONG FIRST //</div>`;
 }
 $("#stIn").addEventListener("click", e => {
   const up = e.target.closest("[data-up]"), rm = e.target.closest("[data-rm]");
@@ -5944,10 +5981,10 @@ $("#seFile").addEventListener("change", e => {
       alert("That doesn't look like a CHORDWARE export or a ChordPro file.");
       return;
     }
-    const tab = tabToTags(cp.lyrics);                   // chord-lines-above-lyrics files convert too
     if(cp.title || !$("#seName").value.trim())
       $("#seName").value = cp.title || f.name.replace(/\.[^.]*$/, "");
-    $("#seLyrics").value = tab.text;
+    $("#seLyrics").value = cp.lyrics;
+    absorbPastedSong();                                 // chord-lines-above-lyrics files convert too, chord list fills in
     toast("SONG IMPORTED — REVIEW AND SAVE");
   };
   r.readAsText(f);
