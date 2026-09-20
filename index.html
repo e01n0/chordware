@@ -459,7 +459,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     border:1px solid var(--line2); font-family:var(--font-m); font-size:16px; cursor:pointer;
   }
   .prtempo button:active{ background:var(--yellow); color:var(--ink); }
-  #prBpm, #lnBpm, #mnBpm{
+  #prBpm, #lnBpm, #lnTr, #mnBpm{
     display:flex; align-items:center; padding:0 10px; min-width:74px; justify-content:center;
     border-top:1px solid var(--line2); border-bottom:1px solid var(--line2);
     color:var(--yellow); font-size:13px; letter-spacing:.1em;
@@ -6671,22 +6671,36 @@ function sliceLesson(l, from, len){
 }
 
 function songForm(l){
+  /* A transcribed tune never repeats note for note, so bars are compared
+     softly: the chord, and how much the two bars' pitch-class sets overlap.
+     Blocks cluster greedily against the first block of each label. */
   const nb = Math.round(l.steps / l.bar);
-  const sig = b => {
+  const tuning = TUNINGS[state.tuning];
+  const bars = Array.from({ length: nb }, (_, b) => {
     const mark = l.marks.find(m => m.t === b * l.bar);
-    const ev = l.ev.filter(e => e.t >= b * l.bar && e.t < (b + 1) * l.bar)
-      .map(e => `${e.t - b * l.bar}:${e.s}:${e.f}`).join(",");
-    return (mark ? mark.c : "") + "|" + ev;
+    const pcs = new Set(l.ev.filter(e => e.t >= b * l.bar && e.t < (b + 1) * l.bar)
+      .map(e => ((tuning.open[e.s] || 0) + e.f) % 12));
+    return { c: mark ? mark.c : "", pcs };
+  });
+  const barSim = (a, b) => {
+    if(!a.pcs.size && !b.pcs.size) return a.c === b.c ? 1 : 0;
+    let inter = 0; a.pcs.forEach(p => { if(b.pcs.has(p)) inter++; });
+    const jac = inter / (a.pcs.size + b.pcs.size - inter || 1);
+    return .4 * (a.c === b.c) + .6 * jac;
   };
-  const sigs = Array.from({ length: nb }, (_, b) => sig(b));
+  const blockSim = (i, j, L) => {
+    let s = 0; for(let k = 0; k < L; k++) s += barSim(bars[i + k], bars[j + k]);
+    return s / L;
+  };
   const chunk = L => {
-    const labels = new Map(), seq = [];
+    const firsts = [], seq = [];
     for(let b = 0; b + L <= nb; b += L){
-      const k = sigs.slice(b, b + L).join("/");
-      if(!labels.has(k)) labels.set(k, String.fromCharCode(65 + labels.size));
-      seq.push(labels.get(k));
+      let best = -1, bestS = 0;
+      firsts.forEach((f, i) => { const s = blockSim(f, b, L); if(s > bestS){ bestS = s; best = i; } });
+      if(best < 0 || bestS < .55){ firsts.push(b); best = firsts.length - 1; }
+      seq.push(String.fromCharCode(65 + best));
     }
-    return { L, seq, tail: nb - seq.length * L, unique: labels.size };
+    return { L, seq, tail: nb - seq.length * L, unique: firsts.length };
   };
   for(const L of [8, 4, 2]){
     if(nb < 2 * L) continue;
