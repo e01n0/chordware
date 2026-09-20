@@ -6504,6 +6504,7 @@ $("#auGo").addEventListener("click", async () => {
     $("#auOpen").hidden = false;
     $("#auOpen").onclick = () => {
       closeAu();
+      closeMine();
       openLearn();
       setLnKind("song");
       const i = lnLessons().findIndex(l => l.name === name);
