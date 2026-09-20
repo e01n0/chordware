@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import cache
 from itertools import product
 
 from .leadsheet import parse_chord
@@ -67,7 +67,7 @@ _TEMPLATE = {"maj": (0, 4, 7), "min": (0, 3, 7), "dom7": (0, 4, 7, 10), "min7": 
 SPAN = 3  # frets a fretting hand covers comfortably inside one shape
 
 
-@lru_cache(maxsize=None)
+@cache
 def _generate_shape(tuning_name: str, chord: str) -> Shape:
     """Lowest playable voicing: every sounding string in the chord, root present, at least three
     distinct chord tones, hand span <= SPAN. The two lowest guitar strings may be muted; the banjo
@@ -77,7 +77,7 @@ def _generate_shape(tuning_name: str, chord: str) -> Shape:
     pcs = {(root + i) % 12 for i in _TEMPLATE[quality]}
     mutable = {t.n, t.n - 1} if tuning_name == "guitar-standard" else set()
     drone = t.n if tuning_name == "banjo-open-g" else None
-    for anchor in range(0, MAX_FRET - SPAN):
+    for anchor in range(MAX_FRET - SPAN):
         options = []
         for s in range(1, t.n + 1):
             if s == drone:

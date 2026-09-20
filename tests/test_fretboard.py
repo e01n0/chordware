@@ -41,14 +41,14 @@ def test_mapper_string_restriction():
 
 
 def test_generated_shapes_cover_every_chord():
-    from tabsmith.fretboard import _generate_shape, SPAN
+    from tabsmith.fretboard import SPAN, _generate_shape
     from tabsmith.leadsheet import PC_NAMES, parse_chord
     for tuning in (BANJO_G, GUITAR):
         for root in PC_NAMES:
             for q in ("", "m", "7", "m7"):
                 name = root + q
                 shape = _generate_shape(tuning.name, name)
-                pc, quality = parse_chord(name)
+                pc, _ = parse_chord(name)
                 sounding = [(s, f) for s, f in enumerate(shape, 1) if f >= 0]
                 tones = {tuning.pitch(s, f) % 12 for s, f in sounding}
                 assert pc in tones, name
