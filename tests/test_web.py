@@ -7,12 +7,12 @@ from tabsmith import web
 from tabsmith.leadsheet import Chord, LeadSheet, MelodyNote
 
 
-def fake_pipeline(src, instrument, style, outdir, opts, progress):
+def fake_pipeline(src, instrument, style, outdir, opts, progress, title=None):
     outdir = Path(outdir)
     outdir.mkdir(exist_ok=True, parents=True)
     progress("transcribe", "fake")
     progress("render", "fake")
-    s = LeadSheet("Fake", src, 120, (4, 4), "G", "major", 0, 1, [MelodyNote(0, 1, 67)], [Chord(0, 0, "G")], [])
+    s = LeadSheet(title or "Fake", src, 120, (4, 4), "G", "major", 0, 1, [MelodyNote(0, 1, 67)], [Chord(0, 0, "G")], [])
     s.save(outdir / "leadsheet.json")
     files = {}
     for k in ("txt", "pdf", "png", "mid", "mp3", "ly"):
@@ -37,7 +37,7 @@ def test_job_lifecycle(tmp_path, monkeypatch):
     jid = r.json()["id"]
     web.worker_once()
     j = c.get(f"/jobs/{jid}").json()
-    assert j["state"] == "done" and j["title"] == "Fake"
+    assert j["state"] == "done" and j["title"] == "t", "an upload keeps its own file name as the title"
     assert c.get(f"/jobs/{jid}/fake.txt").content == b"x"
     assert c.get("/jobs").json()[0]["id"] == jid
     assert c.get(f"/jobs/{jid}/..%2F..%2Fetc%2Fpasswd").status_code in (400, 404)

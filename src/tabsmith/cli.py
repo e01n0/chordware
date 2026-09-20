@@ -36,14 +36,19 @@ class Options:
 
 
 def run_pipeline(src: str, instrument: str, style: str, outdir: Path, opts: Options = Options(),
-                 progress=lambda stage, msg: None) -> dict[str, Path]:
+                 progress=lambda stage, msg: None, title: str | None = None) -> dict[str, Path]:
+    """title overrides the title derived from the input (a web upload is stored as input.<ext>)."""
     if style not in STYLES.get(instrument, ()):
         raise ValueError(f"{instrument} styles are {STYLES.get(instrument)}, not {style!r}")
     outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
     ing = ingest(src, outdir)
+    if title:
+        ing.title = title
     if ing.sheet is not None:
         sheet = ing.sheet
+        if title:
+            sheet.title = title
     else:
         if ing.raw is not None:
             notes, grid = ing.raw

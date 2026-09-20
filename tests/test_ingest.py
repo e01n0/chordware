@@ -56,5 +56,5 @@ def test_midi_with_drum_track(tmp_path):
     sc.insert(0, drums)
     f = tmp_path / "d.musicxml"
     sc.write("musicxml", fp=str(f))
-    notes, grid = ingest(str(f), tmp_path).raw
+    notes = ingest(str(f), tmp_path).raw[0]
     assert [n.pitch for n in notes if n.instrument == "voice"] == [67, 69, 71, 74]

@@ -81,7 +81,9 @@ def worker_once(block: bool = False) -> None:
     try:
         job["state"] = "transcribing"
         _write(job)
-        out = run_pipeline(job["src"], job["instrument"], job["style"], JOBS_DIR / jid, Options(**job["opts"]), progress)
+        upload = job["src"].startswith(str(JOBS_DIR))  # uploads are stored as input.<ext>: keep the real name
+        out = run_pipeline(job["src"], job["instrument"], job["style"], JOBS_DIR / jid, Options(**job["opts"]),
+                           progress, title=job["title"] if upload else None)
         job["files"] = {k: v.name for k, v in out.items()}
         job["title"] = LeadSheet.load(out["leadsheet"]).title
         job["state"] = "done"
