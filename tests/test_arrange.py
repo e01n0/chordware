@@ -134,3 +134,24 @@ def test_travis_clamps_to_the_guitar_top():
     s.melody = [MelodyNote(0, 1, 60), MelodyNote(1, 1, 84), MelodyNote(2, 1, 83)]   # C4 then C6 B5: beyond fret 17
     arr = arrange(s, "guitar", "travis")
     check_invariants(arr)
+
+
+def test_quantise_keeps_beat_note_and_never_passes_last_bar():
+    from tabsmith.arrange import quantise_melody
+    s = sheet_4_4()
+    s.bars = 1
+    s.melody = [MelodyNote(0, .75, 67), MelodyNote(.75, .25, 69), MelodyNote(1.0, .25, 71), MelodyNote(1.25, .75, 72),
+                MelodyNote(3.75, .25, 62)]
+    q = quantise_melody(s, 0.5).melody
+    assert [(m.t, m.p) for m in q] == [(0.0, 67), (1.0, 71), (1.5, 72), (3.5, 62)]
+    for style in ("scruggs", "clawhammer"):
+        check_invariants(arrange(s, "banjo", style))
+
+
+def test_simultaneous_melody_notes_are_skylined():
+    s = sheet_4_4()
+    s.melody = [MelodyNote(0, 1, 67), MelodyNote(0, 1, 69), MelodyNote(2, 1, 71)]
+    for instrument, style in ALL:
+        arr = arrange(s, instrument, style)
+        check_invariants(arr)
+        assert [m.p for m in arr.sheet.melody[:1]] == [69]

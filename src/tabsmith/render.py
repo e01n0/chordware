@@ -8,6 +8,7 @@ from pathlib import Path
 import mido
 
 from .arrange import GRID, Arrangement
+from .leadsheet import parse_chord
 
 SOUNDFONT = "/usr/share/sounds/sf2/FluidR3_GM.sf2"
 PROGRAM = {"banjo": 105, "guitar": 25}
@@ -71,9 +72,10 @@ def _ly_dur(beats: float) -> list[str]:
 
 
 def _ly_root(name: str) -> tuple[str, str]:
-    root = name[:2] if len(name) > 1 and name[1] in "#b" else name[:1]
-    ly = root[0].lower() + root[1:].replace("#", "is").replace("b", "es")
-    return ly, {"": "", "m": ":m", "7": ":7", "m7": ":m7"}[name[len(root):]]
+    """LilyPond chordmode root and modifier from any chord spelling parse_chord accepts."""
+    pc, quality = parse_chord(name)
+    names = ["c", "cis", "d", "dis", "e", "f", "fis", "g", "gis", "a", "ais", "b"]
+    return names[pc], {"maj": "", "min": ":m", "dom7": ":7", "min7": ":m7"}[quality]
 
 
 def lilypond_source(arr: Arrangement) -> str:

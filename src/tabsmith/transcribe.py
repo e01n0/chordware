@@ -29,7 +29,7 @@ def gpu_wait(max_wait_s: int = 1800, poll_s: int = 30, progress=print) -> None:
         progress(f"GPU busy (ComfyUI queue), waiting {poll_s}s")
         time.sleep(poll_s)
         waited += poll_s
-    progress("GPU still busy after max wait, proceeding anyway")
+    raise RuntimeError(f"GPU busy with a ComfyUI job for over {max_wait_s // 60} minutes; retry later")
 
 
 def _require_hf_token() -> None:
@@ -56,6 +56,21 @@ def separate_vocals(audio: Path, workdir: Path, progress=print) -> Path | None:
             p = Path(f)
             return p if p.is_absolute() else stems / p.name
     return None
+
+
+def normalise_tempo(beats: list[float], lo: float = 70.0, hi: float = 200.0) -> list[float]:
+    """Beat trackers pick a tempo octave; folk tunes live in [lo, hi] bpm. Too slow: insert
+    midpoints (each beat becomes two). Too fast: keep every other beat."""
+    import statistics
+    while len(beats) > 2:
+        bpm = 60.0 / statistics.median(b - a for a, b in zip(beats, beats[1:]))
+        if bpm < lo:
+            beats = [x for a, b in zip(beats, beats[1:]) for x in (a, (a + b) / 2)] + [beats[-1]]
+        elif bpm > hi:
+            beats = beats[::2]
+        else:
+            break
+    return beats
 
 
 def infer_meter(beats: list[float], downbeats: list[float]) -> tuple[int, float]:
@@ -88,6 +103,7 @@ def beat_grid(audio: Path, progress=print) -> Grid:
         downbeats = [float(d) for d in downbeats]
         if len(beats) < 8:
             raise ValueError("too few beats")
+        beats = normalise_tempo(beats)
         bpm = 60.0 / statistics.median(b - a for a, b in zip(beats, beats[1:]))
         bpb, first = infer_meter(beats, downbeats)
         progress(f"beat grid: {bpm:.1f} bpm, {bpb} beats per bar, first downbeat at {first:.2f}s")
@@ -158,5 +174,6 @@ def transcribe(audio: Path, workdir: Path, *, model_size: str = "large", separat
                 notes = [n for n in notes if n.instrument != "voice"] + vocal
             del model
     torch.cuda.empty_cache()
-    cache.write_text(json.dumps({"key": key, "grid": grid.__dict__, "notes": [n.__dict__ for n in notes]}))
+    if grid.beats is not None:  # a fallback grid is a guess: never cache it, so the tracker is retried
+        cache.write_text(json.dumps({"key": key, "grid": grid.__dict__, "notes": [n.__dict__ for n in notes]}))
     return notes, grid

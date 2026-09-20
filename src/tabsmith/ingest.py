@@ -45,7 +45,8 @@ def _score(path: Path) -> Ingested:
     mm = sc.flatten().getElementsByClass(music21.tempo.MetronomeMark)
     bpm = float(mm[0].number) if mm and mm[0].number else 120.0
     ts = sc.flatten().getElementsByClass(music21.meter.TimeSignature)
-    bpb = ts[0].numerator if ts else 4
+    # onsets are in quarter notes, so the bar length must be too (6/8 -> 3 quarter beats)
+    bpb = max(1, round(float(ts[0].barDuration.quarterLength))) if ts else 4
     spb = 60.0 / bpm
     notes: list[RawNote] = []
     for p in parts:

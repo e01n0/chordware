@@ -77,9 +77,15 @@ async function listJobs() {
 }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
 
+let shown = "";   // id + state + log length of what the card currently renders
 async function showJob(id) {
   const box = $("#job"); box.hidden = false;
   const j = await (await fetch("/jobs/" + id)).json();
+  if (location.hash !== "#job/" + id) return false;            // user moved on while we fetched
+  const busy = j.state !== "done" && j.state !== "failed";
+  const key = id + ":" + j.state + ":" + j.log.length;
+  if (key === shown) return busy;                               // nothing changed: keep edits and playback
+  shown = key;
   let h = `<b>${esc(j.title)}</b> <span class="mut">${j.instrument}/${j.style}</span> <span class="pill ${j.state}">${j.state}</span>`;
   if (j.error) h += `<div class="err">${esc(j.error)}</div>`;
   if (j.state === "done") {
@@ -109,18 +115,20 @@ async function showJob(id) {
       location.hash = "#job/" + (await r.json()).id;
     };
   }
-  return j.state !== "done" && j.state !== "failed";
+  return busy;
 }
 
+let ticking = 0;
 async function tick() {
   clearTimeout(timer);
+  const me = ++ticking;                                          // a newer tick supersedes this one
   const m = location.hash.match(/^#job\/([0-9a-f]{12})$/);
   let busy = true;
   try {
     busy = await listJobs();
-    if (m) busy = (await showJob(m[1])) || busy; else $("#job").hidden = true;
+    if (m) busy = (await showJob(m[1])) || busy; else { $("#job").hidden = true; shown = ""; }
   } catch (e) { console.warn("poll failed, retrying", e); }
-  if (busy) timer = setTimeout(tick, 2500);
+  if (busy && me === ticking) timer = setTimeout(tick, 2500);
 }
 window.addEventListener("hashchange", tick); tick();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");

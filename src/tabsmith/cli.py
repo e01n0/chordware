@@ -12,10 +12,8 @@ from pathlib import Path
 from .arrange import STYLES, arrange, check_invariants
 from .ingest import ingest
 from .leadsheet import (
-    Chord,
     Grid,
     LeadSheet,
-    MelodyNote,
     notes_to_leadsheet,
     track_table,
 )
@@ -71,7 +69,9 @@ def run_pipeline(src: str, instrument: str, style: str, outdir: Path, opts: Opti
         ref = refine(sheet, ascii_tab(arr), instrument, style)
         if ref is not None:
             arr = apply_refinement(arr, ref)
-            arr.sheet.save(outdir / "leadsheet.json")
+            # persist the LLM's section labels on the ORIGINAL sheet, not the range-fitted copy
+            sheet.sections = arr.sheet.sections
+            sheet.save(outdir / "leadsheet.json")
             progress("refine", ref.notes or "applied")
     check_invariants(arr)
     slug = f"{slugify(sheet.title)}-{instrument}-{style}"
@@ -92,14 +92,33 @@ def _show(paths: list[Path]) -> None:
 
 
 def check(args) -> int:
-    """End to end on a synthetic 4-bar G C D G tune rendered with fluidsynth."""
+    """End to end on a synthetic 4-bar G C D G tune: piano block chords, bass roots and a melody,
+    rendered with fluidsynth. Proves transcription, bar grid, chords, arrangement and rendering."""
+    import mido
     out = Path(args.outdir or "out/check")
     out.mkdir(parents=True, exist_ok=True)
-    melody = [MelodyNote(i, 1, p) for i, p in
-              enumerate([67, 69, 71, 72, 74, 76, 74, 72, 71, 69, 67, 66, 67, 71, 74, 79])]
-    sheet = LeadSheet("Check", "synthetic", 120, (4, 4), "G", "major", 0, 4, melody,
-                      [Chord(0, 0, "G"), Chord(1, 0, "C"), Chord(2, 0, "D"), Chord(3, 0, "G")], [])
-    write_midi(arrange(sheet, "guitar", "travis"), out / "check.mid")
+    melody = [67, 69, 71, 72, 74, 76, 74, 72, 71, 69, 67, 66, 67, 71, 74, 79]
+    triads = [(55, 59, 62), (48, 52, 55), (50, 54, 57), (55, 59, 62)]
+    mid = mido.MidiFile(ticks_per_beat=480)
+    tr = mido.MidiTrack()
+    mid.tracks.append(tr)
+    tr.append(mido.MetaMessage("set_tempo", tempo=mido.bpm2tempo(100)))
+    tr.append(mido.Message("program_change", program=0, time=0))
+    events = []
+    for bar, triad in enumerate(triads):
+        t0 = bar * 4
+        for p in triad:
+            events += [(t0, 1, p + 12, 80), (t0 + 3.9, 0, p + 12, 0), (t0 + 2, 1, p + 12, 80)]
+        events += [(t0, 1, triad[0] - 12, 100), (t0 + 1.9, 0, triad[0] - 12, 0),
+                   (t0 + 2, 1, triad[0] - 12, 100), (t0 + 3.9, 0, triad[0] - 12, 0)]
+    for i, p in enumerate(melody):
+        events += [(i, 1, p + 12, 100), (i + 0.9, 0, p + 12, 0)]
+    events.sort(key=lambda e: (e[0], e[1]))
+    last = 0.0
+    for t, on, p, v in events:
+        tr.append(mido.Message("note_on" if on else "note_off", note=p, velocity=v, time=round((t - last) * 480)))
+        last = t
+    mid.save(str(out / "check.mid"))
     render_audio(out / "check.mid", out / "check.mp3")
     res = run_pipeline(str(out / "check.mp3"), "banjo", "scruggs", out, Options(model=args.model, separate="off"),
                        progress=lambda s, m: print(f"[{s}] {m}"))

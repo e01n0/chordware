@@ -58,3 +58,20 @@ def test_midi_with_drum_track(tmp_path):
     sc.write("musicxml", fp=str(f))
     notes = ingest(str(f), tmp_path).raw[0]
     assert [n.pitch for n in notes if n.instrument == "voice"] == [67, 69, 71, 74]
+
+
+def test_compound_meter_uses_quarter_beats(tmp_path):
+    sc = music21.stream.Score()
+    p = music21.stream.Part()
+    p.partName = "Melody"
+    p.append(music21.meter.TimeSignature("6/8"))
+    for _ in range(2):
+        for n in ("G4", "A4", "B4", "C5", "D5", "E5"):
+            p.append(music21.note.Note(n, quarterLength=0.5))
+    sc.insert(0, p)
+    f = tmp_path / "six.musicxml"
+    sc.write("musicxml", fp=str(f))
+    notes, grid = ingest(str(f), tmp_path).raw
+    assert grid.beats_per_bar == 3
+    s = notes_to_leadsheet(notes, grid, title="S", source="t", instrument="banjo")
+    assert s.bars == 2

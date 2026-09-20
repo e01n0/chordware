@@ -69,3 +69,10 @@ def test_title_with_quotes_is_escaped():
     s.title = 'Bob - "Don\'t" \\ Twice'
     src = lilypond_source(arrange(s, "guitar", "flatpick"))
     assert 'title = "Bob - \\"Don\'t\\" \\\\ Twice"' in src
+
+
+def test_lilypond_handles_forgiving_chord_names():
+    s = two_bar()
+    s.chords = [Chord(0, 0, "G/B"), Chord(1, 0, "Csus4")]
+    src = lilypond_source(arrange(s, "banjo", "scruggs"))
+    assert "g1" in src and "c1" in src

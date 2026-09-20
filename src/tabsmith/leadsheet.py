@@ -196,6 +196,8 @@ def _hist(notes: list[RawNote], start: float, end: float) -> tuple[list[float], 
         if b <= a:
             continue
         h[n.pitch % 12] += b - a
+        if n.onset < start - 1e-9:
+            continue  # a note held over the barline colours the bar but does not name its root
         if lowest is None or n.pitch < lowest:
             lowest = n.pitch
         if n.instrument in BASS and (bass_lowest is None or n.pitch < bass_lowest):
@@ -282,8 +284,10 @@ def notes_to_leadsheet(notes: list[RawNote], grid: Grid, *, title: str, source: 
             hh, bb, ll = _hist(beat_notes, a, a + bpb / 2)
             name, score = _best_chord(hh, bb, ll, key_pc, mode)
             halves.append(name)
-            # how much better the half's own chord fits it than the whole-bar chord does
-            margins.append(score - _chord_score(hh, bb, ll, key_pc, mode, *parse_chord(whole)) - 0.25 * sum(hh))
+            # how much better the half's own chord fits it than the whole-bar chord does;
+            # a half with under a beat's worth of notes is not evidence of anything
+            margin = score - _chord_score(hh, bb, ll, key_pc, mode, *parse_chord(whole)) - 0.25 * sum(hh)
+            margins.append(margin if sum(hh) >= 1.0 else -1.0)
         # split when the halves disagree and the half that departs from the whole-bar chord clearly earns it
         if halves[0] != halves[1] and any(name != whole and margin > 0 for name, margin in zip(halves, margins)):
             chords.append(Chord(bar, 0.0, halves[0]))

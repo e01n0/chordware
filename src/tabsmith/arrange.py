@@ -12,13 +12,13 @@ from .fretboard import (
     shape_for,
     shape_position,
 )
-from .leadsheet import LeadSheet, MelodyNote
+from .leadsheet import GRID, LeadSheet, MelodyNote
 
 STYLES = {"banjo": ("scruggs", "clawhammer"), "guitar": ("travis", "flatpick")}
 # ponytail: a low ceiling pushes phrases into open position when an octave down still fits;
 # travis keeps the melody on the top three strings so its floor is G3
 RANGE = {"scruggs": (50, 71), "clawhammer": (50, 71), "travis": (55, 76), "flatpick": (40, 72)}
-GRID = 0.25
+SPAN = {"banjo": 4, "guitar": 5}   # frets a hand covers between notes struck together
 
 
 @dataclass
@@ -76,12 +76,26 @@ def fit_range(sheet: LeadSheet, lo: int, hi: int, hard_hi: int | None = None) ->
 
 def quantise_melody(sheet: LeadSheet, step: float) -> LeadSheet:
     """Snap melody onsets to a coarser grid (roll styles think in 8ths). Two notes landing on the
-    same slot keep the longer one: a vocal 16th-note ornament becomes one 8th on the banjo."""
+    same slot keep the one nearest the slot, then the longer: a vocal 16th-note ornament becomes
+    one 8th on the banjo and the note on the beat keeps the beat. Nothing rounds past the last bar."""
+    last_slot = int(sheet.bars * sheet.bpb / step) - 1
+    best: dict[int, tuple[float, float, MelodyNote]] = {}
+    for n in sheet.melody:
+        k = min(int(n.t / step + 0.5), last_slot)
+        rank = (abs(n.t - k * step), -n.d)
+        if k not in best or rank < best[k][:2]:
+            best[k] = (*rank, replace(n, t=k * step, d=max(step, int(n.d / step + 0.5) * step)))
+    return replace(sheet, melody=[best[k][2] for k in sorted(best)])
+
+
+def _skyline(sheet: LeadSheet) -> LeadSheet:
+    """One melody note per 16th, the highest wins: guards against hand-made lead sheets with
+    simultaneous melody notes, which the styles cannot voice and the invariants would reject."""
     best: dict[int, MelodyNote] = {}
     for n in sheet.melody:
-        k = round(n.t / step)
-        if k not in best or n.d > best[k].d:
-            best[k] = replace(n, t=k * step, d=max(step, round(n.d / step) * step))
+        k = round(n.t / GRID)
+        if k not in best or n.p > best[k].p:
+            best[k] = replace(n, t=k * GRID)
     return replace(sheet, melody=[best[k] for k in sorted(best)])
 
 
@@ -221,7 +235,7 @@ def arrange(sheet: LeadSheet, instrument: str, style: str,
     tuning = TUNINGS[instrument]
     top = max(tuning.pitch(s, MAX_FRET) for s in range(1, tuning.n + 1))
     lo, hi = RANGE[style]
-    sheet = fit_range(sheet, lo, hi, min(hi + 8, top))
+    sheet = fit_range(_skyline(sheet), lo, hi, min(hi + 8, top))
     if style in ("scruggs", "clawhammer"):
         sheet = quantise_melody(sheet, 0.5)
     if style == "scruggs":
@@ -240,9 +254,6 @@ def arrange(sheet: LeadSheet, instrument: str, style: str,
     return Arrangement(instrument, style, tuning, sheet, notes)
 
 
-SPAN = {"banjo": 4, "guitar": 5}
-
-
 def _enforce_span(notes: list[TabNote], limit: int) -> list[TabNote]:
     """Melody wins: a fretted fill note struck together with a fretted melody note and more than
     the hand span away from its fret is dropped (same rule as check_invariants)."""
@@ -258,7 +269,7 @@ def _enforce_span(notes: list[TabNote], limit: int) -> list[TabNote]:
 
 def check_invariants(arr: Arrangement) -> None:
     t, sheet = arr.tuning, arr.sheet
-    span_limit = 4 if arr.instrument == "banjo" else 5
+    span_limit = SPAN[arr.instrument]
     for n in arr.notes:
         assert t.ok(n.string, n.fret), f"bar {sheet.bar_of(n.t)}: string {n.string} fret {n.fret} not playable"
     seen = set()
