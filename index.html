@@ -1357,11 +1357,29 @@ const TUNINGS = {
   DGBE:   { label: "DGBE · uke baritone",  group: "UKULELE · BANJOLELE", strings: ["D","G","B","E"], pitches: [2,7,11,4], open: [50,55,59,64] },
   DGBD:   { label: "DGBD · banjo open G",  group: "UKULELE · BANJOLELE", strings: ["D","G","B","D"], pitches: [2,7,11,2], open: [50,55,59,62] },
   DGBbD:  { label: "DGB♭D · open Gm cross-note", group: "UKULELE · BANJOLELE", strings: ["D","G","B♭","D"], pitches: [2,7,10,2], open: [50,55,58,62] },
+  /* the 5-string banjo: the 4-string open G with the short drone bolted
+     on at index 0. `drone` marks it — its nut sits at fret 5, so it
+     sounds open or from fret 6 up and nowhere in between. */
+  gDGBD:  { label: "gDGBD · 5-string banjo open G", group: "BANJO · 5-STRING", strings: ["g","D","G","B","D"], pitches: [7,2,7,11,2], open: [67,50,55,59,62], drone: { s: 0, nut: 5 } },
   EADGBE: { label: "EADGBE · guitar",      group: "GUITAR",              strings: ["E","A","D","G","B","e"], pitches: [4,9,2,7,11,4], open: [40,45,50,55,59,64] },
   // aDFsB:{ label: "aDF#B · D-tuning", group: "UKULELE · BANJOLELE", strings: ["a","D","F#","B"], pitches: [9,2,6,11], open: [69,62,66,71] },
 };
 
 const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+
+/* SHORT STRINGS — the 5-string banjo's drone is bolted to the neck at
+   the 5th fret, so its nut sits there and the first fret you can stop
+   is the 6th (where the spikes go: 7 = A, 9 = B, 10 = C). Frets 1–5
+   simply don't exist on it. Every fret sweep in the app — voicing
+   search, fretboard map, halo, drills, miner — asks fretExists first;
+   tunings with no `drone` answer "yes" to everything, so nothing else
+   changes. */
+const stringNut = (tuning, s) => tuning.drone && tuning.drone.s === s ? tuning.drone.nut : 0;
+const fretExists = (tuning, s, f) => f <= 0 || f > stringNut(tuning, s);
+/* string indices lowest-pitched first — on a reentrant neck (the uke's
+   high g, the banjo's drone) that is NOT string 0, and voicing search
+   scores the real bass note, not the nearest one to your chin */
+const bassOrder = tuning => tuning.open.map((m, i) => i).sort((a, b) => tuning.open[a] - tuning.open[b]);
 
 /* ═══════════════════════════════════════════════════════════════
    CHORD LIBRARY
@@ -2209,6 +2227,241 @@ const CHORD_LIBRARY = {
     { name:"Bdim7", full:"B diminished 7", frets:[0,1,1,3], fingers:[0,1,1,3], cats:["colour"], ornaments:[] },
     { name:"Baug", full:"B augmented", frets:[1,0,1,1], fingers:[1,0,1,1], cats:["colour"], ornaments:[] },
   ],
+  /* gDGBD — the 5-string banjo in open G. frets: [g,D,G,B,D], the g
+     first because that's the string nearest your thumb. The drone has no
+     frets below its own nut, so it is open (0) where its G belongs to the
+     chord and muted (×) where it would clash — × on the 5th means
+     "thumb stays home", which is exactly how these chords are played. */
+  gDGBD: [
+    { name:"G", full:"G major", frets:[0,0,0,0,0], fingers:[0,0,0,0,0], cats:["major"],
+      notes:"The tuning IS the chord — five open strings. Every straight barre up the neck is another major chord (5 = C, 7 = D, 12 = G again); the drone rings G through all of them." ,
+      ornaments:[
+        { s:2, from:0, to:2, type:"hammer", label:"add9" },
+        { s:1, from:0, to:2, type:"hammer", label:"6th"  },
+        { s:3, from:0, to:1, type:"hammer", label:"sus4" },
+        { s:4, from:0, to:2, type:"hammer", label:"6th"  },
+      ]},
+    { name:"C", full:"C major", frets:[0,2,0,1,2], fingers:[0,2,0,1,3], cats:["major"],
+      notes:"The first chord after open G: middle on the 4th, index on the 2nd, ring on the 1st. The drone's G is the 5th of C, so the thumb keeps rolling." ,
+      ornaments:[
+        { s:2, from:0, to:2, type:"hammer", label:"6th"  },
+        { s:3, from:1, to:0, type:"pull",   label:"maj7" },
+        { s:1, from:2, to:0, type:"pull",   label:"add9" },
+      ]},
+    { name:"D", full:"D major", frets:[-1,0,2,3,4], fingers:[0,0,1,2,3], cats:["major"],
+      notes:"The staircase shape — 2nd, 3rd, 4th fret climbing to the 1st string. G is the 11th of D, so the 5th string is marked ×; bluegrass pickers let it drone anyway and call the tension part of the sound." ,
+      ornaments:[
+        { s:2, from:2, to:0, type:"pull",   label:"sus4" },
+        { s:3, from:3, to:0, type:"pull",   label:"6th"  },
+        { s:4, from:4, to:2, type:"pull",   label:"add9" },
+      ]},
+    { name:"D7", full:"D dominant 7", frets:[-1,0,2,1,4], fingers:[0,0,2,1,4], cats:["seventh"],
+      notes:"The D chord with the 2nd string dropped to C — the V7 that pulls every open-G tune home." ,
+      ornaments:[
+        { s:3, from:1, to:0, type:"pull",   label:"6th"  },
+        { s:2, from:2, to:0, type:"pull",   label:"sus4" },
+      ]},
+    { name:"Em", full:"E minor", frets:[0,2,0,0,2], fingers:[0,2,0,0,3], cats:["minor"],
+      notes:"Two fingers and the whole banjo turns sad. The drone's G is the ♭3, so the 5th string belongs here more than it does anywhere else." ,
+      ornaments:[
+        { s:1, from:2, to:0, type:"pull",   label:"min7" },
+        { s:3, from:0, to:1, type:"hammer", label:"b6"   },
+        { s:4, from:2, to:0, type:"pull",   label:"min7" },
+      ]},
+    { name:"Em7", full:"E minor 7", frets:[0,2,0,0,0], fingers:[0,2,0,0,0], cats:["minor","seventh"],
+      notes:"One finger on the 4th string. Four open strings and the drone do the rest — the cheapest minor on the instrument." ,
+      ornaments:[
+        { s:3, from:0, to:1, type:"hammer", label:"b6" },
+      ]},
+    { name:"Am", full:"A minor", frets:[-1,2,2,1,2], fingers:[0,2,3,1,4], cats:["minor"],
+      ornaments:[
+        { s:3, from:1, to:0, type:"pull",   label:"add9" },
+        { s:2, from:2, to:0, type:"pull",   label:"min7" },
+        { s:1, from:2, to:0, type:"pull",   label:"sus4" },
+      ]},
+    { name:"Am7", full:"A minor 7", frets:[0,2,2,1,2], fingers:[0,2,3,1,4], cats:["minor","seventh"],
+      notes:"The same grip as Am with the drone let back in — its G is the ♭7, which turns the chord seventh all by itself." ,
+      ornaments:[
+        { s:3, from:1, to:0, type:"pull", label:"add9" },
+      ]},
+    { name:"G7", full:"G dominant 7", frets:[0,0,0,0,3], fingers:[0,0,0,0,3], cats:["seventh"],
+      notes:"Open G with one finger on the 1st string at 3 — the F that sends you to C." ,
+      ornaments:[
+        { s:4, from:3, to:0, type:"pull",   label:"5th"  },
+        { s:2, from:0, to:2, type:"hammer", label:"add9" },
+      ]},
+    { name:"Gmaj7", full:"G major 7", frets:[0,0,0,0,4], fingers:[0,0,0,0,4], cats:["seventh"],
+      ornaments:[
+        { s:4, from:4, to:2, type:"pull", label:"6th" },
+      ]},
+    { name:"G6", full:"G major 6", frets:[0,0,0,0,2], fingers:[0,0,0,0,2], cats:["major","colour"],
+      ornaments:[
+        { s:4, from:2, to:0, type:"pull", label:"5th" },
+      ]},
+    { name:"Gadd9", full:"G add 9", frets:[0,0,2,0,0], fingers:[0,0,2,0,0], cats:["major","colour"],
+      notes:"The hammer-on note held: 3rd string at 2 is the A. Land on it instead of passing through and open G goes wide open." , ornaments:[] },
+    { name:"Gsus4", full:"G suspended 4", frets:[0,0,0,1,0], fingers:[0,0,0,1,0], cats:["colour"],
+      ornaments:[
+        { s:3, from:1, to:0, type:"pull", label:"3rd" },
+      ]},
+    { name:"A", full:"A major", frets:[-1,2,2,2,2], fingers:[0,1,1,1,1], cats:["major"],
+      notes:"Straight barre at the 2nd fret. The drone would sing the ♭7 over it, so keep the thumb off unless you want A7." ,
+      ornaments:[] },
+    { name:"Asus4", full:"A suspended 4", frets:[-1,2,2,3,2], fingers:[0,1,1,2,1], cats:["colour"],
+      ornaments:[
+        { s:3, from:3, to:2, type:"pull", label:"3rd" },
+      ]},
+    { name:"F", full:"F major", frets:[-1,3,2,1,3], fingers:[0,3,2,1,4], cats:["major"],
+      notes:"The diagonal — one finger per fret, 3-2-1 falling across the middle strings. The IV chord of C and the chord that teaches you the neck." ,
+      ornaments:[
+        { s:1, from:3, to:0, type:"pull", label:"6th" },
+        { s:3, from:1, to:0, type:"pull", label:"#11" },
+      ]},
+    { name:"E", full:"E major", frets:[-1,2,1,0,2], fingers:[0,2,1,0,3], cats:["major"],
+      ornaments:[
+        { s:2, from:1, to:0, type:"pull", label:"b3" },
+        { s:1, from:2, to:0, type:"pull", label:"b7" },
+      ]},
+    { name:"E7", full:"E dominant 7", frets:[-1,2,1,0,0], fingers:[0,2,1,0,0], cats:["seventh"],
+      ornaments:[
+        { s:2, from:1, to:0, type:"pull", label:"b3" },
+      ]},
+    { name:"C7", full:"C dominant 7", frets:[0,2,3,1,2], fingers:[0,2,4,1,3], cats:["seventh"],
+      notes:"C with the 3rd string pushed up to B♭. The drone still fits — G is the 5th — so this one rolls as hard as the C does." ,
+      ornaments:[
+        { s:3, from:1, to:0, type:"pull", label:"maj7" },
+        { s:2, from:3, to:2, type:"pull", label:"6th"  },
+      ]},
+    { name:"Dm", full:"D minor", frets:[-1,0,2,3,3], fingers:[0,0,1,2,3], cats:["minor"],
+      ornaments:[
+        { s:3, from:3, to:0, type:"pull", label:"6th"  },
+        { s:2, from:2, to:0, type:"pull", label:"sus4" },
+      ]},
+    { name:"Bm", full:"B minor", frets:[-1,4,4,3,4], fingers:[0,2,3,1,4], cats:["minor"], ornaments:[] },
+    { name:"C6", full:"C major 6", frets:[0,2,2,1,2], fingers:[0,2,2,1,2], cats:["major","colour"], ornaments:[] },
+    { name:"Cm", full:"C minor", frets:[0,1,0,1,1], fingers:[0,1,0,1,1], cats:["minor"], ornaments:[] },
+    { name:"Cm7", full:"C minor 7", frets:[0,1,3,1,1], fingers:[0,1,3,1,1], cats:["minor","seventh"], ornaments:[] },
+    { name:"Cmaj7", full:"C major 7", frets:[0,2,4,1,2], fingers:[0,2,4,1,2], cats:["seventh"], ornaments:[] },
+    { name:"Cm6", full:"C minor 6", frets:[0,1,2,1,1], fingers:[0,1,2,1,1], cats:["minor","colour"], ornaments:[] },
+    { name:"Csus2", full:"C suspended 2", frets:[0,0,0,1,0], fingers:[0,0,0,1,0], cats:["colour"], ornaments:[] },
+    { name:"Csus4", full:"C suspended 4", frets:[0,3,0,1,3], fingers:[0,3,0,1,3], cats:["colour"], ornaments:[] },
+    { name:"Cadd9", full:"C add 9", frets:[0,0,0,1,2], fingers:[0,0,0,1,2], cats:["major","colour"], ornaments:[] },
+    { name:"Cdim7", full:"C diminished 7", frets:[-1,1,2,1,4], fingers:[0,1,2,1,4], cats:["colour"], ornaments:[] },
+    { name:"Caug", full:"C augmented", frets:[-1,2,1,1,2], fingers:[0,2,1,1,2], cats:["colour"], ornaments:[] },
+    { name:"C#6", full:"C# major 6", frets:[-1,3,3,2,3], fingers:[0,2,2,1,2], cats:["major","colour"], ornaments:[] },
+    { name:"C#7", full:"C# dominant 7", frets:[-1,3,4,2,3], fingers:[0,2,3,1,2], cats:["seventh"], ornaments:[] },
+    { name:"C#", full:"C# major", frets:[-1,3,1,2,3], fingers:[0,3,1,2,3], cats:["major"], ornaments:[] },
+    { name:"C#m", full:"C# minor", frets:[-1,2,1,2,2], fingers:[0,2,1,2,2], cats:["minor"], ornaments:[] },
+    { name:"C#m7", full:"C# minor 7", frets:[-1,2,4,2,2], fingers:[0,1,3,1,1], cats:["minor","seventh"], ornaments:[] },
+    { name:"C#maj7", full:"C# major 7", frets:[6,6,5,6,6], fingers:[2,2,1,2,2], cats:["seventh"], ornaments:[] },
+    { name:"C#m6", full:"C# minor 6", frets:[-1,2,3,2,2], fingers:[0,1,2,1,1], cats:["minor","colour"], ornaments:[] },
+    { name:"C#sus2", full:"C# suspended 2", frets:[-1,1,1,2,1], fingers:[0,1,1,2,1], cats:["colour"], ornaments:[] },
+    { name:"C#sus4", full:"C# suspended 4", frets:[-1,4,1,2,4], fingers:[0,4,1,2,4], cats:["colour"], ornaments:[] },
+    { name:"C#add9", full:"C# add 9", frets:[-1,1,1,2,3], fingers:[0,1,1,2,3], cats:["major","colour"], ornaments:[] },
+    { name:"C#dim7", full:"C# diminished 7", frets:[0,2,3,2,2], fingers:[0,1,2,1,1], cats:["colour"], ornaments:[] },
+    { name:"C#aug", full:"C# augmented", frets:[-1,3,2,2,3], fingers:[0,2,1,1,2], cats:["colour"], ornaments:[] },
+    { name:"D6", full:"D major 6", frets:[-1,0,4,0,4], fingers:[0,0,1,0,1], cats:["major","colour"], ornaments:[] },
+    { name:"Dm7", full:"D minor 7", frets:[-1,0,2,1,3], fingers:[0,0,2,1,3], cats:["minor","seventh"], ornaments:[] },
+    { name:"Dmaj7", full:"D major 7", frets:[-1,0,2,2,4], fingers:[0,0,1,1,3], cats:["seventh"], ornaments:[] },
+    { name:"Dm6", full:"D minor 6", frets:[-1,0,2,0,3], fingers:[0,0,1,0,2], cats:["minor","colour"], ornaments:[] },
+    { name:"Dsus2", full:"D suspended 2", frets:[-1,0,2,3,2], fingers:[0,0,1,2,1], cats:["colour"], ornaments:[] },
+    { name:"Dsus4", full:"D suspended 4", frets:[0,0,2,3,0], fingers:[0,0,1,2,0], cats:["colour"], ornaments:[] },
+    { name:"Dadd9", full:"D add 9", frets:[-1,2,2,3,4], fingers:[0,1,1,2,3], cats:["major","colour"], ornaments:[] },
+    { name:"Ddim7", full:"D diminished 7", frets:[-1,0,1,0,3], fingers:[0,0,1,0,3], cats:["colour"], ornaments:[] },
+    { name:"Daug", full:"D augmented", frets:[-1,0,3,3,4], fingers:[0,0,1,1,2], cats:["colour"], ornaments:[] },
+    { name:"Eb6", full:"E♭ major 6", frets:[0,1,0,1,1], fingers:[0,1,0,1,1], cats:["major","colour"], ornaments:[] },
+    { name:"Eb7", full:"E♭ dominant 7", frets:[0,1,0,2,1], fingers:[0,1,0,2,1], cats:["seventh"], ornaments:[] },
+    { name:"Eb", full:"E♭ major", frets:[0,1,3,4,1], fingers:[0,1,3,4,1], cats:["major"], ornaments:[] },
+    { name:"Ebm", full:"E♭ minor", frets:[-1,4,3,4,4], fingers:[0,2,1,2,2], cats:["minor"], ornaments:[] },
+    { name:"Ebm7", full:"E♭ minor 7", frets:[-1,1,3,2,4], fingers:[0,1,3,2,4], cats:["minor","seventh"], ornaments:[] },
+    { name:"Ebmaj7", full:"E♭ major 7", frets:[0,0,0,4,0], fingers:[0,0,0,1,0], cats:["seventh"], ornaments:[] },
+    { name:"Ebm6", full:"E♭ minor 6", frets:[-1,1,3,1,4], fingers:[0,1,3,1,4], cats:["minor","colour"], ornaments:[] },
+    { name:"Ebsus2", full:"E♭ suspended 2", frets:[-1,3,3,4,3], fingers:[0,1,1,2,1], cats:["colour"], ornaments:[] },
+    { name:"Ebsus4", full:"E♭ suspended 4", frets:[-1,6,3,4,6], fingers:[0,4,1,2,4], cats:["colour"], ornaments:[] },
+    { name:"Ebadd9", full:"E♭ add 9", frets:[0,3,0,4,3], fingers:[0,1,0,2,1], cats:["major","colour"], ornaments:[] },
+    { name:"Ebdim7", full:"E♭ diminished 7", frets:[-1,1,2,1,4], fingers:[0,1,2,1,4], cats:["colour"], ornaments:[] },
+    { name:"Ebaug", full:"E♭ augmented", frets:[0,1,0,0,1], fingers:[0,1,0,0,1], cats:["colour"], ornaments:[] },
+    { name:"E6", full:"E major 6", frets:[-1,2,1,2,2], fingers:[0,2,1,2,2], cats:["major","colour"], ornaments:[] },
+    { name:"Emaj7", full:"E major 7", frets:[-1,2,1,0,1], fingers:[0,2,1,0,1], cats:["seventh"], ornaments:[] },
+    { name:"Em6", full:"E minor 6", frets:[0,2,0,2,2], fingers:[0,1,0,1,1], cats:["minor","colour"], ornaments:[] },
+    { name:"Esus2", full:"E suspended 2", frets:[-1,2,4,0,4], fingers:[0,1,3,0,3], cats:["colour"], ornaments:[] },
+    { name:"Esus4", full:"E suspended 4", frets:[-1,2,2,0,2], fingers:[0,1,1,0,1], cats:["colour"], ornaments:[] },
+    { name:"Eadd9", full:"E add 9", frets:[-1,2,1,0,4], fingers:[0,2,1,0,4], cats:["major","colour"], ornaments:[] },
+    { name:"Edim7", full:"E diminished 7", frets:[0,2,3,2,2], fingers:[0,1,2,1,1], cats:["colour"], ornaments:[] },
+    { name:"Eaug", full:"E augmented", frets:[-1,2,1,1,2], fingers:[0,2,1,1,2], cats:["colour"], ornaments:[] },
+    { name:"F6", full:"F major 6", frets:[-1,3,2,3,0], fingers:[0,2,1,2,0], cats:["major","colour"], ornaments:[] },
+    { name:"F7", full:"F dominant 7", frets:[-1,3,2,1,1], fingers:[0,3,2,1,1], cats:["seventh"], ornaments:[] },
+    { name:"Fm", full:"F minor", frets:[-1,3,1,1,3], fingers:[0,3,1,1,3], cats:["minor"], ornaments:[] },
+    { name:"Fm7", full:"F minor 7", frets:[-1,3,1,1,1], fingers:[0,3,1,1,1], cats:["minor","seventh"], ornaments:[] },
+    { name:"Fmaj7", full:"F major 7", frets:[-1,3,2,1,2], fingers:[0,3,2,1,2], cats:["seventh"], ornaments:[] },
+    { name:"Fm6", full:"F minor 6", frets:[-1,3,1,1,0], fingers:[0,3,1,1,0], cats:["minor","colour"], ornaments:[] },
+    { name:"Fsus2", full:"F suspended 2", frets:[0,3,0,1,3], fingers:[0,3,0,1,3], cats:["colour"], ornaments:[] },
+    { name:"Fsus4", full:"F suspended 4", frets:[-1,3,3,1,3], fingers:[0,3,3,1,3], cats:["colour"], ornaments:[] },
+    { name:"Fadd9", full:"F add 9", frets:[0,3,2,1,3], fingers:[0,3,2,1,3], cats:["major","colour"], ornaments:[] },
+    { name:"Fdim7", full:"F diminished 7", frets:[-1,3,1,0,0], fingers:[0,3,1,0,0], cats:["colour"], ornaments:[] },
+    { name:"Faug", full:"F augmented", frets:[-1,3,2,2,3], fingers:[0,2,1,1,2], cats:["colour"], ornaments:[] },
+    { name:"F#6", full:"F# major 6", frets:[-1,4,3,4,4], fingers:[0,2,1,2,2], cats:["major","colour"], ornaments:[] },
+    { name:"F#7", full:"F# dominant 7", frets:[-1,4,3,2,2], fingers:[0,3,2,1,1], cats:["seventh"], ornaments:[] },
+    { name:"F#", full:"F# major", frets:[-1,4,3,2,4], fingers:[0,3,2,1,3], cats:["major"], ornaments:[] },
+    { name:"F#m", full:"F# minor", frets:[-1,4,2,2,4], fingers:[0,3,1,1,3], cats:["minor"], ornaments:[] },
+    { name:"F#m7", full:"F# minor 7", frets:[-1,4,2,2,2], fingers:[0,3,1,1,1], cats:["minor","seventh"], ornaments:[] },
+    { name:"F#maj7", full:"F# major 7", frets:[-1,4,3,2,3], fingers:[0,3,2,1,2], cats:["seventh"], ornaments:[] },
+    { name:"F#m6", full:"F# minor 6", frets:[-1,4,2,4,4], fingers:[0,3,1,3,3], cats:["minor","colour"], ornaments:[] },
+    { name:"F#sus2", full:"F# suspended 2", frets:[-1,4,1,2,4], fingers:[0,4,1,2,4], cats:["colour"], ornaments:[] },
+    { name:"F#sus4", full:"F# suspended 4", frets:[-1,4,4,2,4], fingers:[0,3,3,1,3], cats:["colour"], ornaments:[] },
+    { name:"F#add9", full:"F# add 9", frets:[6,4,3,2,6], fingers:[4,3,2,1,4], cats:["major","colour"], ornaments:[] },
+    { name:"F#dim7", full:"F# diminished 7", frets:[-1,4,2,1,1], fingers:[0,4,2,1,1], cats:["colour"], ornaments:[] },
+    { name:"F#aug", full:"F# augmented", frets:[-1,4,3,3,0], fingers:[0,2,1,1,0], cats:["colour"], ornaments:[] },
+    { name:"Gm", full:"G minor", frets:[0,0,3,3,0], fingers:[0,0,1,1,0], cats:["minor"], ornaments:[] },
+    { name:"Gm7", full:"G minor 7", frets:[0,0,3,3,3], fingers:[0,0,1,1,1], cats:["minor","seventh"], ornaments:[] },
+    { name:"Gm6", full:"G minor 6", frets:[0,0,3,3,2], fingers:[0,0,2,2,1], cats:["minor","colour"], ornaments:[] },
+    { name:"Gsus2", full:"G suspended 2", frets:[0,0,2,3,0], fingers:[0,0,1,2,0], cats:["colour"], ornaments:[] },
+    { name:"Gdim7", full:"G diminished 7", frets:[0,2,3,2,2], fingers:[0,1,2,1,1], cats:["colour"], ornaments:[] },
+    { name:"Gaug", full:"G augmented", frets:[0,1,0,0,1], fingers:[0,1,0,0,1], cats:["colour"], ornaments:[] },
+    { name:"Ab6", full:"A♭ major 6", frets:[-1,1,1,1,3], fingers:[0,1,1,1,3], cats:["major","colour"], ornaments:[] },
+    { name:"Ab7", full:"A♭ dominant 7", frets:[-1,1,1,1,4], fingers:[0,1,1,1,4], cats:["seventh"], ornaments:[] },
+    { name:"Ab", full:"A♭ major", frets:[-1,1,1,1,1], fingers:[0,1,1,1,1], cats:["major"], ornaments:[] },
+    { name:"Abm", full:"A♭ minor", frets:[-1,1,1,0,1], fingers:[0,1,1,0,1], cats:["minor"], ornaments:[] },
+    { name:"Abm7", full:"A♭ minor 7", frets:[-1,1,1,0,4], fingers:[0,1,1,0,4], cats:["minor","seventh"], ornaments:[] },
+    { name:"Abmaj7", full:"A♭ major 7", frets:[0,1,1,1,1], fingers:[0,1,1,1,1], cats:["seventh"], ornaments:[] },
+    { name:"Abm6", full:"A♭ minor 6", frets:[-1,1,1,0,3], fingers:[0,1,1,0,3], cats:["minor","colour"], ornaments:[] },
+    { name:"Absus2", full:"A♭ suspended 2", frets:[-1,6,3,4,6], fingers:[0,4,1,2,4], cats:["colour"], ornaments:[] },
+    { name:"Absus4", full:"A♭ suspended 4", frets:[-1,1,1,2,1], fingers:[0,1,1,2,1], cats:["colour"], ornaments:[] },
+    { name:"Abadd9", full:"A♭ add 9", frets:[8,6,5,4,8], fingers:[4,3,2,1,4], cats:["major","colour"], ornaments:[] },
+    { name:"Abdim7", full:"A♭ diminished 7", frets:[-1,0,1,0,3], fingers:[0,0,1,0,3], cats:["colour"], ornaments:[] },
+    { name:"Abaug", full:"A♭ augmented", frets:[-1,2,1,1,2], fingers:[0,2,1,1,2], cats:["colour"], ornaments:[] },
+    { name:"A6", full:"A major 6", frets:[-1,2,2,2,4], fingers:[0,1,1,1,3], cats:["major","colour"], ornaments:[] },
+    { name:"A7", full:"A dominant 7", frets:[0,2,2,2,2], fingers:[0,1,1,1,1], cats:["seventh"], ornaments:[] },
+    { name:"Amaj7", full:"A major 7", frets:[6,7,6,5,6], fingers:[2,3,2,1,2], cats:["seventh"], ornaments:[] },
+    { name:"Am6", full:"A minor 6", frets:[-1,2,2,1,4], fingers:[0,2,2,1,4], cats:["minor","colour"], ornaments:[] },
+    { name:"Asus2", full:"A suspended 2", frets:[-1,2,2,0,2], fingers:[0,1,1,0,1], cats:["colour"], ornaments:[] },
+    { name:"Aadd9", full:"A add 9", frets:[6,7,4,5,7], fingers:[3,4,1,2,4], cats:["major","colour"], ornaments:[] },
+    { name:"Adim7", full:"A diminished 7", frets:[-1,1,2,1,4], fingers:[0,1,2,1,4], cats:["colour"], ornaments:[] },
+    { name:"Aaug", full:"A augmented", frets:[-1,3,2,2,3], fingers:[0,2,1,1,2], cats:["colour"], ornaments:[] },
+    { name:"Bb6", full:"B♭ major 6", frets:[0,0,3,3,0], fingers:[0,0,1,1,0], cats:["major","colour"], ornaments:[] },
+    { name:"Bb7", full:"B♭ dominant 7", frets:[7,8,7,6,6], fingers:[2,3,2,1,1], cats:["seventh"], ornaments:[] },
+    { name:"Bb", full:"B♭ major", frets:[-1,0,3,3,3], fingers:[0,0,1,1,1], cats:["major"], ornaments:[] },
+    { name:"Bbm", full:"B♭ minor", frets:[-1,3,3,2,3], fingers:[0,2,2,1,2], cats:["minor"], ornaments:[] },
+    { name:"Bbm7", full:"B♭ minor 7", frets:[6,3,3,6,6], fingers:[4,1,1,4,4], cats:["minor","seventh"], ornaments:[] },
+    { name:"Bbmaj7", full:"B♭ major 7", frets:[7,8,7,6,7], fingers:[2,3,2,1,2], cats:["seventh"], ornaments:[] },
+    { name:"Bbm6", full:"B♭ minor 6", frets:[0,3,3,2,3], fingers:[0,2,2,1,2], cats:["minor","colour"], ornaments:[] },
+    { name:"Bbsus2", full:"B♭ suspended 2", frets:[-1,3,3,1,3], fingers:[0,3,3,1,3], cats:["colour"], ornaments:[] },
+    { name:"Bbsus4", full:"B♭ suspended 4", frets:[-1,3,3,4,3], fingers:[0,1,1,2,1], cats:["colour"], ornaments:[] },
+    { name:"Bbadd9", full:"B♭ add 9", frets:[-1,0,3,1,0], fingers:[0,0,3,1,0], cats:["major","colour"], ornaments:[] },
+    { name:"Bbdim7", full:"B♭ diminished 7", frets:[0,2,3,2,2], fingers:[0,1,2,1,1], cats:["colour"], ornaments:[] },
+    { name:"Bbaug", full:"B♭ augmented", frets:[-1,0,3,3,4], fingers:[0,0,1,1,2], cats:["colour"], ornaments:[] },
+    { name:"B6", full:"B major 6", frets:[-1,1,1,0,1], fingers:[0,1,1,0,1], cats:["major","colour"], ornaments:[] },
+    { name:"B7", full:"B dominant 7", frets:[-1,1,2,0,1], fingers:[0,1,2,0,1], cats:["seventh"], ornaments:[] },
+    { name:"B", full:"B major", frets:[-1,4,4,4,4], fingers:[0,1,1,1,1], cats:["major"], ornaments:[] },
+    { name:"Bm7", full:"B minor 7", frets:[-1,0,2,0,0], fingers:[0,0,1,0,0], cats:["minor","seventh"], ornaments:[] },
+    { name:"Bmaj7", full:"B major 7", frets:[-1,1,3,0,1], fingers:[0,1,3,0,1], cats:["seventh"], ornaments:[] },
+    { name:"Bm6", full:"B minor 6", frets:[-1,0,1,0,0], fingers:[0,0,1,0,0], cats:["minor","colour"], ornaments:[] },
+    { name:"Bsus2", full:"B suspended 2", frets:[-1,4,4,2,4], fingers:[0,3,3,1,3], cats:["colour"], ornaments:[] },
+    { name:"Bsus4", full:"B suspended 4", frets:[-1,2,4,0,4], fingers:[0,1,3,0,3], cats:["colour"], ornaments:[] },
+    { name:"Badd9", full:"B add 9", frets:[-1,1,4,2,4], fingers:[0,1,4,2,4], cats:["major","colour"], ornaments:[] },
+    { name:"Bdim7", full:"B diminished 7", frets:[-1,0,1,0,3], fingers:[0,0,1,0,3], cats:["colour"], ornaments:[] },
+    { name:"Baug", full:"B augmented", frets:[0,1,0,0,1], fingers:[0,1,0,0,1], cats:["colour"], ornaments:[] },
+  ],
   EADGBE: [
     /* ── curated core — the classic open shapes (× = muted string) ── */
     { name:"C", full:"C major", frets:[-1,3,2,0,1,0], fingers:[0,3,2,0,1,0], cats:["major"], ornaments:[] },
@@ -2451,12 +2704,14 @@ function altVoicings(chord, tuning, tuningKey){
     const NSTR = tuning.pitches.length, MAXF = 12;
     const primaryKey = chord.frets.join(",");
     // per-string candidates: only frets that sound an in-chord tone
-    const allowed = tuning.pitches.map(p => {
+    const allowed = tuning.pitches.map((p, s) => {
       const a = [];
-      for(let f = 0; f <= MAXF; f++) if(chordPCs.includes((p + f) % 12)) a.push(f);
+      for(let f = 0; f <= MAXF; f++)
+        if(chordPCs.includes((p + f) % 12) && fretExists(tuning, s, f)) a.push(f);
       return a;
     });
-    const muteOpts = NSTR >= 5 ? [0,1,2] : [0];
+    const muteOpts = tuning.drone ? [0,1] : NSTR >= 5 ? [0,1,2] : [0];
+    const byPitch = bassOrder(tuning);
     const cands = [];
     for(const mute of muteOpts){
       const live = NSTR - mute;                         // strings mute..NSTR-1 sound
@@ -2474,7 +2729,8 @@ function altVoicings(chord, tuning, tuningKey){
             const opens = frets.filter(f => f === 0).length;
             const distinct = new Set(fretted).size;
             const has5th = pcs.includes(fifth) || chordPCs.length === 3;
-            const bassRoot = NSTR < 5 || pcs[0] === root;
+            const bass = byPitch.find(i => frets[i] >= 0);
+            const bassRoot = NSTR < 5 || (tuning.pitches[bass] + frets[bass]) % 12 === root;
             const score = span*3 + maxF*1.2 + minF - opens*1.5 + distinct*.7
                         + (has5th ? 0 : 1.5) + (maxF > 5 ? 3 : 0)
                         + mute*1.2 + (bassRoot ? 0 : 2);
@@ -2555,14 +2811,24 @@ function renderChordSVG(chord, tuning, opts = {}){
   for(let f=0; f<=NFRETS; f++){
     const y = fy(f);
     if(f===0 && baseFret===1){
-      P.push(`<rect x="${sx(0)-1.5}" y="${y-3.5}" width="${GAP*(NSTR-1)+3}" height="5" fill="var(--yellow)"/>`);
+      // the nut spans only the strings that actually start there — a
+      // short drone carries its own, further down the neck
+      const nx = tuning.strings.map((_,i) => i).filter(i => !stringNut(tuning, i)).map(sx);
+      const x0 = Math.min(...nx), x1 = Math.max(...nx);
+      P.push(`<rect x="${x0-1.5}" y="${y-3.5}" width="${x1-x0+3}" height="5" fill="var(--yellow)"/>`);
     }else{
       P.push(`<line x1="${sx(0)}" y1="${y}" x2="${sx(NSTR-1)}" y2="${y}" stroke="var(--line2)" stroke-width="1"/>`);
     }
   }
-  // strings (vertical)
-  for(let i=0; i<NSTR; i++)
-    P.push(`<line x1="${sx(i)}" y1="${fy(0)}" x2="${sx(i)}" y2="${fy(NFRETS)}" stroke="var(--line2)" stroke-width="1"/>`);
+  // strings (vertical) — a short string (the banjo drone) starts at its
+  // own nut partway down the diagram, so it can't be fretted above it
+  for(let i=0; i<NSTR; i++){
+    const nut = Math.max(0, Math.min(NFRETS, rel(stringNut(tuning, i))));
+    if(nut > 0)   // dashed where the drone has no frets to stop, solid past its own nut
+      P.push(`<line x1="${sx(i)}" y1="${fy(0)}" x2="${sx(i)}" y2="${fy(nut)}" stroke="var(--line2)" stroke-width="1" stroke-dasharray="3 4" opacity=".5"/>`);
+    P.push(`<line x1="${sx(i)}" y1="${fy(nut)}" x2="${sx(i)}" y2="${fy(NFRETS)}" stroke="var(--line2)" stroke-width="1"/>`);
+    if(nut > 0) P.push(`<rect x="${sx(i)-5}" y="${fy(nut)-2.5}" width="10" height="5" fill="var(--yellow)"/>`);
+  }
 
   // base fret marker
   if(baseFret > 1)
@@ -2703,13 +2969,21 @@ function renderHaloSVG(chord, tuning, opts = {}){
     P.push(`<text x="${sx(i)}" y="15" fill="var(--cyan)" font-size="12" text-anchor="middle">${s}</text>`));
   for(let f = 0; f <= 5; f++){
     const y = fy(f);
-    if(f === 0 && win.opens)
-      P.push(`<rect x="${sx(0)-2}" y="${y-3.5}" width="${GAP*(NSTR-1)+4}" height="5" fill="var(--yellow)"/>`);
-    else
+    if(f === 0 && win.opens){
+      const nx = tuning.strings.map((_,i) => i).filter(i => !stringNut(tuning, i)).map(sx);
+      const x0 = Math.min(...nx), x1 = Math.max(...nx);
+      P.push(`<rect x="${x0-2}" y="${y-3.5}" width="${x1-x0+4}" height="5" fill="var(--yellow)"/>`);
+    }else{
       P.push(`<line x1="${sx(0)}" y1="${y}" x2="${sx(NSTR-1)}" y2="${y}" stroke="var(--line2)" stroke-width="1"/>`);
+    }
   }
-  for(let i = 0; i < NSTR; i++)
-    P.push(`<line x1="${sx(i)}" y1="${fy(0)}" x2="${sx(i)}" y2="${fy(5)}" stroke="var(--line2)" stroke-width="1"/>`);
+  for(let i = 0; i < NSTR; i++){
+    const nut = Math.max(0, Math.min(5, rel(stringNut(tuning, i))));    // short string: frets only past its own nut
+    if(nut > 0)
+      P.push(`<line x1="${sx(i)}" y1="${fy(0)}" x2="${sx(i)}" y2="${fy(nut)}" stroke="var(--line2)" stroke-width="1" stroke-dasharray="3 4" opacity=".5"/>`);
+    P.push(`<line x1="${sx(i)}" y1="${fy(nut)}" x2="${sx(i)}" y2="${fy(5)}" stroke="var(--line2)" stroke-width="1"/>`);
+    if(nut > 0) P.push(`<rect x="${sx(i)-5}" y="${fy(nut)-2.5}" width="10" height="5" fill="var(--yellow)"/>`);
+  }
   for(let f = win.lo; f <= win.hi; f++)                 // absolute fret numbers down the side
     P.push(`<text x="14" y="${dy(rel(f)) + 4}" fill="var(--dim)" font-size="11" text-anchor="middle">${f}</text>`);
 
@@ -2717,6 +2991,7 @@ function renderHaloSVG(chord, tuning, opts = {}){
   for(let s = 0; s < NSTR; s++){
     for(let f = win.opens ? 0 : win.lo; f <= win.hi; f++){
       if(f > 0 && f < win.lo) continue;
+      if(!fretExists(tuning, s, f)) continue;          // the banjo drone's missing lower frets
       const pc = (tuning.pitches[s] + f) % 12;
       if(!pcs.has(pc)) continue;
       const iv = (pc - rootPC + 12) % 12;
@@ -2790,7 +3065,8 @@ function renderFretMap(tuningKey, rootPC, scale, vertical){
       P.push(`<circle cx="${LEFT + (NSTR - 1) * GAP * k / 3}" cy="${fy(12)}" r="5.5" fill="var(--line)"/>`));
 
     // nut + frets + fret numbers
-    P.push(`<rect x="${sx(0) - 3}" y="${TOP - 2.5}" width="${(NSTR - 1) * GAP + 6}" height="5" fill="var(--yellow)"/>`);
+    const nx = tuning.strings.map((_, i) => i).filter(i => !stringNut(tuning, i)).map(sx);
+    P.push(`<rect x="${Math.min(...nx) - 3}" y="${TOP - 2.5}" width="${Math.max(...nx) - Math.min(...nx) + 6}" height="5" fill="var(--yellow)"/>`);
     for(let f = 1; f <= NFRETS; f++){
       P.push(`<line x1="${sx(0)}" y1="${TOP + f * FH}" x2="${sx(NSTR - 1)}" y2="${TOP + f * FH}" stroke="var(--line2)" stroke-width="1"/>`);
       P.push(`<text x="14" y="${fy(f) + 4}" fill="var(--dim)" font-size="11" text-anchor="middle">${f}</text>`);
@@ -2798,13 +3074,17 @@ function renderFretMap(tuningKey, rootPC, scale, vertical){
 
     // strings + labels
     for(let i = 0; i < NSTR; i++){
-      P.push(`<line x1="${sx(i)}" y1="${TOP}" x2="${sx(i)}" y2="${TOP + NFRETS * FH}" stroke="var(--line2)" stroke-width="1"/>`);
+      const nut = stringNut(tuning, i);                 // the banjo drone's own nut, five frets up
+      if(nut) P.push(`<line x1="${sx(i)}" y1="${TOP}" x2="${sx(i)}" y2="${TOP + nut * FH}" stroke="var(--line2)" stroke-width="1" stroke-dasharray="4 5" opacity=".5"/>`);
+      P.push(`<line x1="${sx(i)}" y1="${TOP + nut * FH}" x2="${sx(i)}" y2="${TOP + NFRETS * FH}" stroke="var(--line2)" stroke-width="1"/>`);
+      if(nut) P.push(`<rect x="${sx(i) - 7}" y="${TOP + nut * FH - 2.5}" width="14" height="5" fill="var(--yellow)"/>`);
       P.push(`<text x="${sx(i)}" y="16" fill="var(--cyan)" font-size="13" text-anchor="middle">${tuning.strings[i]}</text>`);
     }
 
     // in-key notes, coloured by degree
     for(let i = 0; i < NSTR; i++){
       for(let f = 0; f <= NFRETS; f++){
+        if(!fretExists(tuning, i, f)) continue;         // the banjo drone's missing lower frets
         const pc = (tuning.pitches[i] + f) % 12;
         if(!scale.includes(pc)) continue;
         fretMapNote(P, sx(i), f === 0 ? OPENY : fy(f), pc, rootPC, tuning.open[i] + f, i, f);
@@ -2827,7 +3107,8 @@ function renderFretMap(tuningKey, rootPC, scale, vertical){
       P.push(`<circle cx="${fx(12)}" cy="${TOP + (NSTR - 1) * SG * k / 3}" r="5.5" fill="var(--line)"/>`));
 
     // nut + frets + fret numbers
-    P.push(`<rect x="${X0 - 2.5}" y="${sy(0) - 3}" width="5" height="${(NSTR - 1) * SG + 6}" fill="var(--yellow)"/>`);
+    const ny = tuning.strings.map((_, i) => i).filter(i => !stringNut(tuning, i)).map(sy);
+    P.push(`<rect x="${X0 - 2.5}" y="${Math.min(...ny) - 3}" width="5" height="${Math.max(...ny) - Math.min(...ny) + 6}" fill="var(--yellow)"/>`);
     for(let f = 1; f <= NFRETS; f++){
       P.push(`<line x1="${X0 + f * FW}" y1="${sy(0)}" x2="${X0 + f * FW}" y2="${sy(NSTR - 1)}" stroke="var(--line2)" stroke-width="1"/>`);
       P.push(`<text x="${fx(f)}" y="${H - 8}" fill="var(--dim)" font-size="11" text-anchor="middle">${f}</text>`);
@@ -2836,13 +3117,17 @@ function renderFretMap(tuningKey, rootPC, scale, vertical){
 
     // strings + labels
     for(let i = 0; i < NSTR; i++){
-      P.push(`<line x1="${X0}" y1="${sy(i)}" x2="${X0 + NFRETS * FW}" y2="${sy(i)}" stroke="var(--line2)" stroke-width="1"/>`);
+      const nut = stringNut(tuning, i);                 // the banjo drone's own nut, five frets up
+      if(nut) P.push(`<line x1="${X0}" y1="${sy(i)}" x2="${X0 + nut * FW}" y2="${sy(i)}" stroke="var(--line2)" stroke-width="1" stroke-dasharray="4 5" opacity=".5"/>`);
+      P.push(`<line x1="${X0 + nut * FW}" y1="${sy(i)}" x2="${X0 + NFRETS * FW}" y2="${sy(i)}" stroke="var(--line2)" stroke-width="1"/>`);
+      if(nut) P.push(`<rect x="${X0 + nut * FW - 2.5}" y="${sy(i) - 7}" width="5" height="14" fill="var(--yellow)"/>`);
       P.push(`<text x="12" y="${sy(i) + 4}" fill="var(--cyan)" font-size="13" text-anchor="middle">${tuning.strings[i]}</text>`);
     }
 
     // in-key notes, coloured by degree
     for(let i = 0; i < NSTR; i++){
       for(let f = 0; f <= NFRETS; f++){
+        if(!fretExists(tuning, i, f)) continue;         // the banjo drone's missing lower frets
         const pc = (tuning.pitches[i] + f) % 12;
         if(!scale.includes(pc)) continue;
         fretMapNote(P, f === 0 ? X0 - 26 : fx(f), sy(i), pc, rootPC, tuning.open[i] + f, i, f);
@@ -2936,7 +3221,9 @@ function barreStrum(el, tuningKey){
   const g = el.closest("[data-fret]");
   if(!g) return false;
   const t = TUNINGS[tuningKey];
-  strumChord({ frets: t.pitches.map(() => +g.dataset.fret) }, t);
+  const f = +g.dataset.fret;
+  // your finger can't reach a short drone below its nut — that string just rings open
+  strumChord({ frets: t.pitches.map((p, s) => fretExists(t, s, f) ? f : 0) }, t);
   return true;
 }
 
@@ -3106,12 +3393,15 @@ function bestVoicing(tuning, rootPC, q){
   const chordPCs = q.iv.map(x => (x + rootPC) % 12);
   const reqPCs = q.req.map(x => (x + rootPC) % 12);
   const NSTR = tuning.pitches.length;
-  const allowed = tuning.pitches.map(p => {
+  const allowed = tuning.pitches.map((p, s) => {
     const a = [];
-    for(let f = 0; f <= GEN_MAXFRET; f++) if(chordPCs.includes((p + f) % 12)) a.push(f);
+    for(let f = 0; f <= GEN_MAXFRET; f++)
+      if(chordPCs.includes((p + f) % 12) && fretExists(tuning, s, f)) a.push(f);
     return a;
   });
-  const muteOpts = NSTR >= 5 ? [0,1,2] : [0];
+  // a banjo drone is open or muted, never a bass string to drop guitar-style
+  const muteOpts = tuning.drone ? [0,1] : NSTR >= 5 ? [0,1,2] : [0];
+  const byPitch = bassOrder(tuning);
   let best = null, bestScore = Infinity;
   for(const mute of muteOpts){
     const live = NSTR - mute;
@@ -3130,7 +3420,8 @@ function bestVoicing(tuning, rootPC, q){
           const opens = frets.filter(f => f === 0).length;
           const distinct = new Set(fretted).size;
           const has5th = pcs.includes((rootPC + 7) % 12) || q.iv.length === 3;
-          const bassRoot = NSTR < 5 || pcs[0] === rootPC;
+          const bass = byPitch.find(i => frets[i] >= 0);
+          const bassRoot = NSTR < 5 || (tuning.pitches[bass] + frets[bass]) % 12 === rootPC;
           const score = span * 3 + maxF * 1.2 + minF - opens * 1.5
                       + distinct * 0.7 + (has5th ? 0 : 1.5) + (maxF > 5 ? 3 : 0)
                       + mute * 1.2 + (bassRoot ? 0 : 2);
@@ -4082,6 +4373,7 @@ function pracSeq(){
   const notes = [];
   for(let s = 0; s < t.pitches.length; s++)
     for(let f = box.lo; f <= box.hi; f++){
+      if(!fretExists(t, s, f)) continue;                // the banjo drone's missing lower frets
       const pc = (t.pitches[s] + f) % 12;
       if(scale.includes(pc)) notes.push({ s, f, midi: t.open[s] + f, pc, iv: (pc - rootPC + 12) % 12 });
     }
@@ -4363,11 +4655,11 @@ const ROLL_LESSONS = [
     ev:[ {t:0,s:"3",fin:"T"},{t:1,s:"2",fin:"I"},{t:2,s:"1",fin:"M"},{t:3,s:"B",fin:"T"},
          {t:4,s:"1",fin:"M"},{t:5,s:"2",fin:"I"},{t:6,s:"3",fin:"T"},{t:7,s:"1",fin:"M"} ] },
   { name:"Foggy Mountain Roll", steps:8,
-    blurb:"Earl Scruggs' signature: index and middle trade on the top strings while the thumb answers below — 2-1-3-1 here, with the 3rd string standing in for the banjo's 5th.",
-    ev:[ {t:0,s:"2",fin:"I"},{t:1,s:"1",fin:"M"},{t:2,s:"3",fin:"T"},{t:3,s:"1",fin:"M"},
-         {t:4,s:"2",fin:"I"},{t:5,s:"1",fin:"M"},{t:6,s:"3",fin:"T"},{t:7,s:"1",fin:"M"} ] },
+    blurb:"Earl Scruggs' signature: index and middle trade on the top strings while the thumb answers below — 2-1-5-1, on the 5th string where the instrument has one, the 3rd deputising where it hasn't.",
+    ev:[ {t:0,s:"2",fin:"I"},{t:1,s:"1",fin:"M"},{t:2,s:"5",fin:"T"},{t:3,s:"1",fin:"M"},
+         {t:4,s:"2",fin:"I"},{t:5,s:"1",fin:"M"},{t:6,s:"5",fin:"T"},{t:7,s:"1",fin:"M"} ] },
   { name:"Lick Roll", steps:8,
-    blurb:"The roll behind bluegrass banjo's most-played fill-in lick: it opens like a forward roll, then closes like a forward-reverse — thumb and middle trading around the index. The bass stands in for the banjo's 5th-string thumb notes.",
+    blurb:"The roll behind bluegrass banjo's most-played fill-in lick: it opens like a forward roll, then closes like a forward-reverse — thumb and middle trading around the index. The thumb notes fall on the 5th string on a real banjo, on the bass string everywhere else.",
     ev:[ {t:0,s:"3",fin:"T"},{t:1,s:"1",fin:"M"},{t:2,s:"B",fin:"T"},{t:3,s:"3",fin:"I"},
          {t:4,s:"1",fin:"M"},{t:5,s:"3",fin:"I"},{t:6,s:"B",fin:"T"},{t:7,s:"1",fin:"M"} ] },
   { name:"Index-Lead Roll", steps:8,
@@ -4642,6 +4934,20 @@ const SLIDE_LESSONS = {
   ],
 };
 
+/* the 5-string banjo is the open-G four-string with the drone bolted on
+   at index 0, so every string it shares sits one index higher — its
+   slide vocabulary is DGBD's shifted across, note for note, plus one
+   lick that only makes sense with a drone to lean on. */
+SLIDE_LESSONS.gDGBD = SLIDE_LESSONS.DGBD.map(l => ({
+  ...l, ev: l.ev.map(e => ({ ...e, s: e.s + 1 })),
+}));
+SLIDE_LESSONS.gDGBD.push(
+  { name:"Drone Roll-Off", steps:8,
+    blurb:"The thing only a 5-string can do: the open g drone answers every melody note, so the phrase falls while one note holds still. Slide F→G on the 1st string, drop to the F, then slip into the ♭3 (B♭) on the 3rd and land on the open G — thumb on the 5th between every one of them.",
+    ev:[ {t:0,s:0,f:0},{t:1,s:4,sl:3,to:5},{t:2,s:0,f:0},{t:3,s:4,f:3},
+         {t:4,s:0,f:0},{t:5,s:2,sl:2,to:3},{t:6,s:2,f:0},{t:7,s:0,f:0} ] },
+);
+
 /* ── progression lessons — the licks stitched into real changes.
    Composed from the vocabulary above by name, one lick per 8-slot
    bar, with chord names riding over the tab, so every move is
@@ -4653,6 +4959,7 @@ const PROG_VOICES = {
   DGBE:   { pair:[1,2], IV:2, V:4, I:"E",  iv:"A",  v:"B"  },
   DGBD:   { pair:[2,3], IV:5, V:7, I:"G",  iv:"C",  v:"D"  },
   DGBbD:  { pair:[2,3], IV:5, V:7, I:"Gm", iv:"Cm", v:"Dm" },
+  gDGBD:  { pair:[3,4], IV:5, V:7, I:"G",  iv:"C",  v:"D"  },
   EADGBE: { pair:[3,4], IV:2, V:4, I:"E",  iv:"A",  v:"B"  },
 };
 for(const [tk, arr] of Object.entries(SLIDE_LESSONS)){
@@ -4686,10 +4993,18 @@ function lessonsFor(tuningKey){
 }
 
 /* resolve a roll's string ROLE to a string index for this chord:
-   "1"/"2"/"3" from the top, "B" lowest sounded, "A" the alternate
-   bass above it. Numeric s (licks) passes through untouched. */
-function rollString(role, chord, NSTR){
+   "1"/"2"/"3" from the top, "5" the banjo's 5th-string drone, "B" the
+   lowest sounded string, "A" the alternate bass above it. Numeric s
+   (licks) passes through untouched. On a real 5-string the drone is
+   string 0, so "B"/"A" land on it and the 4th string by themselves,
+   and a chord that mutes the drone pushes them up one exactly as a
+   picker would. "5" wants a drone that's actually sounding; without
+   one it takes the 3rd string, which is what the four-string tunings
+   did all along. */
+function rollString(role, chord, tuning){
   if(typeof role === "number") return role;
+  const NSTR = tuning.pitches.length;
+  if(role === "5") return tuning.drone && chord.frets[tuning.drone.s] >= 0 ? tuning.drone.s : NSTR - 3;
   if(role === "B" || role === "A"){
     let b = 0;
     while(b < NSTR - 1 && chord.frets[b] < 0) b++;
@@ -4753,7 +5068,7 @@ function renderLessonTab(lesson, chord, tuning){
     P.push(`<text x="${X0 + (m.t % perRow) * STEP + 5}" y="${r * rowH + 14}" fill="var(--yellow)" font-size="${F}" letter-spacing=".1em">${m.c}</text>`);
   });
   lesson.ev.forEach(e => {
-    const si = rollString(e.s, chord, NSTR);
+    const si = rollString(e.s, chord, tuning);
     const r = Math.floor(e.t / perRow);
     const x = ex(e.t), y = sy(r, si), k = STEP / 64;
     P.push(`<g class="lev" data-t="${e.t}">`);
@@ -4804,7 +5119,7 @@ function lnChord(){
 }
 
 function lnEventAudio(l, e, chord, tuning, when, stepS){
-  const si = rollString(e.s, chord, tuning.pitches.length);
+  const si = rollString(e.s, chord, tuning);
   if(e.sl !== undefined){
     const nt = l.ev.reduce((m, o) => o.t > e.t && o.t < m ? o.t : m, e.t + 2);   // room until the next note — capped so lazy slides stay lazy, not endless
     const dur = (lnSlotTime(l, nt) - lnSlotTime(l, e.t)) * stepS;
@@ -4923,7 +5238,7 @@ function drawLearn(){
 
 function relearnTuning(){                                // repopulate the per-tuning selects, then draw
   const list = chordList();
-  const home = { gCEA:"C", DGBE:"G", DGBD:"G", DGBbD:"Gm", EADGBE:"E" }[state.tuning];
+  const home = { gCEA:"C", DGBE:"G", DGBD:"G", DGBbD:"Gm", gDGBD:"G", EADGBE:"E" }[state.tuning];
   $("#lnChord").innerHTML = list.map(c => `<option value="${c.name}">CHORD:// ${c.name}</option>`).join("");
   if(home && list.some(c => c.name === home)) $("#lnChord").value = home;
   $("#lnLesson").innerHTML = "";                         // force drawLearn to rebuild for this tuning
@@ -5027,7 +5342,7 @@ const TUNE_LIBRARY = [
       { c:"IV", n:[[0,2],[-1,2],[-3,2]] }, { c:"IV", n:[[5,1],[5,1]] },
       { c:"IV", n:[[4,2],[0,2]] },    { c:"V7", n:[[2,2]] },  { c:"I", n:[[0,4]] } ] },
 ];
-const MINE_KEYS = { gCEA:0, DGBE:7, DGBD:7, DGBbD:7, EADGBE:0 };  // home tonic pc per tuning
+const MINE_KEYS = { gCEA:0, DGBE:7, DGBD:7, DGBbD:7, gDGBD:7, EADGBE:0 };  // home tonic pc per tuning
 
 /* place one pitch inside the held shape's window — octave-folding
    until it lands, then nearest the hand's anchor fret, nudged toward
@@ -5041,6 +5356,7 @@ function mineNote(midi, chord, tuning){
       const f = m - tuning.open[s];
       if(f < 0 || f > 12) continue;
       if(!((f === 0 && win.opens) || (f >= win.lo && f <= win.hi))) continue;
+      if(!fretExists(tuning, s, f)) continue;           // the banjo drone's missing lower frets
       const anchor = chord.frets[s] > 0 ? chord.frets[s] : win.base;
       const cost = Math.abs(f - anchor) - s * .1;
       if(!best || cost < best.cost) best = { s, f, midi: m, cost };

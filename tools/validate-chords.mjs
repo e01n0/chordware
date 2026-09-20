@@ -85,6 +85,9 @@ for(const [tkey, chords] of Object.entries(LIB)){
     ch.frets.forEach((f, i) => {
       if(f <= 0 && ch.fingers[i] !== 0) fail(`FING   ${ctx}: string ${i} fret ${f} but finger ${ch.fingers[i]}`);
       if(f > 0 && ch.fingers[i] === 0)  fail(`FING   ${ctx}: string ${i} fret ${f} but finger 0`);
+      // a short string (the 5-string banjo drone) has no frets below its own nut
+      if(t.drone && t.drone.s === i && f > 0 && f <= t.drone.nut)
+        fail(`DRONE  ${ctx}: string ${i} fret ${f} is at or above the drone's nut (fret ${t.drone.nut})`);
     });
 
     const pcs = new Set(ch.frets.map((f, i) => f < 0 ? null : (t.pitches[i] + f) % 12).filter(x => x !== null));

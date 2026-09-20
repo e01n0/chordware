@@ -32,8 +32,8 @@ const head = js.slice(0, js.lastIndexOf('/*', js.indexOf('APP STATE')));
 // the head includes a few browser-API constants (e.g. REDUCED_MOTION)
 globalThis.matchMedia ??= () => ({ matches: false });
 const ctx = {};
-new Function('x', head + '; x.TUNINGS = TUNINGS; x.LIB = CHORD_LIBRARY;')(ctx);
-const { TUNINGS, LIB } = ctx;
+new Function('x', head + '; x.TUNINGS = TUNINGS; x.LIB = CHORD_LIBRARY; x.fretExists = fretExists;')(ctx);
+const { TUNINGS, LIB, fretExists } = ctx;
 
 const ROOTS = ["C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"]; // index = pitch class
 
@@ -63,12 +63,16 @@ function bestVoicing(tuning, rootPC, q){
   const chordPCs = q.iv.map(x => (x + rootPC) % 12);
   const reqPCs = q.req.map(x => (x + rootPC) % 12);
   const NSTR = tuning.pitches.length;
-  const allowed = tuning.pitches.map(p => {
+  const allowed = tuning.pitches.map((p, s) => {
     const a = [];
-    for(let f = 0; f <= MAXFRET; f++) if(chordPCs.includes((p + f) % 12)) a.push(f);
+    for(let f = 0; f <= MAXFRET; f++)
+      if(chordPCs.includes((p + f) % 12) && fretExists(tuning, s, f)) a.push(f);
     return a;
   });
-  const muteOpts = NSTR >= 5 ? [0,1,2] : [0];
+  // a banjo drone is muted or open, never a bass string to drop guitar-style
+  const muteOpts = tuning.drone ? [0,1] : NSTR >= 5 ? [0,1,2] : [0];
+  // lowest-SOUNDING string, which on a reentrant neck isn't string 0
+  const byPitch = tuning.open.map((m, i) => i).sort((a, b) => tuning.open[a] - tuning.open[b]);
   let best = null, bestScore = Infinity;
   for(const mute of muteOpts){
     const live = NSTR - mute;
@@ -87,7 +91,8 @@ function bestVoicing(tuning, rootPC, q){
           const opens = frets.filter(f => f === 0).length;
           const distinct = new Set(fretted).size;
           const has5th = pcs.includes((rootPC + 7) % 12) || q.iv.length === 3;
-          const bassRoot = NSTR < 5 || pcs[0] === rootPC;
+          const bass = byPitch.find(i => frets[i] >= 0);
+          const bassRoot = NSTR < 5 || (tuning.pitches[bass] + frets[bass]) % 12 === rootPC;
           const score = span * 3 + maxF * 1.2 + minF - opens * 1.5
                       + distinct * 0.7 + (has5th ? 0 : 1.5) + (maxF > 5 ? 3 : 0)
                       + mute * 1.2 + (bassRoot ? 0 : 2);
