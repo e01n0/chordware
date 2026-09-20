@@ -155,3 +155,14 @@ def test_simultaneous_melody_notes_are_skylined():
         arr = arrange(s, instrument, style)
         check_invariants(arr)
         assert [m.p for m in arr.sheet.melody[:1]] == [69]
+
+
+def test_travis_keeps_its_bass_when_the_melody_moves_up_the_neck():
+    s = sheet_4_4()
+    s.bars = 2
+    s.melody = [MelodyNote(t, 0.5, p) for t, p in enumerate([76, 79, 81, 83, 84, 83, 81, 79])]  # E5..C6 over G/C
+    s.chords = [Chord(0, 0, "G"), Chord(1, 0, "C")]
+    arr = arrange(s, "guitar", "travis")
+    check_invariants(arr)
+    bass = [n for n in arr.notes if n.finger == "p"]
+    assert len(bass) >= 6, f"alternating bass survives a high melody, got {len(bass)} of 8"

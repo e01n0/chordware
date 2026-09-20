@@ -12,6 +12,9 @@ from .fretboard import (
     shape_for,
     shape_position,
 )
+from .fretboard import (
+    SPAN as SHAPE_SPAN,
+)
 from .leadsheet import GRID, LeadSheet, MelodyNote
 
 STYLES = {"banjo": ("scruggs", "clawhammer"), "guitar": ("travis", "flatpick")}
@@ -114,6 +117,19 @@ def _place_melody(tuning: Tuning, shape: Shape, pitch: int,
     return FretMapper(tuning, strings).assign([pitch], anchor=shape_position(shape))[0]
 
 
+def _shape_near(tuning: Tuning, chord: str, pitch: int,
+                strings: tuple[int, ...] | None = None) -> tuple[Shape, tuple[int, int]]:
+    """Place a melody note and pick the chord shape the fills should come from: the conventional
+    shape when the note is within reach of it, else a movable voicing at the note's position, so
+    bass and roll notes stay playable together with the melody by construction."""
+    shape = shape_for(tuning, chord)
+    s, f = _place_melody(tuning, shape, pitch, strings)
+    if f > shape_position(shape) + SHAPE_SPAN and f > SHAPE_SPAN:
+        shape = shape_for(tuning, chord, near=f - SHAPE_SPAN)
+        s, f = _place_melody(tuning, shape, pitch, strings)
+    return shape, (s, f)
+
+
 def _finger_banjo(string: int, prev: str) -> str:
     if string == 1:
         return "M"
@@ -149,12 +165,15 @@ def _scruggs(sheet: LeadSheet, tuning: Tuning, patterns: dict[str, str]) -> list
         label = labels.get(bar, label)
         roll = rolls[patterns.get(label, _ROLL_ROTATION[bar % len(_ROLL_ROTATION)])]
         prev = ""
+        chord = shape = None
         for slot in range(sheet.bpb * 2):
             t = bar * sheet.bpb + slot * 0.5
-            shape = shape_for(tuning, sheet.chord_at(t))
+            if sheet.chord_at(t) != chord:   # the shape follows the melody's position until the chord changes
+                chord = sheet.chord_at(t)
+                shape = shape_for(tuning, chord)
             m = _melody_at(sheet, t, 0.5)
             if m:
-                s, f = _place_melody(tuning, shape, m.p)
+                shape, (s, f) = _shape_near(tuning, chord, m.p)
                 notes.append(TabNote(t, 0.5, s, f, _finger_banjo(s, prev), melody=True))
             else:
                 s = roll[slot % len(roll)]
@@ -188,7 +207,7 @@ def _clawhammer(sheet: LeadSheet, tuning: Tuning) -> list[TabNote]:
             shape = shape_for(tuning, sheet.chord_at(t))
             m = _melody_at(sheet, t, 0.5)
             if m:
-                s, f = _place_melody(tuning, shape, m.p, strings=(1, 2, 3, 4))
+                shape, (s, f) = _shape_near(tuning, sheet.chord_at(t), m.p, strings=(1, 2, 3, 4))
                 notes.append(TabNote(t, 0.5, s, f, "D", melody=True))
             else:
                 notes.append(TabNote(t, 0.5, 1, max(shape[0], 0), "D"))
@@ -206,18 +225,22 @@ def _travis(sheet: LeadSheet, tuning: Tuning) -> list[TabNote]:
     """Alternating bass on the beats from the chord shape, melody on strings 1-3,
     shape fill on empty off-beats."""
     notes: list[TabNote] = []
+    placed: dict[float, tuple[int, int]] = {}
+    shapes: dict[int, Shape] = {}   # per beat: the shape the melody sitting on/around it asks for
+    for m in sorted(sheet.melody, key=lambda m: m.t):
+        shape, placed[m.t] = _shape_near(tuning, sheet.chord_at(m.t), m.p, strings=(1, 2, 3))
+        shapes[int(m.t)] = shape
     for bar in range(sheet.bars):
         for beat in range(sheet.bpb):
             t = bar * sheet.bpb + beat
-            shape = shape_for(tuning, sheet.chord_at(t))
+            shape = shapes.get(t) or shape_for(tuning, sheet.chord_at(t))
             bass_strings = [s for s in range(tuning.n, 0, -1) if shape[s - 1] >= 0][:2]
             s = bass_strings[beat % len(bass_strings)]
             notes.append(TabNote(t, 1.0, s, shape[s - 1], "p"))
             if not _melody_at(sheet, t + 0.5, 0.5) and not _melody_at(sheet, t, 0.5):
                 notes.append(TabNote(t + 0.5, 0.5, 2, max(shape[1], 0), "i"))
     for m in sorted(sheet.melody, key=lambda m: m.t):
-        shape = shape_for(tuning, sheet.chord_at(m.t))
-        s, f = _place_melody(tuning, shape, m.p, strings=(1, 2, 3))
+        s, f = placed[m.t]
         notes.append(TabNote(m.t, m.d, s, f, {1: "a", 2: "m"}.get(s, "i"), melody=True))
     return notes
 

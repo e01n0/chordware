@@ -277,7 +277,8 @@ def notes_to_leadsheet(notes: list[RawNote], grid: Grid, *, title: str, source: 
     chords: list[Chord] = []
     for bar in range(bars):
         s0 = bar * bpb
-        whole, _ = _best_chord(*_hist(beat_notes, s0, s0 + bpb), key_pc, mode)
+        h_bar, b_bar, l_bar = _hist(beat_notes, s0, s0 + bpb)
+        whole, _ = _best_chord(h_bar, b_bar, l_bar, key_pc, mode)
         halves, margins = [], []
         for half in (0, 1):
             a = s0 + half * bpb / 2
@@ -285,9 +286,9 @@ def notes_to_leadsheet(notes: list[RawNote], grid: Grid, *, title: str, source: 
             name, score = _best_chord(hh, bb, ll, key_pc, mode)
             halves.append(name)
             # how much better the half's own chord fits it than the whole-bar chord does;
-            # a half with under a beat's worth of notes is not evidence of anything
+            # a half carrying under 30% of the bar's notes (a lone pickup note) names nothing
             margin = score - _chord_score(hh, bb, ll, key_pc, mode, *parse_chord(whole)) - 0.25 * sum(hh)
-            margins.append(margin if sum(hh) >= 1.0 else -1.0)
+            margins.append(margin if sum(hh) >= 0.3 * sum(h_bar) else -1.0)
         # split when the halves disagree and the half that departs from the whole-bar chord clearly earns it
         if halves[0] != halves[1] and any(name != whole and margin > 0 for name, margin in zip(halves, margins)):
             chords.append(Chord(bar, 0.0, halves[0]))

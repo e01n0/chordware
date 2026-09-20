@@ -68,16 +68,16 @@ SPAN = 3  # frets a fretting hand covers comfortably inside one shape
 
 
 @cache
-def _generate_shape(tuning_name: str, chord: str) -> Shape:
-    """Lowest playable voicing: every sounding string in the chord, root present, at least three
-    distinct chord tones, hand span <= SPAN. The two lowest guitar strings may be muted; the banjo
-    fifth string is never fretted (it rings open when g fits the chord, else it is muted)."""
+def _generate_shape(tuning_name: str, chord: str, start: int = 0) -> Shape:
+    """Lowest playable voicing at or above fret `start`: every sounding string in the chord, root
+    present, at least three distinct chord tones, hand span <= SPAN. The two lowest guitar strings
+    may be muted; the banjo fifth string is never fretted (open when g fits the chord, else muted)."""
     t = TUNINGS[{"banjo-open-g": "banjo", "guitar-standard": "guitar"}[tuning_name]]
     root, quality = parse_chord(chord)
     pcs = {(root + i) % 12 for i in _TEMPLATE[quality]}
     mutable = {t.n, t.n - 1} if tuning_name == "guitar-standard" else set()
     drone = t.n if tuning_name == "banjo-open-g" else None
-    for anchor in range(MAX_FRET - SPAN):
+    for anchor in range(start, MAX_FRET - SPAN):
         options = []
         for s in range(1, t.n + 1):
             if s == drone:
@@ -107,8 +107,11 @@ def _generate_shape(tuning_name: str, chord: str) -> Shape:
     raise ValueError(f"no playable shape for {chord} on {tuning_name}")
 
 
-def shape_for(tuning: Tuning, chord: str) -> Shape:
+def shape_for(tuning: Tuning, chord: str, near: int | None = None) -> Shape:
+    """The conventional shape, or with `near` a movable voicing whose fretted notes start at that fret."""
     lib = SHAPES[tuning.name]
+    if near:
+        return _generate_shape(tuning.name, chord, near)
     return lib[chord] if chord in lib else _generate_shape(tuning.name, chord)
 
 
