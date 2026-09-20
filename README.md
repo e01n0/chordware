@@ -115,24 +115,26 @@ aDFsB: { label:"aDF#B · D-tuning", strings:["a","D","F#","B"], pitches:[9,2,6,1
 
 ## Hosting
 
-CHORDWARE lives on the home box behind Tailscale, served by
-[tabsmith](https://github.com/e01n0/tabsmith) (the FastAPI app that also owns the
-transcription API): `https://chordware.tail969b8f.ts.net/` is `svc:chordware` in
-`tailscale serve`, proxied to `127.0.0.1:8092`. tabsmith reads this checkout's
-`index.html` and `sw.js` straight from disk (`CHORDWARE_DIR`, default `~/chordware`)
-and stamps the current git SHA over `__BUILD__` in both, so a `git pull` is a deploy
-and the service worker's update cycle fires on the next open. tabsmith's own job page
-sits under `/tabsmith/`.
+CHORDWARE lives on the home box behind Tailscale, served by tabsmith, the Python
+side of this repo (`src/tabsmith/`, a FastAPI app that also owns the transcription API): `https://chordware.tail969b8f.ts.net/` is `svc:chordware` in
+`tailscale serve`, proxied to `127.0.0.1:8092`. tabsmith serves `index.html`, `sw.js`,
+`manifest.webmanifest` and the icons straight from the repo root and stamps the current
+git SHA over `__BUILD__`, so a `git pull` plus a service restart is a deploy and the
+service worker's update cycle fires on the next open. Jobs live in `./jobs/`.
 
 ## From audio
 
-On that host the MINE overlay grows an **AUDIO** button beside ABC: hand it a
-recording or a link and tabsmith transcribes it (MuScriptor on the GPU, vocals
-separated when there are any), then the song lands here as a saved song, one chord
-per bar with the melody mined onto the current tuning, and **OPEN AS TAB** takes you
-to LEARN › SONG. The engraved PDF, an mp3 of tabsmith's own arrangement and its chord
-editor are linked from the dialog. The button only appears when the page's origin
-answers `/jobs`, so a plain static copy of `index.html` is unchanged.
+On that host the MINE overlay and the song editor both grow an **AUDIO** button: hand
+it a recording or a link and tabsmith transcribes it (MuScriptor on the GPU, vocals
+separated when there are any), then the song lands here as a saved song, one chord per
+bar with the melody mined onto the current tuning, and **OPEN AS TAB** takes you to
+LEARN › SONG. The dialog lists recent transcriptions, and a link shared from the phone
+(the PWA is a share target) opens straight into it. A song that came from audio keeps
+its lead sheet: the song editor shows the engraving and the mp3 under **ARRANGEMENT**,
+and **RE-ARRANGE** sends the edited chord list (one chord per bar) back for a fresh
+engraving in any of the four styles, re-mining chordware's own tab at the same time.
+Everything here only appears when the page's origin answers `/jobs`, so a plain static
+copy of `index.html` is unchanged.
 
 ## The engine: tabsmith
 
