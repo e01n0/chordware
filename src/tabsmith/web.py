@@ -238,6 +238,40 @@ def chordware_sw():
                         media_type="application/javascript", headers=NO_STORE)
 
 
+LIBRARY = CHORDWARE_DIR / "data" / "library.json"
+MAX_LIBRARY = 20 * 1024 * 1024
+
+
+@app.get("/songs")
+def get_library():
+    """The whole chordware library (songs + set lists), so every device on the tailnet sees the same one."""
+    if LIBRARY.exists():
+        return json.loads(LIBRARY.read_text())
+    return {"songs": {}, "setlists": {}, "updated": 0}
+
+
+@app.put("/songs")
+async def put_library(req: Request):
+    body = await req.body()
+    if len(body) > MAX_LIBRARY:
+        raise HTTPException(413, "library too large")
+    try:
+        d = json.loads(body)
+    except ValueError:
+        raise HTTPException(400, "not JSON") from None
+    if not isinstance(d, dict) or not isinstance(d.get("songs"), dict) or not isinstance(d.get("setlists", {}), dict):
+        raise HTTPException(400, "expected {songs: {...}, setlists: {...}}")
+    stamps = d.get("stamps", {})
+    if not isinstance(stamps, dict):
+        raise HTTPException(400, "stamps must be an object")
+    doc = {"songs": d["songs"], "setlists": d.get("setlists", {}), "stamps": stamps, "updated": time.time()}
+    LIBRARY.parent.mkdir(parents=True, exist_ok=True)
+    tmp = LIBRARY.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(doc))
+    os.replace(tmp, LIBRARY)
+    return {"updated": doc["updated"], "songs": len(doc["songs"]), "setlists": len(doc["setlists"])}
+
+
 @app.get("/{name}")
 def root_file(name: str):
     """The PWA's manifest and icons, checked into the repo root next to index.html."""

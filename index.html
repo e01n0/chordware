@@ -6446,9 +6446,67 @@ let tabsmithHere = false, auJob = null;
   }catch(e){ tabsmithHere = false; }
   if(!tabsmithHere) return;
   $("#mnAudio").hidden = false; $("#seAudio").hidden = false;
+  libPull();
   const m = location.hash.match(/^#audio\/([0-9a-f]{12})$/);      // the share target lands here
   if(m){ history.replaceState(null, "", location.pathname); openAu(); auFollow(m[1]); }
 })();
+
+/* ── LIBRARY SYNC — with tabsmith on this origin the library (songs + set
+   lists) lives on the server too, so every device on the tailnet sees the
+   same one; localStorage stays the offline cache. Each side keeps a stamp per
+   name (when it last changed, deletions included); on load the two are merged
+   name by name, the later stamp winning, and every store pushes the whole
+   library back, debounced. No accounts: the tailnet is the login. ── */
+const LIB_STAMPS = "chordware.lib.stamps";
+function libStamps(){
+  try{ const s = JSON.parse(localStorage.getItem(LIB_STAMPS)); if(s && s.songs && s.setlists) return s; }catch(e){}
+  return { songs: {}, setlists: {} };
+}
+function libSetStamps(st){ try{ localStorage.setItem(LIB_STAMPS, JSON.stringify(st)); }catch(e){} }
+function libMarkChanges(kind, prev, cur){
+  const st = libStamps(), now = Date.now();
+  for(const k of new Set([...Object.keys(prev), ...Object.keys(cur)]))
+    if(JSON.stringify(prev[k]) !== JSON.stringify(cur[k])) st[kind][k] = now;
+  libSetStamps(st);
+}
+let libPushTimer = null;
+function libPush(){
+  if(!tabsmithHere) return;
+  clearTimeout(libPushTimer);
+  libPushTimer = setTimeout(async () => {
+    try{
+      await fetch("/songs", { method: "PUT", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ songs: loadSongs(), setlists: loadSets(), stamps: libStamps() }) });
+    }catch(e){ /* offline: local copy stands, next store retries */ }
+  }, 800);
+}
+const storeSongs0 = storeSongs, storeSets0 = storeSets;
+storeSongs = function(s){ libMarkChanges("songs", loadSongs(), s); storeSongs0(s); libPush(); };
+storeSets = function(s){ libMarkChanges("setlists", loadSets(), s); storeSets0(s); libPush(); };
+async function libPull(){
+  let srv;
+  try{ srv = await (await fetch("/songs", { cache: "no-store" })).json(); }catch(e){ return; }
+  const sst = srv.stamps || {}, lst = libStamps();
+  const merge = (kind, local, server) => {
+    const out = {}, st = {};
+    for(const k of new Set([...Object.keys(local), ...Object.keys(server)])){
+      const ls = (lst[kind] || {})[k] || 0, ss = (sst[kind] || {})[k] || 0;
+      const inL = k in local, inS = k in server;
+      if(inL && inS) out[k] = ls > ss ? local[k] : server[k];
+      else if(inS){ if(!(ls > ss)) out[k] = server[k]; }     // gone here more recently than saved there: stays gone
+      else if(!(ss > ls)) out[k] = local[k];                  // and the other way round
+      st[k] = Math.max(ls, ss);
+    }
+    return { out, st };
+  };
+  const s = merge("songs", loadSongs(), srv.songs || {}), t = merge("setlists", loadSets(), srv.setlists || {});
+  storeSongs0(s.out); storeSets0(t.out);
+  libSetStamps({ songs: s.st, setlists: t.st });
+  libPush();                                                  // the merged truth goes back up
+  refreshSongSel();
+  if(typeof drawMineList === "function") drawMineList();
+  render();
+}
 
 /* a tabsmith lead sheet → a chordware song. Melody times are beats from bar 0,
    durations in beats (chordware keeps eighths); chords are (bar, beat, name). */

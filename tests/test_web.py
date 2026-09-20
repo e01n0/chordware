@@ -99,3 +99,17 @@ def test_rearrange_rejects_bad_chord(tmp_path, monkeypatch):
     r = c.post(f"/jobs/{jid}/rearrange", json={"leadsheet": sheet})
     assert r.status_code == 400 and "Gxyz" in r.json()["detail"]
     assert not (tmp_path / jid / "job.json.tmp").exists()
+
+
+def test_library_round_trip(tmp_path, monkeypatch):
+    c = client(tmp_path, monkeypatch)
+    monkeypatch.setattr(web, "LIBRARY", tmp_path / "data" / "library.json")
+    assert c.get("/songs").json() == {"songs": {}, "setlists": {}, "updated": 0}
+    lib = {"songs": {"wagon wheel": {"chords": "G D Em C", "lyrics": "", "updated": 5}}, "setlists": {"gig": ["wagon wheel"]}}
+    r = c.put("/songs", json=lib)
+    assert r.status_code == 200 and r.json()["songs"] == 1
+    got = c.get("/songs").json()
+    assert got["songs"] == lib["songs"] and got["setlists"] == lib["setlists"] and got["updated"] > 0
+    assert c.put("/songs", json={"songs": []}).status_code == 400
+    assert c.put("/songs", content=b"nope").status_code == 400
+    assert not (tmp_path / "data" / "library.json.tmp").exists()
