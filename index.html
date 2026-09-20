@@ -6528,10 +6528,16 @@ function auFollow(id){
     if(j.state !== "done"){ auSay(j.state.toUpperCase().replace("_", " ") + " — " + last); setTimeout(poll, 3000); return; }
     const ls = await (await fetch(`/jobs/${id}/leadsheet.json`, { cache: "no-store" })).json();
     const s = leadsheetToSong(ls);
-    const name = (ls.title || "transcribed").toLowerCase();
     const songs = loadSongs();
-    const existing = songs[name] && typeof songs[name] === "object" ? songs[name] : null;
-    if(existing && existing.tabsmith !== id && !confirm(`“${name}” already exists — overwrite it?`)){ $("#auGo").disabled = false; return; }
+    let name = (ls.title || "transcribed").toLowerCase();
+    let existing = songs[name] && typeof songs[name] === "object" ? songs[name] : null;
+    // a song that came from a transcription is updated in place; a hand-made song with the
+    // same name is left alone (no modal question here: a shared link must never stall)
+    if(existing && !existing.tabsmith){
+      let n = 2;
+      while(songs[`${name} (${n})`]) n++;
+      name = `${name} (${n})`; existing = null;
+    }
     songs[name] = { chords: s.chords, lyrics: existing ? existing.lyrics || "" : "", melody: s.melody, leadsheet: ls, tabsmith: id };
     storeSongs(songs);
     refreshSongSel();
