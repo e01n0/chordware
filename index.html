@@ -433,6 +433,9 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     margin-right:6px; vertical-align:-2px;
   }
   .maplegend b.hollow{ background:transparent !important; border:2px solid var(--red); }
+  #dotLegend{ margin:0 0 10px; }
+  #dotLegend b[style*="background:none"]{ color:var(--ink); background:var(--yellow) !important;
+    width:auto; height:auto; border-radius:9px; padding:1px 5px; font-size:10px; vertical-align:0; }
 
   /* ── practice drills on the fretboard map ─────────────────────── */
   #pracRow{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
@@ -989,6 +992,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
 </div>
 
 <main>
+  <div class="maplegend" id="dotLegend" style="display:none"></div>
   <div id="grid" aria-live="polite"></div>
   <div class="buildline">BUILD://__BUILD__</div>
 </main>
@@ -4359,11 +4363,27 @@ $("#ornToggle").addEventListener("click", () => {
   render();
 });
 
+/* the theory views put letters and numbers in the dots that mean
+   nothing without a key — R is the chord's root, not a finger */
+const DOT_LEGENDS = [
+  "",
+  `<span><b style="background:var(--yellow)"></b>ROOT</span>` +
+  `<span><b style="background:var(--cyan)"></b>3RD · 5TH</span>` +
+  `<span><b class="hollow"></b>COLOUR TONE</span>` +
+  `<span>NOTE NAMES · × = MUTED</span>`,
+  `<span><b style="background:var(--yellow)"></b><b style="background:none;width:auto;height:auto;margin:0 6px 0 0">R</b>ROOT</span>` +
+  `<span><b style="background:var(--cyan)"></b>3 · ♭3 · 5 — CHORD TONES</span>` +
+  `<span><b class="hollow"></b>♭7 · 7 · 9 · 4 · 6 — COLOUR TONES</span>` +
+  `<span>DEGREES COUNT FROM THE CHORD'S ROOT · × = MUTED</span>`,
+];
 function syncDotBtn(){
   const b = $("#dotToggle");
   b.textContent = DOT_MODES[state.dots];
   b.classList.toggle("on", state.dots > 0);
   b.setAttribute("aria-pressed", String(state.dots > 0));
+  const l = $("#dotLegend");
+  l.innerHTML = DOT_LEGENDS[state.dots];
+  l.style.display = state.dots ? "" : "none";
 }
 $("#dotToggle").addEventListener("click", () => {
   state.dots = (state.dots + 1) % 3;
@@ -4794,11 +4814,17 @@ const ROLL_LESSONS = [
   { name:"Forward Roll", steps:8,
     blurb:"The engine of bluegrass banjo: thumb–index–middle rolling toward the floor. 3rd–2nd–1st twice, then 3rd–1st to fill the bar. Keep it even — speed comes later.",
     ev:[ {t:0,s:"3",fin:"T"},{t:1,s:"2",fin:"I"},{t:2,s:"1",fin:"M"},{t:3,s:"3",fin:"T"},
-         {t:4,s:"2",fin:"I"},{t:5,s:"1",fin:"M"},{t:6,s:"3",fin:"T"},{t:7,s:"1",fin:"M"} ] },
+         {t:4,s:"2",fin:"I"},{t:5,s:"1",fin:"M"},{t:6,s:"3",fin:"T"},{t:7,s:"1",fin:"M"} ] ,
+    blurb5:"The engine of bluegrass banjo, as it's actually played on five strings: index–middle–thumb over and over, 2nd–1st–5th. The drone is not decoration here — it's every third note, and it's what makes the roll sound like a banjo instead of an arpeggio. Keep it even; speed comes later.",
+    ev5:[ {t:0,s:"2",fin:"I"},{t:1,s:"1",fin:"M"},{t:2,s:"5|3",fin:"T"},{t:3,s:"2",fin:"I"},
+          {t:4,s:"1",fin:"M"},{t:5,s:"5|3",fin:"T"},{t:6,s:"2",fin:"I"},{t:7,s:"1",fin:"M"} ] },
   { name:"Backward Roll", steps:8,
     blurb:"The forward roll mirrored: middle–index–thumb climbing away from the floor. Great under melody notes on the 1st string.",
     ev:[ {t:0,s:"1",fin:"M"},{t:1,s:"2",fin:"I"},{t:2,s:"3",fin:"T"},{t:3,s:"1",fin:"M"},
-         {t:4,s:"2",fin:"I"},{t:5,s:"3",fin:"T"},{t:6,s:"1",fin:"M"},{t:7,s:"2",fin:"I"} ] },
+         {t:4,s:"2",fin:"I"},{t:5,s:"3",fin:"T"},{t:6,s:"1",fin:"M"},{t:7,s:"2",fin:"I"} ] ,
+    blurb5:"The forward roll mirrored on five strings: middle–index–thumb, 1st–2nd–5th, climbing away from the floor with the drone underneath each group. Middle stays on the 1st and index on the 2nd the whole way, so the hand never has to cross itself.",
+    ev5:[ {t:0,s:"1",fin:"M"},{t:1,s:"2",fin:"I"},{t:2,s:"5|3",fin:"T"},{t:3,s:"1",fin:"M"},
+          {t:4,s:"2",fin:"I"},{t:5,s:"5|3",fin:"T"},{t:6,s:"1",fin:"M"},{t:7,s:"2",fin:"I"} ] },
   { name:"Forward-Reverse Roll", steps:8,
     blurb:"Out and back in one bar — the thumb drops to the bass string at the turn, which is what gives it that rolling-wave shape.",
     ev:[ {t:0,s:"3",fin:"T"},{t:1,s:"2",fin:"I"},{t:2,s:"1",fin:"M"},{t:3,s:"B",fin:"T"},
@@ -4814,11 +4840,17 @@ const ROLL_LESSONS = [
   { name:"Index-Lead Roll", steps:8,
     blurb:"A lead pattern for backup: the index opens each group on the 2nd string and the thumb keeps the pulse underneath. Swap it in under vocals where a forward roll feels too busy.",
     ev:[ {t:0,s:"2",fin:"I"},{t:1,s:"3",fin:"T"},{t:2,s:"1",fin:"M"},{t:3,s:"3",fin:"T"},
-         {t:4,s:"2",fin:"I"},{t:5,s:"3",fin:"T"},{t:6,s:"1",fin:"M"},{t:7,s:"3",fin:"T"} ] },
+         {t:4,s:"2",fin:"I"},{t:5,s:"3",fin:"T"},{t:6,s:"1",fin:"M"},{t:7,s:"3",fin:"T"} ] ,
+    blurb5:"The index-leading roll as banjo players write it: index on the 2nd every other note, thumb answering on the 3rd, middle topping it off on the 1st. The one Scruggs roll that leaves the 5th string alone — which is exactly why it sits so well under a singer, where the drone would fight the melody.",
+    ev5:[ {t:0,s:"2",fin:"I"},{t:1,s:"3",fin:"T"},{t:2,s:"2",fin:"I"},{t:3,s:"1",fin:"M"},
+          {t:4,s:"2",fin:"I"},{t:5,s:"3",fin:"T"},{t:6,s:"2",fin:"I"},{t:7,s:"1",fin:"M"} ] },
   { name:"Middle-Lead Roll", steps:8,
     blurb:"The mirror lead — Sonny Osborne's roll: middle opens every group on the 1st string with the thumb answering. Puts the melody voice on top, so it's the one for picking out tunes.",
     ev:[ {t:0,s:"1",fin:"M"},{t:1,s:"3",fin:"T"},{t:2,s:"2",fin:"I"},{t:3,s:"3",fin:"T"},
-         {t:4,s:"1",fin:"M"},{t:5,s:"3",fin:"T"},{t:6,s:"2",fin:"I"},{t:7,s:"3",fin:"T"} ] },
+         {t:4,s:"1",fin:"M"},{t:5,s:"3",fin:"T"},{t:6,s:"2",fin:"I"},{t:7,s:"3",fin:"T"} ] ,
+    blurb5:"Sonny Osborne's roll on the instrument he played it on: middle hits the 1st string on every odd note, index takes the 2nd, and the thumb drops the drone in on 4 and 8. The melody voice is on top for three notes out of four, which is what makes this the roll for picking tunes out rather than backing them up.",
+    ev5:[ {t:0,s:"1",fin:"M"},{t:1,s:"2",fin:"I"},{t:2,s:"1",fin:"M"},{t:3,s:"5|3",fin:"T"},
+          {t:4,s:"1",fin:"M"},{t:5,s:"2",fin:"I"},{t:6,s:"1",fin:"M"},{t:7,s:"5|3",fin:"T"} ] },
   { name:"Alternating Thumb Roll", steps:8,
     blurb:"The thumb bounces between the two bass strings while index and middle answer — the classic boom-chick engine behind old-time and country backup.",
     ev:[ {t:0,s:"B",fin:"T"},{t:1,s:"2",fin:"I"},{t:2,s:"A",fin:"T"},{t:3,s:"1",fin:"M"},
@@ -5136,7 +5168,17 @@ for(const [tk, arr] of Object.entries(SLIDE_LESSONS)){
 
 function lessonsFor(tuningKey){
   const out = [];
-  ROLL_LESSONS.forEach(l => out.push({ ...l, kind:"roll" }));   // roles fit any string count
+  /* Roll roles fit any string count, so one pattern serves every neck —
+     but four of the Scruggs rolls are written round a 5th string that
+     most of these tunings haven't got, and the four-string readings we
+     ship are real rolls rather than canonical ones. A tuning with a
+     drone gets the banjo form where a lesson carries one (`ev5`), under
+     the same name, because "the forward roll" means the canonical roll
+     for the instrument in your hands. */
+  const drone = !!TUNINGS[tuningKey].drone;
+  ROLL_LESSONS.forEach(l => out.push(drone && l.ev5
+    ? { ...l, kind:"roll", ev: l.ev5, blurb: l.blurb5 || l.blurb }
+    : { ...l, kind:"roll" }));
   (SLIDE_LESSONS[tuningKey] || []).forEach(l => out.push({ ...l, kind:"lick" }));
   return out;
 }
