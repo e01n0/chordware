@@ -496,6 +496,14 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   }
   #learnov.open{ display:block; }
   .lnrow{ display:flex; gap:8px; margin:10px 0; flex-wrap:wrap; }
+  /* the bar under the playhead, and what chord is coming */
+  #lnBarHi{ fill:var(--yellow); fill-opacity:.1; }
+  .lnnow{
+    display:flex; align-items:baseline; gap:14px; min-height:26px; margin:0 0 6px;
+    font-size:11px; letter-spacing:.14em; color:var(--dim); text-transform:uppercase;
+  }
+  .lnnow b{ font-family:var(--font-h); font-size:22px; letter-spacing:.04em; color:var(--yellow); }
+  .lnnow:empty{ display:none; }
   #lnclose{
     min-width:48px; min-height:48px; flex:0 0 auto;
     background:transparent; color:var(--red); border:1px solid var(--red);
@@ -1120,6 +1128,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
       <select class="ovtun" aria-label="Tuning"></select>
       <button class="prbtn on" id="lnRolls" aria-pressed="true" title="Right-hand picking patterns — pick any chord to roll over">Rolls</button>
       <button class="prbtn" id="lnLicks" aria-pressed="false" title="Blues slide licks written for this tuning">Slide Licks</button>
+      <button class="prbtn" id="lnSongs" aria-pressed="false" title="A whole saved song as tab — a roll carried through its changes, or its tapped-in melody">Song</button>
     </div>
     <div class="maprow">
       <select id="lnLesson" aria-label="Lesson"></select>
@@ -1137,6 +1146,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
         <button id="lnFast" aria-label="Faster">+</button>
       </div>
     </div>
+    <div class="lnnow" id="lnNow"></div>
     <div class="mapscroll" id="lnTab"></div>
     <div class="maplegend" id="lnHint">
       <span><b style="background:var(--yellow)"></b>T — THUMB</span>
@@ -5166,7 +5176,72 @@ for(const [tk, arr] of Object.entries(SLIDE_LESSONS)){
   );
 }
 
+let lessonsCache = { key: null, out: null };
+/* ── A WHOLE SONG AS TAB ──────────────────────────────────────────
+   A banjo arrangement is a roll carried through the changes: one bar
+   per chord, the same right hand every bar, the left hand moving. That
+   is exactly what a song already is here — buildPerfFor gives the chord
+   sequence — so the LEARN tab can play the lot.
+
+   Events are baked down to plain string indices and frets at build
+   time, resolved per bar against THAT bar's chord, so the renderer and
+   the audio need no idea a song is involved: it looks like a very long
+   lick. A song with a melody tapped in for this tuning can play that
+   instead of a roll, which turns any song you've entered into a
+   readable tab arrangement. */
+function songPatterns(songName){
+  const out = lessonsFor(state.tuning).filter(l => l.kind === "roll").map(l => l.name);
+  if(songName && mineSong(songName)) out.unshift(MELODY_PATTERN);
+  return out;
+}
+const MELODY_PATTERN = "♪ MELODY";
+
+function buildSongLesson(songName, pattern){
+  const tuning = TUNINGS[state.tuning];
+  const built = songName ? buildPerfFor(songName, 0) : null;
+  if(!built || !built.seq.length) return null;
+
+  if(pattern === MELODY_PATTERN){
+    const mined = mineSong(songName);
+    if(!mined) return null;
+    const BAR = 8, ev = [], marks = [];
+    mined.steps.forEach((st, i) => {
+      marks.push({ t: i * BAR, c: st.name });
+      let t = 0;
+      st.notes.forEach(nt => {                           // durations are in eighths — lay them out in time
+        if(t < BAR) ev.push({ t: i * BAR + t, s: nt.s, f: nt.f });
+        t += Math.max(1, nt.dur || 2);
+      });
+    });
+    return { name: songName, kind:"song", bar: BAR, steps: mined.steps.length * BAR, ev, marks,
+      blurb:`“${songName}” as you tapped it in — the melody laid out bar by bar over its own chords. Frets are where the tune sits inside each shape, so what you read is what your hand already knows from the miner.` };
+  }
+
+  const roll = lessonsFor(state.tuning).find(l => l.kind === "roll" && l.name === pattern)
+            || lessonsFor(state.tuning).find(l => l.kind === "roll");
+  if(!roll) return null;
+  const BAR = roll.steps, ev = [], marks = [];
+  let played = 0;
+  built.seq.forEach((sq, i) => {
+    marks.push({ t: i * BAR, c: sq.name });
+    if(!sq.chord) return;                                // chord we haven't got a shape for — bar stays empty
+    played++;
+    roll.ev.forEach(e => {
+      const si = rollString(e.s, sq.chord, tuning);
+      const f = rollFret(e, si, sq.chord, tuning);
+      if(f < 0) return;                                  // the roll lands on a string this chord mutes
+      ev.push({ t: i * BAR + e.t, s: si, f, fin: e.fin });
+    });
+  });
+  const missing = built.seq.length - played;
+  return { name: songName, kind:"song", bar: BAR, beats: roll.beats, claw: roll.claw,
+    steps: built.seq.length * BAR, ev, marks,
+    blurb:`“${songName}” rolled through with the ${roll.name} — ${built.seq.length} bars, one chord each, the same right hand the whole way while the left hand moves. That's how a banjo arrangement is built.` +
+      (missing ? ` (${missing} bar${missing > 1 ? "s" : ""} left empty — no shape in this tuning for that chord.)` : "") };
+}
+
 function lessonsFor(tuningKey){
+  if(lessonsCache.key === tuningKey) return lessonsCache.out;   // the playhead asks for this 60× a second
   const out = [];
   /* Roll roles fit any string count, so one pattern serves every neck —
      but four of the Scruggs rolls are written round a 5th string that
@@ -5180,6 +5255,7 @@ function lessonsFor(tuningKey){
     ? { ...l, kind:"roll", ev: l.ev5, blurb: l.blurb5 || l.blurb }
     : { ...l, kind:"roll" }));
   (SLIDE_LESSONS[tuningKey] || []).forEach(l => out.push({ ...l, kind:"lick" }));
+  lessonsCache = { key: tuningKey, out };
   return out;
 }
 
@@ -5276,10 +5352,10 @@ function countLabel(q, BAR, lesson){
 let lnGeo = null;                                       // layout the playhead animation needs
 function renderLessonTab(lesson, chord, tuning){
   const NSTR = tuning.strings.length;
-  const BAR = lesson.steps > 12 ? 8 : lesson.steps;     // progression lessons run many 8-slot bars
+  const BAR = lesson.bar || (lesson.steps > 12 ? 8 : lesson.steps);   // songs and progressions run many bars
   const cw = $("#lnTab").clientWidth || 700;
   const perRow = lesson.steps <= 16 ? lesson.steps      // short lessons: one row
-               : (cw >= 880 && lesson.steps % 32 === 0 ? 32 : 16);   // wide panels take 4 bars a row, narrow 2
+               : BAR * (cw >= 880 ? 4 : 2);             // wide panels take 4 bars a row, narrow 2
   const rows = Math.ceil(lesson.steps / perRow);
   const [STEP, SG, R, F] =                              // metrics shrink as rows hold more bars
     perRow > 16 ? [40, 36, 11, 12] : perRow > 8 ? [44, 36, 9, 10] : [64, 42, 11, 11];
@@ -5287,10 +5363,13 @@ function renderLessonTab(lesson, chord, tuning){
   const rowH = TOP + (NSTR - 1) * SG + 40;
   const W = X0 + perRow * STEP + 14;
   const H = rowH * rows;
-  lnGeo = { X0, STEP, TOP, SG, rowH, perRow, rows, NSTR };
+  lnGeo = { X0, STEP, TOP, SG, rowH, perRow, rows, NSTR, BAR };
   const sy = (r, s) => r * rowH + TOP + (NSTR - 1 - s) * SG;   // s0 (lowest position) at the bottom
   const ex = t => X0 + (t % perRow + .5) * STEP;
   const P = [`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'Share Tech Mono',monospace">`];
+  // behind everything: the bar the playhead is in, so your eye re-finds
+  // its place the instant the line wraps to the next row
+  P.push(`<rect id="lnBarHi" x="0" y="0" width="0" height="0" opacity="0"/>`);
 
   for(let r = 0; r < rows; r++){
     const slots = Math.min(perRow, lesson.steps - r * perRow);
@@ -5368,14 +5447,33 @@ function renderLessonTab(lesson, chord, tuning){
 let lsn = null;                                          // { playing, t0, ac0, raf, loopTimer } — selection lives in the selects + lsnKind
 let lsnBpm = 70, lsnSnd = true, lsnSwing = true, lsnKind = "roll";   // "roll" | "lick" — which half of the lesson book is open
 
-const lnSwings = l => lsnSwing && l.steps % 8 === 0;
+const lnBarOf = l => l.bar || (l.steps > 12 ? 8 : l.steps);
+const lnSwings = l => lsnSwing && lnBarOf(l) % 8 === 0;
 function lnSlotTime(l, t){                               // slot onset in eighth-note units, swung or straight
   const sw = lnSwings(l) ? 2 / 3 : .5;
   return Math.floor(t / 2) * 2 + (t % 2) * 2 * sw;
 }
 
-function lnLessons(){ return lessonsFor(state.tuning).filter(l => l.kind === lsnKind); }
-function lnLesson(){ return lnLessons()[+$("#lnLesson").value]; }
+/* In SONG mode the two selects change jobs: the first picks the song,
+   the second picks what to play over it (a roll, or the song's own
+   melody). The built lesson is memoised — the playhead asks for it on
+   every animation frame, and a long song is real work to lay out. */
+function lnLessons(){
+  if(lsnKind === "song") return Object.keys(loadSongs()).sort().map(name => ({ name, kind:"song" }));
+  return lessonsFor(state.tuning).filter(l => l.kind === lsnKind);
+}
+function lnSongName(){
+  const o = $("#lnLesson").selectedOptions[0];
+  return o ? o.textContent : null;
+}
+let lnBuilt = { key: null, lesson: null };
+function lnLesson(){
+  if(lsnKind !== "song") return lnLessons()[+$("#lnLesson").value];
+  const key = [state.tuning, lnSongName(), $("#lnChord").value].join("|");
+  if(lnBuilt.key !== key)
+    lnBuilt = { key, lesson: buildSongLesson(lnSongName(), $("#lnChord").value) };
+  return lnBuilt.lesson;
+}
 function lnChord(){
   const list = chordList();
   return list.find(c => c.name === $("#lnChord").value) || list[0];
@@ -5427,6 +5525,43 @@ function lnFrame(){
     ph.setAttribute("x1", x); ph.setAttribute("x2", x);
     ph.setAttribute("y1", row * G.rowH + G.TOP - 10);
     ph.setAttribute("y2", row * G.rowH + G.TOP + (G.NSTR - 1) * G.SG + 10);
+
+    // light the bar we're in
+    const hi = $("#lnBarHi");
+    if(hi){
+      const b = Math.floor(u / G.BAR) * G.BAR;
+      hi.setAttribute("x", G.X0 + (b % G.perRow) * G.STEP);
+      hi.setAttribute("y", row * G.rowH + G.TOP - 14);
+      hi.setAttribute("width", G.BAR * G.STEP);
+      hi.setAttribute("height", (G.NSTR - 1) * G.SG + 28);
+      hi.setAttribute("opacity", "1");
+    }
+
+    /* Follow the line. Wrapped tab is unreadable at tempo if the row
+       you're playing has scrolled off — and reading AHEAD is the whole
+       job, so park the live row near the top and leave the rest of the
+       page below it. Only on a row change: scrolling every frame would
+       fight the user and churn. */
+    if(lsn.row !== row){
+      lsn.row = row;
+      const box = $("#learnov"), tab = $("#lnTab");
+      if(box && tab && G.rows > 1){
+        const svg = tab.querySelector("svg");
+        const scale = svg ? svg.getBoundingClientRect().height / (G.rowH * G.rows) : 1;
+        const y = tab.offsetTop + row * G.rowH * scale - 72;
+        box.scrollTo({ top: Math.max(0, y), behavior: REDUCED_MOTION ? "auto" : "smooth" });
+      }
+    }
+  }
+
+  // NOW / NEXT — on a song or a progression the chord names are the look-ahead
+  if(l.marks && l.marks.length){
+    let i = -1;                                          // findLastIndex is ES2023 — too new for older phones
+    for(let k = 0; k < l.marks.length && l.marks[k].t <= u; k++) i = k;
+    const now = i >= 0 ? l.marks[i] : null, nxt = l.marks[i + 1] || l.marks[0];
+    const el = $("#lnNow");
+    if(el) el.innerHTML = now
+      ? `<b>${now.c}</b><span>NEXT// ${nxt ? nxt.c : "—"}</span>` : "";
   }
   document.querySelectorAll("#lnTab .lev").forEach(g => {
     const t = +g.dataset.t;
@@ -5442,12 +5577,14 @@ function lnStop(){
   $("#lnPlay").textContent = "▶ Play";
   const ph = $("#lnPlayhead");
   if(ph) ph.classList.remove("run");
+  const hi = $("#lnBarHi");
+  if(hi) hi.setAttribute("opacity", "0");
   document.querySelectorAll("#lnTab .lev.lit").forEach(g => g.classList.remove("lit"));
   syncWakeLock();
 }
 function lnStart(){
   try{ audioCtx(); }catch(e){}                           // user gesture — unlock audio before the first scheduled pluck
-  lsn = { playing: true, t0: performance.now() };
+  lsn = { playing: true, t0: performance.now(), row: -1 };
   $("#lnPlay").classList.add("on");
   $("#lnPlay").textContent = "◼ Stop";
   $("#lnPlayhead").classList.add("run");
@@ -5457,56 +5594,85 @@ function lnStart(){
 }
 
 function syncLnKind(){
-  const r = lsnKind === "roll";
-  $("#lnRolls").classList.toggle("on", r);
-  $("#lnLicks").classList.toggle("on", !r);
-  $("#lnRolls").setAttribute("aria-pressed", r);
-  $("#lnLicks").setAttribute("aria-pressed", !r);
+  [["#lnRolls","roll"],["#lnLicks","lick"],["#lnSongs","song"]].forEach(([id, k]) => {
+    const on = lsnKind === k;
+    $(id).classList.toggle("on", on);
+    $(id).setAttribute("aria-pressed", String(on));
+  });
 }
 function setLnKind(k){
   if(lsnKind === k) return;
   lsnKind = k;
   $("#lnLesson").innerHTML = "";                         // force drawLearn to rebuild for this kind
-  drawLearn();
+  $("#lnChord").innerHTML = "";                          // …and the second select, which changes job
+  if(k !== "song") relearnTuning(); else drawLearn();
 }
 function drawLearn(){
   lnStop();
   $("#lntun").textContent = TUNINGS[state.tuning].label;
   const hasLicks = (SLIDE_LESSONS[state.tuning] || []).length > 0;
+  const hasSongs = Object.keys(loadSongs()).length > 0;
   $("#lnLicks").disabled = !hasLicks;
+  $("#lnSongs").disabled = !hasSongs;
+  $("#lnSongs").title = hasSongs
+    ? "A whole saved song as tab — a roll carried through its changes, or its tapped-in melody"
+    : "Save a song first (+ SONG on the main screen) and it can be played as tab here";
   if(lsnKind === "lick" && !hasLicks){                   // tuning has no licks yet — fall back to rolls
     lsnKind = "roll"; $("#lnLesson").innerHTML = "";
   }
+  if(lsnKind === "song" && !hasSongs){ lsnKind = "roll"; $("#lnLesson").innerHTML = ""; }
   syncLnKind();
   const lessons = lnLessons();
   if(!lessons.length){
     $("#lnLesson").innerHTML = ""; $("#lnChord").style.display = "none";
     $("#lnBlurb").textContent = "// NO LESSONS FOR THIS TUNING YET //";
-    $("#lnPattern").innerHTML = "";
+    $("#lnPattern").innerHTML = ""; $("#lnNow").innerHTML = "";
     $("#lnTab").innerHTML = ""; $("#lnPlay").disabled = true;
     return;
   }
-  $("#lnPlay").disabled = false;
   const sel = $("#lnLesson");
   if(sel.options.length !== lessons.length)              // tuning or kind changed — rebuild the list
     sel.innerHTML = lessons.map((l, i) =>
       `<option value="${i}">${l.name}</option>`).join("");
-  const l = lessons[+sel.value] || lessons[0];
+
+  const song = lsnKind === "song";
+  if(song){                                              // second select turns into the pattern picker
+    const pats = songPatterns(lnSongName());
+    const want = pats.map(p => `<option value="${escHTML(p)}">${escHTML(p)}</option>`).join("");
+    if($("#lnChord").innerHTML !== want){
+      const keep = $("#lnChord").value;
+      $("#lnChord").innerHTML = want;
+      if(pats.includes(keep)) $("#lnChord").value = keep;
+    }
+  }
+  const l = song ? lnLesson() : (lessons[+sel.value] || lessons[0]);
+  if(!l){                                                // song has no chords this tuning can voice
+    $("#lnBlurb").textContent = "// NOTHING TO PLAY — THIS SONG HAS NO CHORDS THIS TUNING CAN VOICE //";
+    $("#lnPattern").innerHTML = ""; $("#lnNow").innerHTML = "";
+    $("#lnTab").innerHTML = ""; $("#lnPlay").disabled = true;
+    return;
+  }
+  $("#lnPlay").disabled = false;
   const roll = l.kind === "roll";
-  $("#lnSwing").disabled = l.steps % 8 !== 0;            // compound meters don't swing
-  $("#lnChord").style.display = roll ? "" : "none";
-  $("#lnHint").style.display = roll ? "" : "none";
+  $("#lnSwing").disabled = lnBarOf(l) % 8 !== 0;        // compound meters don't swing
+  $("#lnChord").style.display = roll || song ? "" : "none";
+  $("#lnHint").style.display = roll || song ? "" : "none";
   $("#lnClawHint").style.display = l.claw && TUNINGS[state.tuning].drone ? "" : "none";
   $("#lnBlurb").textContent = l.blurb;
   $("#lnPattern").innerHTML = rollPatternHTML(l, lnChord(), TUNINGS[state.tuning]);
+  $("#lnNow").innerHTML = l.marks && l.marks.length
+    ? `<b>${l.marks[0].c}</b><span>NEXT// ${l.marks[1] ? l.marks[1].c : "—"}</span>` : "";
   $("#lnTab").innerHTML = renderLessonTab(l, lnChord(), TUNINGS[state.tuning]);
 }
 
 function relearnTuning(){                                // repopulate the per-tuning selects, then draw
   const list = chordList();
   const home = { gCEA:"C", DGBE:"G", DGBD:"G", DGBbD:"Gm", gDGBD:"G", EADGBE:"E" }[state.tuning];
-  $("#lnChord").innerHTML = list.map(c => `<option value="${c.name}">CHORD:// ${c.name}</option>`).join("");
-  if(home && list.some(c => c.name === home)) $("#lnChord").value = home;
+  if(lsnKind !== "song"){                                // in song mode this select holds patterns, not chords
+    $("#lnChord").innerHTML = list.map(c => `<option value="${c.name}">CHORD:// ${c.name}</option>`).join("");
+    if(home && list.some(c => c.name === home)) $("#lnChord").value = home;
+  }
+  lnBuilt = { key: null, lesson: null };                 // tuning changed — rebuild any song arrangement
   $("#lnLesson").innerHTML = "";                         // force drawLearn to rebuild for this tuning
   drawLearn();
 }
@@ -5522,6 +5688,7 @@ function closeLearn(){
 }
 $("#lnRolls").addEventListener("click", () => setLnKind("roll"));
 $("#lnLicks").addEventListener("click", () => setLnKind("lick"));
+$("#lnSongs").addEventListener("click", () => setLnKind("song"));
 $("#lnLesson").addEventListener("change", drawLearn);
 $("#lnChord").addEventListener("change", drawLearn);
 $("#lnPlay").addEventListener("click", () => { lsn ? lnStop() : lnStart(); });
