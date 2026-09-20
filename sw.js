@@ -31,8 +31,12 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
 
-  const isShell = e.request.mode === "navigate"
-    || new URL(e.request.url).pathname.endsWith("/index.html");
+  const path = new URL(e.request.url).pathname;
+  // the tabsmith API and its own UI live on the same origin when self-hosted:
+  // never cache those (job polling must see live state; /tabsmith has its own SW)
+  if (/^\/(jobs|share|tabsmith)(\/|$)/.test(path)) return;
+
+  const isShell = e.request.mode === "navigate" || path.endsWith("/index.html");
 
   if (isShell) {
     // network-first with offline fallback

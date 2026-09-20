@@ -1176,6 +1176,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
       <button class="prbtn" id="mnHear" title="Play along — the mic advances the target">Hear Me</button>
       <button class="prbtn" id="mnListen" title="Hear the tune mined out of the shapes at tempo">▶ Listen</button>
       <button class="prbtn" id="mnAbc" title="Paste an ABC tune (thesession.org…) — it becomes a saved song, melody mined onto this tuning">ABC</button>
+      <button class="prbtn" id="mnAudio" hidden title="Hand a recording or a link to tabsmith on this server — it transcribes it and the song lands here, one chord per bar, melody mined onto this tuning">AUDIO</button>
       <div class="prtempo">
         <button id="mnSlow" aria-label="Slower">−</button>
         <div id="mnBpm">80 BPM</div>
@@ -1275,6 +1276,29 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     <div class="sebtns">
       <button id="abCancel">Cancel</button>
       <button id="abImport">Mine It</button>
+    </div>
+  </div>
+</div>
+
+<div id="auEd" role="dialog" aria-modal="true" aria-label="From audio">
+  <div class="sewrap">
+    <div class="sehead">
+      <h2>FROM AUDIO://</h2>
+      <button id="auClose" aria-label="Close">✕</button>
+    </div>
+    <label for="auFile">A recording (mp3, wav, flac, m4a) or a MIDI / MusicXML file…</label>
+    <input type="file" id="auFile" accept="audio/*,.mid,.midi,.musicxml,.xml,.mxl,.json">
+    <label for="auUrl">…or a link (YouTube and anything yt-dlp reads)</label>
+    <input type="url" id="auUrl" placeholder="https://" autocomplete="off" spellcheck="false">
+    <div class="sehint">tabsmith on this server transcribes it (MuScriptor on the GPU, vocals separated when
+      there are any), works out the chords, key and melody, and the song lands here — <b>one chord per
+      bar</b>, the melody mined onto the current tuning, ready for any roll in LEARN › SONG. Takes a
+      couple of minutes for a full song; the engraved tab and an mp3 of the arrangement come back too.</div>
+    <div class="sehint" id="auStatus" hidden></div>
+    <div class="sebtns">
+      <button id="auCancel">Cancel</button>
+      <button id="auOpen" hidden>Open as tab</button>
+      <button id="auGo">Transcribe</button>
     </div>
   </div>
 </div>
@@ -6370,6 +6394,124 @@ $("#abImport").addEventListener("click", () => {
   $("#mnTune").value = "s:" + name;
   mineLoad();
   toast(`MINED “${name.toUpperCase()}”` + (s.dropped ? ` · ${s.dropped} NOTES OUT OF REACH` : ""));
+});
+
+/* ── FROM AUDIO — hand a recording or a link to a tabsmith running on this
+   origin (github.com/e01n0/tabsmith, self-hosted alongside this page). Its
+   lead sheet comes back as a saved song: one chord per bar, so LEARN › SONG's
+   one-bar-per-chord layout is the real song's bar structure, with the melody
+   mined onto the current tuning exactly the way an ABC import is. The button
+   only appears when /jobs answers, so the public deploy is untouched. ── */
+const TABSMITH_JOB = () => state.tuning === "EADGBE" ? ["guitar", "travis"] : ["banjo", "scruggs"];
+let auJob = null;
+
+(async function tabsmithProbe(){
+  try{
+    const r = await fetch("/jobs", { cache: "no-store" });
+    if(r.ok && Array.isArray(await r.json())) $("#mnAudio").hidden = false;
+  }catch(e){ /* no tabsmith here (Render, file://) — stay hidden */ }
+})();
+
+/* a tabsmith lead sheet → a chordware song. Melody times are beats from bar 0,
+   durations in beats (chordware keeps eighths); chords are (bar, beat, name). */
+function leadsheetToSong(ls){
+  const t = TUNINGS[state.tuning];
+  const list = chordList();
+  const find = n => list.find(c => normName(c.name) === normName(n))
+    || (n.includes("/") ? list.find(c => normName(c.name) === normName(n.split("/")[0])) : null);
+  const bpb = ls.meter[0];
+  const chordAt = beat => {
+    let cur = ls.chords[0].name;
+    for(const c of ls.chords){ if(c.bar * bpb + c.beat <= beat + 1e-9) cur = c.name; else break; }
+    return cur;
+  };
+  const centre = t.open.reduce((a, b) => a + b, 0) / t.open.length + 6;
+  const avg = ls.melody.length ? ls.melody.reduce((a, m) => a + m.p, 0) / ls.melody.length : centre;
+  const shift = Math.round((centre - avg) / 12) * 12;
+  const chordsField = [], steps = [];
+  let dropped = 0;
+  for(let b = 0; b < ls.bars; b++){
+    const name = chordAt(b * bpb);
+    chordsField.push(name);
+    const chord = find(name);
+    const arr = [];
+    for(const m of ls.melody){
+      if(m.t < b * bpb || m.t >= (b + 1) * bpb) continue;
+      const hit = chord ? mineNote(m.p + shift, chord, t) : null;
+      if(hit) arr.push([hit.s, hit.f, Math.max(.5, Math.round(m.d * 4) / 2)]);
+      else dropped++;
+    }
+    steps.push(arr);
+  }
+  return { chords: chordsField.join(" "), melody: { tuning: state.tuning, steps }, dropped };
+}
+
+function closeAu(){
+  $("#auEd").classList.remove("open");
+  document.body.style.overflow = document.querySelector(
+    "#modal.open, #mapov.open, #styleov.open, #learnov.open, #mineov.open, #songEd.open, #setEd.open, #tuner.open"
+  ) ? "hidden" : "";
+}
+function auSay(msg){ const el = $("#auStatus"); el.hidden = false; el.textContent = msg; }
+$("#mnAudio").addEventListener("click", () => {
+  $("#auFile").value = ""; $("#auUrl").value = "";
+  $("#auStatus").hidden = true; $("#auOpen").hidden = true; $("#auGo").disabled = false;
+  $("#auEd").classList.add("open");
+  document.body.style.overflow = "hidden";
+});
+$("#auClose").addEventListener("click", closeAu);
+$("#auCancel").addEventListener("click", closeAu);
+$("#auEd").addEventListener("click", e => { if(e.target === e.currentTarget) closeAu(); });
+
+$("#auGo").addEventListener("click", async () => {
+  const file = $("#auFile").files[0], url = $("#auUrl").value.trim();
+  if(!file && !/^https?:\/\//.test(url)){ toast("PICK A FILE OR PASTE A LINK"); return; }
+  const [instrument, style] = TABSMITH_JOB();
+  const fd = new FormData();
+  if(file) fd.append("file", file); else fd.append("url", url);
+  fd.append("instrument", instrument); fd.append("style", style);
+  fd.append("model", "large"); fd.append("separate", "auto");
+  $("#auGo").disabled = true;
+  auSay("SUBMITTING…");
+  let id;
+  try{
+    const r = await fetch("/jobs", { method: "POST", body: fd, headers: { accept: "application/json" } });
+    if(!r.ok){ auSay("REFUSED: " + ((await r.json()).detail || r.statusText)); $("#auGo").disabled = false; return; }
+    id = (await r.json()).id;
+  }catch(e){ auSay("COULDN'T REACH TABSMITH"); $("#auGo").disabled = false; return; }
+  auJob = id;
+  const poll = async () => {
+    if(auJob !== id) return;                                     // a newer submission took over
+    let j;
+    try{ j = await (await fetch("/jobs/" + id, { cache: "no-store" })).json(); }
+    catch(e){ setTimeout(poll, 4000); return; }
+    const last = j.log.length ? j.log[j.log.length - 1].replace(/^\S+\s/, "") : "";
+    if(j.state === "failed"){ auSay("FAILED: " + (j.error || "unknown")); $("#auGo").disabled = false; return; }
+    if(j.state !== "done"){ auSay(j.state.toUpperCase().replace("_", " ") + " — " + last); setTimeout(poll, 3000); return; }
+    const ls = await (await fetch(`/jobs/${id}/leadsheet.json`, { cache: "no-store" })).json();
+    const s = leadsheetToSong(ls);
+    const name = (ls.title || "transcribed").toLowerCase();
+    const songs = loadSongs();
+    if(songs[name] !== undefined && !confirm(`“${name}” already exists — overwrite it?`)){ $("#auGo").disabled = false; return; }
+    songs[name] = { chords: s.chords, lyrics: "", melody: s.melody, leadsheet: ls, tabsmith: id };
+    storeSongs(songs);
+    refreshSongSel();
+    drawMineList();
+    const f = n => `/jobs/${id}/${j.files[n]}`;
+    $("#auStatus").innerHTML = `DONE — ${escHTML(ls.key)} ${escHTML(ls.mode)}${ls.capo ? " · CAPO " + ls.capo : ""} · ${ls.bars} BARS · ${Math.round(ls.tempo)} BPM`
+      + (s.dropped ? ` · ${s.dropped} NOTES OUT OF REACH` : "")
+      + ` · <a href="${f("pdf")}" target="_blank">TAB PDF</a> · <a href="${f("mp3")}" target="_blank">MP3</a> · <a href="/tabsmith/#job/${id}" target="_blank">EDIT CHORDS</a>`;
+    $("#auOpen").hidden = false;
+    $("#auOpen").onclick = () => {
+      closeAu();
+      openLearn();
+      setLnKind("song");
+      const i = lnLessons().findIndex(l => l.name === name);
+      if(i >= 0){ $("#lnLesson").value = String(i); drawLearn(); }
+    };
+    toast(`SAVED “${name.toUpperCase()}” — ${ls.bars} BARS`);
+  };
+  poll();
 });
 
 /* ── performance view — big chord + lyric autoscroll, for playing live.
