@@ -4656,8 +4656,8 @@ const ROLL_LESSONS = [
          {t:4,s:"1",fin:"M"},{t:5,s:"2",fin:"I"},{t:6,s:"3",fin:"T"},{t:7,s:"1",fin:"M"} ] },
   { name:"Foggy Mountain Roll", steps:8,
     blurb:"Earl Scruggs' signature: index and middle trade on the top strings while the thumb answers below — 2-1-5-1, on the 5th string where the instrument has one, the 3rd deputising where it hasn't.",
-    ev:[ {t:0,s:"2",fin:"I"},{t:1,s:"1",fin:"M"},{t:2,s:"5",fin:"T"},{t:3,s:"1",fin:"M"},
-         {t:4,s:"2",fin:"I"},{t:5,s:"1",fin:"M"},{t:6,s:"5",fin:"T"},{t:7,s:"1",fin:"M"} ] },
+    ev:[ {t:0,s:"2",fin:"I"},{t:1,s:"1",fin:"M"},{t:2,s:"5|3",fin:"T"},{t:3,s:"1",fin:"M"},
+         {t:4,s:"2",fin:"I"},{t:5,s:"1",fin:"M"},{t:6,s:"5|3",fin:"T"},{t:7,s:"1",fin:"M"} ] },
   { name:"Lick Roll", steps:8,
     blurb:"The roll behind bluegrass banjo's most-played fill-in lick: it opens like a forward roll, then closes like a forward-reverse — thumb and middle trading around the index. The thumb notes fall on the 5th string on a real banjo, on the bass string everywhere else.",
     ev:[ {t:0,s:"3",fin:"T"},{t:1,s:"1",fin:"M"},{t:2,s:"B",fin:"T"},{t:3,s:"3",fin:"I"},
@@ -4728,17 +4728,17 @@ const ROLL_LESSONS = [
          {t:4,s:"2",fin:"I"},{t:5,s:"1",fin:"M"},{t:6,s:"B",fin:"T"},{t:7,s:"2",fin:"I"},
          {t:8,s:"1",fin:"M"},{t:9,s:"A",fin:"T"},{t:10,s:"2",fin:"I"},{t:11,s:"1",fin:"M"} ] },
   { name:"Clawhammer Bum-Ditty", steps:8,
-    blurb:"The old-time down-picking engine — not a roll at all: strike a melody note with the back of a nail (F = frail), brush the strings, then the thumb catches the bass. On a reentrant uke that's the high-g drone — exactly the banjo 5th string's job. BUM · DIT-TY.",
-    ev:[ {t:0,s:"1",fin:"F"},{t:2,s:"3",fin:"F"},{t:2,s:"2",fin:"F"},{t:2,s:"1",fin:"F"},{t:3,s:"B",fin:"T"},
-         {t:4,s:"1",fin:"F"},{t:6,s:"3",fin:"F"},{t:6,s:"2",fin:"F"},{t:6,s:"1",fin:"F"},{t:7,s:"B",fin:"T"} ] },
+    blurb:"The old-time down-picking engine — not a roll at all: strike a melody note with the back of a nail (F = frail), brush the strings, then the thumb catches the drone. On a 5-string that's the open 5th, every bar, whatever chord your left hand is holding — the rub of the g against a D or an F IS the sound. On a reentrant uke the high g does the same job; on a guitar the thumb takes the bass. BUM · DIT-TY.",
+    ev:[ {t:0,s:"1",fin:"F"},{t:2,s:"3",fin:"F"},{t:2,s:"2",fin:"F"},{t:2,s:"1",fin:"F"},{t:3,s:"5|B",fin:"T"},
+         {t:4,s:"1",fin:"F"},{t:6,s:"3",fin:"F"},{t:6,s:"2",fin:"F"},{t:6,s:"1",fin:"F"},{t:7,s:"5|B",fin:"T"} ] },
   { name:"Double Thumbing", steps:8,
     blurb:"The bum-ditty with the thumb doubled — BUMP-a-DIT-ty: melody note, thumb catch, brush, thumb catch. The extra thumb note fills every slot in the bar, which is what old-time players mean by 'keeping the wheel turning'.",
-    ev:[ {t:0,s:"1",fin:"F"},{t:1,s:"B",fin:"T"},{t:2,s:"3",fin:"F"},{t:2,s:"2",fin:"F"},{t:2,s:"1",fin:"F"},{t:3,s:"B",fin:"T"},
-         {t:4,s:"1",fin:"F"},{t:5,s:"B",fin:"T"},{t:6,s:"3",fin:"F"},{t:6,s:"2",fin:"F"},{t:6,s:"1",fin:"F"},{t:7,s:"B",fin:"T"} ] },
+    ev:[ {t:0,s:"1",fin:"F"},{t:1,s:"5|B",fin:"T"},{t:2,s:"3",fin:"F"},{t:2,s:"2",fin:"F"},{t:2,s:"1",fin:"F"},{t:3,s:"5|B",fin:"T"},
+         {t:4,s:"1",fin:"F"},{t:5,s:"5|B",fin:"T"},{t:6,s:"3",fin:"F"},{t:6,s:"2",fin:"F"},{t:6,s:"1",fin:"F"},{t:7,s:"5|B",fin:"T"} ] },
   { name:"Drop-Thumb Clawhammer", steps:8,
-    blurb:"The move that unlocks melodic clawhammer: instead of always catching the drone, the thumb DROPS to an inside string for a melody note — frail, drop, frail, catch. Twice as many melody slots per bar; every fiddle-tune arrangement leans on it.",
-    ev:[ {t:0,s:"1",fin:"F"},{t:1,s:"2",fin:"T"},{t:2,s:"1",fin:"F"},{t:3,s:"B",fin:"T"},
-         {t:4,s:"1",fin:"F"},{t:5,s:"2",fin:"T"},{t:6,s:"3",fin:"F"},{t:6,s:"2",fin:"F"},{t:6,s:"1",fin:"F"},{t:7,s:"B",fin:"T"} ] },
+    blurb:"The move that unlocks melodic clawhammer: instead of always catching the drone, the thumb DROPS to an inside string for a melody note — frail, drop, frail, catch. The drops take the chord's fret on the 2nd string; the catches are still the drone. Twice as many melody slots per bar; every fiddle-tune arrangement leans on it.",
+    ev:[ {t:0,s:"1",fin:"F"},{t:1,s:"2",fin:"T"},{t:2,s:"1",fin:"F"},{t:3,s:"5|B",fin:"T"},
+         {t:4,s:"1",fin:"F"},{t:5,s:"2",fin:"T"},{t:6,s:"3",fin:"F"},{t:6,s:"2",fin:"F"},{t:6,s:"1",fin:"F"},{t:7,s:"5|B",fin:"T"} ] },
 ];
 
 const SLIDE_LESSONS = {
@@ -4993,18 +4993,23 @@ function lessonsFor(tuningKey){
 }
 
 /* resolve a roll's string ROLE to a string index for this chord:
-   "1"/"2"/"3" from the top, "5" the banjo's 5th-string drone, "B" the
-   lowest sounded string, "A" the alternate bass above it. Numeric s
-   (licks) passes through untouched. On a real 5-string the drone is
-   string 0, so "B"/"A" land on it and the 4th string by themselves,
-   and a chord that mutes the drone pushes them up one exactly as a
-   picker would. "5" wants a drone that's actually sounding; without
-   one it takes the 3rd string, which is what the four-string tunings
-   did all along. */
+   "1"/"2"/"3" from the top, "B" the lowest sounded string, "A" the
+   alternate bass above it, and "5|x" the banjo's 5th-string drone
+   with the role to use instead on a neck that hasn't got one ("5|3"
+   the 3rd string, which is what the four-string tunings always did;
+   "5|B" the bass, so clawhammer's thumb catch stays a thumb catch on
+   a uke or a guitar). Numeric s (licks) passes through untouched.
+   The drone answers whatever the chord says about it: a × there means
+   "leave it out of the strum", not "the 5th string stopped working",
+   and a thumb note on it rings open (see rollFret). On a real 5-string
+   the drone is also string 0, so "B"/"A" land on it and the 4th string
+   by themselves, and a chord that mutes it pushes them up one exactly
+   as a picker would. */
 function rollString(role, chord, tuning){
   if(typeof role === "number") return role;
   const NSTR = tuning.pitches.length;
-  if(role === "5") return tuning.drone && chord.frets[tuning.drone.s] >= 0 ? tuning.drone.s : NSTR - 3;
+  if(role[0] === "5")
+    return tuning.drone ? tuning.drone.s : rollString(role.slice(2) || "3", chord, tuning);
   if(role === "B" || role === "A"){
     let b = 0;
     while(b < NSTR - 1 && chord.frets[b] < 0) b++;
@@ -5014,6 +5019,17 @@ function rollString(role, chord, tuning){
     return a;
   }
   return NSTR - +role;
+}
+
+/* the fret a roll event sounds on: its own if it carries one, else the
+   held chord's fret for that string — except a drone, which rings open
+   even on the chords that mute it. That's the whole point of a drone:
+   clawhammer's thumb catches the 5th string on every bar of every tune,
+   and the g rubbing against a D or an F chord IS the old-time sound. */
+function rollFret(e, si, chord, tuning){
+  if(e.f !== undefined) return e.f;
+  const f = chord.frets[si];
+  return f < 0 && tuning.drone && tuning.drone.s === si ? 0 : f;
 }
 
 /* slide audio: ONE pluck whose pitch glides continuously into the
@@ -5079,7 +5095,7 @@ function renderLessonTab(lesson, chord, tuning){
       P.push(`<circle cx="${x2}" cy="${y}" r="${R}"/>`);
       P.push(`<text class="fr" x="${x2}" y="${y + 3.6}" font-size="${F}" text-anchor="middle">${e.to}</text>`);
     }else{
-      const f = e.f !== undefined ? e.f : chord.frets[si];
+      const f = rollFret(e, si, chord, tuning);
       if(f < 0){
         P.push(`<text class="mute" x="${x}" y="${y + 4.5}" font-size="${F + 3}" text-anchor="middle">×</text>`);
       }else{
@@ -5125,7 +5141,7 @@ function lnEventAudio(l, e, chord, tuning, when, stepS){
     const dur = (lnSlotTime(l, nt) - lnSlotTime(l, e.t)) * stepS;
     return slideNotes(tuning.open[si] + e.sl, tuning.open[si] + e.to, when, dur * .9);
   }
-  const f = e.f !== undefined ? e.f : chord.frets[si];
+  const f = rollFret(e, si, chord, tuning);
   if(f >= 0) pluck(tuning.open[si] + f, when, .3);
 }
 
