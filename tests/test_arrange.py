@@ -95,3 +95,12 @@ def test_span_enforced_by_dropping_fill():
     notes = [TabNote(0, 1, 1, 7, melody=True), TabNote(0, 1, 5, 1, "p"), TabNote(0, 1, 2, 5, "i")]
     out = _enforce_span(notes, 5)
     assert [n.fret for n in out] == [7, 5], "the fret-1 bass is dropped, the melody stays"
+
+
+def test_roll_styles_survive_sixteenth_ornaments():
+    s = sheet_4_4()
+    s.melody = s.melody + [MelodyNote(6.75, 0.25, 64), MelodyNote(0.25, 0.25, 69)]  # 16th ornaments
+    for style in ("scruggs", "clawhammer"):
+        arr = arrange(s, "banjo", style)
+        check_invariants(arr)
+        assert all(abs(m.t * 2 - round(m.t * 2)) < 1e-9 for m in arr.sheet.melody), "melody on the 8th grid"

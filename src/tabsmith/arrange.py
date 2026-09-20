@@ -64,6 +64,17 @@ def fit_range(sheet: LeadSheet, lo: int, hi: int) -> LeadSheet:
     return replace(sheet, melody=out)
 
 
+def quantise_melody(sheet: LeadSheet, step: float) -> LeadSheet:
+    """Snap melody onsets to a coarser grid (roll styles think in 8ths). Two notes landing on the
+    same slot keep the longer one: a vocal 16th-note ornament becomes one 8th on the banjo."""
+    best: dict[int, MelodyNote] = {}
+    for n in sheet.melody:
+        k = round(n.t / step)
+        if k not in best or n.d > best[k].d:
+            best[k] = replace(n, t=k * step, d=max(step, round(n.d / step) * step))
+    return replace(sheet, melody=[best[k] for k in sorted(best)])
+
+
 def _melody_at(sheet: LeadSheet, t: float, window: float) -> MelodyNote | None:
     """Melody note starting in [t, t+window), earliest wins."""
     hits = [m for m in sheet.melody if t - 1e-9 <= m.t < t + window - 1e-9]
@@ -176,6 +187,8 @@ def arrange(sheet: LeadSheet, instrument: str, style: str,
         raise ValueError(f"unknown {instrument} style {style!r}; choose from {STYLES.get(instrument)}")
     tuning = TUNINGS[instrument]
     sheet = fit_range(sheet, *RANGE[style])
+    if style in ("scruggs", "clawhammer"):
+        sheet = quantise_melody(sheet, 0.5)
     if style == "scruggs":
         notes = _scruggs(sheet, tuning, patterns or {})
     elif style == "clawhammer":
