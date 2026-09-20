@@ -509,7 +509,14 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   .lev circle{ fill:var(--bg2); stroke:var(--cyan); stroke-width:1.6; }
   .lev text.fr{ fill:var(--cyan); }
   .lev text.slf{ fill:var(--dim); }
+  /* picking hand at a glance: the thumb is the anchor every pattern is
+     built around, so it gets the accent colour and bold weight — the
+     letter still carries the meaning where a theme flattens the hues */
   .lev text.fin{ fill:var(--red); }
+  .lev text.fin[data-fin="T"]{ fill:var(--yellow); font-weight:bold; }
+  .lev text.fin[data-fin="I"]{ fill:var(--cyan); }
+  .lev text.fin[data-fin="R"]{ fill:var(--dim); }
+  #lnTab .brush{ fill:none; stroke:var(--red); stroke-width:1.4; opacity:.8; }
   .lev text.mute{ fill:var(--dim); }
   .lev .sl{ stroke:var(--red); stroke-width:2; fill:none; }
   .lev.lit circle{ fill:var(--yellow); stroke:var(--yellow); filter:drop-shadow(0 0 7px var(--yellow)); }
@@ -632,6 +639,13 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     color:var(--text); font-size:12px; line-height:1.6; letter-spacing:.03em;
     border-left:3px solid var(--yellow); padding:4px 10px; margin-bottom:10px;
   }
+  /* the roll written the way a teacher writes it, above the tab */
+  .lnpattern{
+    display:flex; gap:10px 22px; flex-wrap:wrap; margin:-4px 0 10px; padding:0 10px 0 13px;
+    font-size:11px; letter-spacing:.14em; color:var(--dim); text-transform:uppercase;
+  }
+  .lnpattern:empty{ display:none; }
+  .lnpattern b{ color:var(--text); font-size:13px; letter-spacing:.1em; }
   #styscale{ color:var(--yellow); }
   .prog{ margin-top:12px; border:1px solid var(--line); background:var(--panel); padding:10px 12px; }
   .prog h3{
@@ -1106,6 +1120,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
       <select id="lnChord" aria-label="Chord to roll over"></select>
     </div>
     <div class="styblurb" id="lnBlurb"></div>
+    <div class="lnpattern" id="lnPattern"></div>
     <div class="lnrow">
       <button class="prbtn" id="lnPlay" title="Loop the pattern at tempo">▶ Play</button>
       <button class="prbtn" id="lnSnd" title="Hear the pattern, or just a metronome tick while you play it">SND NOTES</button>
@@ -1118,8 +1133,11 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     </div>
     <div class="mapscroll" id="lnTab"></div>
     <div class="maplegend" id="lnHint">
-      <span><b style="background:var(--red)"></b>T · I · M · R · F — THUMB / INDEX / MIDDLE / RING / FRAIL</span>
-      <span><b class="hollow"></b>NUMBERS = FRETS · × = MUTED</span>
+      <span><b style="background:var(--yellow)"></b>T — THUMB</span>
+      <span><b style="background:var(--cyan)"></b>I — INDEX</span>
+      <span><b style="background:var(--red)"></b>M / F — MIDDLE / FRAIL</span>
+      <span><b class="hollow"></b>NUMBERS = FRETS · × = MUTED · ⌐ = ONE BRUSH</span>
+      <span id="lnClawHint">CLAWHAMMER — THE THUMB IS ON THE 5TH UNLESS A T MARKS A DROP</span>
     </div>
   </div>
 </div>
@@ -4706,11 +4724,11 @@ const ROLL_LESSONS = [
     blurb:"The PIMA climb mirrored: thumb, then ring–middle–index spilling DOWN from the top string. Harder than the climb — the fingers have to leapfrog inward — which is exactly why it's the second exercise in the book.",
     ev:[ {t:0,s:"B",fin:"T"},{t:1,s:"1",fin:"R"},{t:2,s:"2",fin:"M"},{t:3,s:"3",fin:"I"},
          {t:4,s:"A",fin:"T"},{t:5,s:"1",fin:"R"},{t:6,s:"2",fin:"M"},{t:7,s:"3",fin:"I"} ] },
-  { name:"Folk Arpeggio · 6/8", steps:6,
+  { name:"Folk Arpeggio · 6/8", steps:6, beats:2,
     blurb:"The House-of-the-Rising-Sun ripple: bass note, then climb the top strings and fall back — six eighth notes to the bar, count ONE-two-three-FOUR-five-six.",
     ev:[ {t:0,s:"B",fin:"T"},{t:1,s:"3",fin:"I"},{t:2,s:"2",fin:"M"},{t:3,s:"1",fin:"R"},
          {t:4,s:"2",fin:"M"},{t:5,s:"3",fin:"I"} ] },
-  { name:"Lullaby · 6/8", steps:6,
+  { name:"Lullaby · 6/8", steps:6, beats:2,
     blurb:"The folk arpeggio turned upside down: bass, then start from the TOP string and sink into the middle before rising home. Softer than the climb — the melody note lands first and the rest is afterglow. Built for slow waltzes and lullabies.",
     ev:[ {t:0,s:"B",fin:"T"},{t:1,s:"1",fin:"R"},{t:2,s:"2",fin:"M"},{t:3,s:"3",fin:"I"},
          {t:4,s:"2",fin:"M"},{t:5,s:"1",fin:"R"} ] },
@@ -4722,20 +4740,20 @@ const ROLL_LESSONS = [
     blurb:"The rolling 3/4: bass on ONE, then the arpeggio climbs through beats two and three and glances back — BOOM two-and-three-and. Where the waltz pinch stomps, this one spins.",
     ev:[ {t:0,s:"B",fin:"T"},{t:2,s:"3",fin:"I"},{t:3,s:"2",fin:"M"},
          {t:4,s:"1",fin:"R"},{t:5,s:"2",fin:"M"} ] },
-  { name:"Slow Blues · 12/8", steps:12,
+  { name:"Slow Blues · 12/8", steps:12, beats:4,
     blurb:"The slow-blues heartbeat: four thumb beats to the bar, each answered by two finger notes — ONE-and-a TWO-and-a. Every last-dance blues ballad ever recorded sits on this triplet grid. Keep it greasy: 60 BPM is already fast.",
     ev:[ {t:0,s:"B",fin:"T"},{t:1,s:"2",fin:"I"},{t:2,s:"1",fin:"M"},{t:3,s:"A",fin:"T"},
          {t:4,s:"2",fin:"I"},{t:5,s:"1",fin:"M"},{t:6,s:"B",fin:"T"},{t:7,s:"2",fin:"I"},
          {t:8,s:"1",fin:"M"},{t:9,s:"A",fin:"T"},{t:10,s:"2",fin:"I"},{t:11,s:"1",fin:"M"} ] },
-  { name:"Clawhammer Bum-Ditty", steps:8,
+  { name:"Clawhammer Bum-Ditty", steps:8, claw:true,
     blurb:"The old-time down-picking engine — not a roll at all: strike a melody note with the back of a nail (F = frail), brush the strings, then the thumb catches the drone. On a 5-string that's the open 5th, every bar, whatever chord your left hand is holding — the rub of the g against a D or an F IS the sound. On a reentrant uke the high g does the same job; on a guitar the thumb takes the bass. BUM · DIT-TY.",
     ev:[ {t:0,s:"1",fin:"F"},{t:2,s:"3",fin:"F"},{t:2,s:"2",fin:"F"},{t:2,s:"1",fin:"F"},{t:3,s:"5|B",fin:"T"},
          {t:4,s:"1",fin:"F"},{t:6,s:"3",fin:"F"},{t:6,s:"2",fin:"F"},{t:6,s:"1",fin:"F"},{t:7,s:"5|B",fin:"T"} ] },
-  { name:"Double Thumbing", steps:8,
+  { name:"Double Thumbing", steps:8, claw:true,
     blurb:"The bum-ditty with the thumb doubled — BUMP-a-DIT-ty: melody note, thumb catch, brush, thumb catch. The extra thumb note fills every slot in the bar, which is what old-time players mean by 'keeping the wheel turning'.",
     ev:[ {t:0,s:"1",fin:"F"},{t:1,s:"5|B",fin:"T"},{t:2,s:"3",fin:"F"},{t:2,s:"2",fin:"F"},{t:2,s:"1",fin:"F"},{t:3,s:"5|B",fin:"T"},
          {t:4,s:"1",fin:"F"},{t:5,s:"5|B",fin:"T"},{t:6,s:"3",fin:"F"},{t:6,s:"2",fin:"F"},{t:6,s:"1",fin:"F"},{t:7,s:"5|B",fin:"T"} ] },
-  { name:"Drop-Thumb Clawhammer", steps:8,
+  { name:"Drop-Thumb Clawhammer", steps:8, claw:true,
     blurb:"The move that unlocks melodic clawhammer: instead of always catching the drone, the thumb DROPS to an inside string for a melody note — frail, drop, frail, catch. The drops take the chord's fret on the 2nd string; the catches are still the drone. Twice as many melody slots per bar; every fiddle-tune arrangement leans on it.",
     ev:[ {t:0,s:"1",fin:"F"},{t:1,s:"2",fin:"T"},{t:2,s:"1",fin:"F"},{t:3,s:"5|B",fin:"T"},
          {t:4,s:"1",fin:"F"},{t:5,s:"2",fin:"T"},{t:6,s:"3",fin:"F"},{t:6,s:"2",fin:"F"},{t:6,s:"1",fin:"F"},{t:7,s:"5|B",fin:"T"} ] },
@@ -5041,6 +5059,41 @@ function slideNotes(m0, m1, when, dur = .3, gain = .34){
   pluck(m0, when, gain, { to: m1, at, dur: Math.max(.08, dur - at) });
 }
 
+/* A roll's canonical written form: the string it falls on for each
+   note, plus the picking finger — "strings 3-2-1-5-2-1-5-1, T-I-M-T-
+   I-M-T-M". That sequence IS the roll; the frets underneath it belong
+   to whatever chord you happen to be holding, so this line is the part
+   worth memorising and the one thing tab alone never spells out.
+   Strings are numbered the way players number them: 1 is the first
+   string, counting up to the banjo's 5th. Notes struck together (a
+   brush, a pinch) join with +. */
+function rollPatternHTML(lesson, chord, tuning){
+  if(lesson.kind !== "roll") return "";
+  const NSTR = tuning.pitches.length;
+  const slots = [...new Set(lesson.ev.map(e => e.t))].sort((a, b) => a - b);
+  const at = t => lesson.ev.filter(e => e.t === t);
+  const strings = slots.map(t =>
+    at(t).map(e => NSTR - rollString(e.s, chord, tuning)).join("+"));
+  const fingers = slots.map(t =>
+    [...new Set(at(t).map(e => e.fin).filter(Boolean))].join("+") || "·");
+  return `<span>STRINGS <b>${strings.join("-")}</b></span>` +
+         `<span>FINGERS <b>${fingers.join("-")}</b></span>`;
+}
+
+/* how a bar is counted out loud. Two slots to a beat gives the eighth-note
+   "1 & 2 & 3 & 4 &" every banjo student counts; three gives the compound
+   "1 & a 2 & a" of 6/8 and 12/8. A lesson states `beats` only when its
+   meter isn't the default four-to-an-eight-slot-bar. */
+function countLabel(q, BAR, lesson){
+  const beats = lesson.beats || BAR / 2;
+  const per = BAR / beats;
+  if(!Number.isInteger(per) || per < 1) return q % 2 ? "" : String(q / 2 + 1);
+  if(q % per === 0) return String(q / per + 1);
+  if(per === 2) return "&";
+  if(per === 3) return q % 3 === 1 ? "&" : "a";
+  return "";
+}
+
 /* the tab strip: strings as horizontal lines (1st string on top, like
    real tab), one column per eighth-note slot, events as fret circles.
    The WHOLE lesson is on the page — long lessons wrap into rows of
@@ -5075,14 +5128,30 @@ function renderLessonTab(lesson, chord, tuning){
     for(let t = 0; t <= slots; t++){                    // beat grid — heavier on the quarters, heaviest at bar lines
       const ta = r * perRow + t, x = X0 + t * STEP, bl = ta % BAR === 0;
       P.push(`<line x1="${x}" y1="${r * rowH + TOP - 8}" x2="${x}" y2="${sy(r, 0) + 8}" stroke="var(--line${!bl && ta % 2 ? "2" : ""})" stroke-width="${bl ? 1.6 : ta % 2 ? .5 : 1}"/>`);
-      if(t < slots && ta % 2 === 0)
-        P.push(`<text x="${ex(ta)}" y="${sy(r, 0) + 26}" fill="var(--dim)" font-size="${F}" text-anchor="middle">${(ta % BAR) / 2 + 1}</text>`);
+      if(t < slots){                                  // count the bar out loud: 1 & 2 & 3 & 4 &
+        const lab = countLabel(ta % BAR, BAR, lesson);
+        if(lab) P.push(`<text x="${ex(ta)}" y="${sy(r, 0) + 26}" fill="var(--${/\d/.test(lab) ? "text" : "dim"})" font-size="${/\d/.test(lab) ? F : F - 1}" text-anchor="middle">${lab}</text>`);
+      }
     }
   }
   (lesson.marks || []).forEach(m => {                   // chord names ride the grid, naming each change as it arrives
     const r = Math.floor(m.t / perRow);
     P.push(`<text x="${X0 + (m.t % perRow) * STEP + 5}" y="${r * rowH + 14}" fill="var(--yellow)" font-size="${F}" letter-spacing=".1em">${m.c}</text>`);
   });
+  // a brush is one motion across several strings — notate it as the
+  // simultaneous notes convention wants, but bracket them so the hand
+  // reads it as a single stroke rather than three separate picks
+  const bySlot = {};
+  lesson.ev.forEach(e => { (bySlot[e.t] ||= []).push(e); });
+  Object.entries(bySlot).forEach(([t, evs]) => {
+    const frail = evs.filter(e => e.fin === "F");
+    if(frail.length < 2) return;
+    const r = Math.floor(t / perRow);
+    const ys = frail.map(e => sy(r, rollString(e.s, chord, tuning)));
+    const x = ex(+t) - R - 7, y0 = Math.min(...ys) - R, y1 = Math.max(...ys) + R;
+    P.push(`<path class="brush" d="M${x + 4} ${y0} H${x} V${y1} H${x + 4}"/>`);
+  });
+
   lesson.ev.forEach(e => {
     const si = rollString(e.s, chord, tuning);
     const r = Math.floor(e.t / perRow);
@@ -5103,7 +5172,12 @@ function renderLessonTab(lesson, chord, tuning){
         P.push(`<text class="fr" x="${x}" y="${y + 3.6}" font-size="${F}" text-anchor="middle">${f}</text>`);
       }
     }
-    if(e.fin) P.push(`<text class="fin" x="${x}" y="${y - R - 4}" font-size="${F - 1}" text-anchor="middle">${e.fin}</text>`);
+    // clawhammer tab assumes the thumb on the 5th string and marks only a
+    // DROP to any other string — so the drops are the only T's on the page,
+    // which is the whole lesson. Rolls keep their full T/I/M fingering.
+    const droneThumb = lesson.claw && e.fin === "T" && tuning.drone && si === tuning.drone.s;
+    if(e.fin && !droneThumb)
+      P.push(`<text class="fin" data-fin="${e.fin}" x="${x}" y="${y - R - 4}" font-size="${F - 1}" text-anchor="middle">${e.fin}</text>`);
     P.push(`</g>`);
   });
 
@@ -5235,6 +5309,7 @@ function drawLearn(){
   if(!lessons.length){
     $("#lnLesson").innerHTML = ""; $("#lnChord").style.display = "none";
     $("#lnBlurb").textContent = "// NO LESSONS FOR THIS TUNING YET //";
+    $("#lnPattern").innerHTML = "";
     $("#lnTab").innerHTML = ""; $("#lnPlay").disabled = true;
     return;
   }
@@ -5248,7 +5323,9 @@ function drawLearn(){
   $("#lnSwing").disabled = l.steps % 8 !== 0;            // compound meters don't swing
   $("#lnChord").style.display = roll ? "" : "none";
   $("#lnHint").style.display = roll ? "" : "none";
+  $("#lnClawHint").style.display = l.claw && TUNINGS[state.tuning].drone ? "" : "none";
   $("#lnBlurb").textContent = l.blurb;
+  $("#lnPattern").innerHTML = rollPatternHTML(l, lnChord(), TUNINGS[state.tuning]);
   $("#lnTab").innerHTML = renderLessonTab(l, lnChord(), TUNINGS[state.tuning]);
 }
 
