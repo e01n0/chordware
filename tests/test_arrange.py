@@ -1,6 +1,7 @@
 import pytest
-from tabsmith.leadsheet import LeadSheet, MelodyNote, Chord
-from tabsmith.arrange import arrange, check_invariants, fit_range, STYLES, TabNote
+
+from tabsmith.arrange import STYLES, TabNote, arrange, check_invariants, fit_range
+from tabsmith.leadsheet import Chord, LeadSheet, MelodyNote
 
 
 def sheet_4_4():

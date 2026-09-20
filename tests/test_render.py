@@ -1,9 +1,17 @@
 import shutil
+
 import pytest
-from tabsmith.leadsheet import LeadSheet, MelodyNote, Chord
-from tabsmith.arrange import arrange, Arrangement, TabNote
+
+from tabsmith.arrange import Arrangement, TabNote, arrange
 from tabsmith.fretboard import BANJO_G
-from tabsmith.render import ascii_tab, lilypond_source, render_lilypond, write_midi, slugify
+from tabsmith.leadsheet import Chord, LeadSheet, MelodyNote
+from tabsmith.render import (
+    ascii_tab,
+    lilypond_source,
+    render_lilypond,
+    slugify,
+    write_midi,
+)
 
 
 def two_bar():

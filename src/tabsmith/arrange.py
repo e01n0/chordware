@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-from .fretboard import FretMapper, Shape, Tuning, TUNINGS, shape_for, shape_position
+from .fretboard import TUNINGS, FretMapper, Shape, Tuning, shape_for, shape_position
 from .leadsheet import LeadSheet, MelodyNote
 
 STYLES = {"banjo": ("scruggs", "clawhammer"), "guitar": ("travis", "flatpick")}

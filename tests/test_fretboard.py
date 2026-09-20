@@ -1,4 +1,4 @@
-from tabsmith.fretboard import BANJO_G, GUITAR, shape_for, shape_position, FretMapper
+from tabsmith.fretboard import BANJO_G, GUITAR, FretMapper, shape_for, shape_position
 
 
 def test_banjo_positions_respect_fifth_string():

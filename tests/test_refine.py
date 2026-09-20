@@ -1,7 +1,8 @@
 import json
-from tabsmith.leadsheet import LeadSheet, MelodyNote, Chord
+
 from tabsmith.arrange import arrange, check_invariants
-from tabsmith.refine import parse_reply, apply_refinement, build_prompt, refine
+from tabsmith.leadsheet import Chord, LeadSheet, MelodyNote
+from tabsmith.refine import apply_refinement, build_prompt, parse_reply, refine
 
 
 def sheet():

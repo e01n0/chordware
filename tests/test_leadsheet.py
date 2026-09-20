@@ -1,5 +1,6 @@
 from pathlib import Path
-from tabsmith.leadsheet import LeadSheet, MelodyNote, Chord, parse_chord, chord_name
+
+from tabsmith.leadsheet import Chord, LeadSheet, MelodyNote, chord_name, parse_chord
 
 
 def cripple_creek():
@@ -39,7 +40,14 @@ def test_parse_and_name():
     assert chord_name(0, "dom7") == "C7"
 
 
-from tabsmith.leadsheet import RawNote, Grid, notes_to_leadsheet, detect_key, choose_capo, pick_melody_track
+from tabsmith.leadsheet import (
+    Grid,
+    RawNote,
+    choose_capo,
+    detect_key,
+    notes_to_leadsheet,
+    pick_melody_track,
+)
 
 
 def synth_song(bpm=120.0):

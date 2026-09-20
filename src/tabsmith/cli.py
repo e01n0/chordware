@@ -11,7 +11,14 @@ from pathlib import Path
 
 from .arrange import STYLES, arrange, check_invariants
 from .ingest import ingest
-from .leadsheet import Chord, Grid, LeadSheet, MelodyNote, notes_to_leadsheet, track_table
+from .leadsheet import (
+    Chord,
+    Grid,
+    LeadSheet,
+    MelodyNote,
+    notes_to_leadsheet,
+    track_table,
+)
 from .render import ascii_tab, render_audio, render_lilypond, slugify, write_midi
 from .transcribe import transcribe
 
@@ -130,7 +137,7 @@ def main() -> None:
     opts = Options(a.model, a.separate, a.refine, a.key, a.capo, a.melody_track, a.bpm, a.meter)
     if a.list_tracks:
         ing = ingest(a.input, outdir)
-        notes, grid = ing.raw if ing.raw else transcribe(ing.audio, outdir, model_size=a.model, separate=a.separate)
+        notes = (ing.raw or transcribe(ing.audio, outdir, model_size=a.model, separate=a.separate))[0]
         for name, count, mean in track_table(notes):
             print(f"{name:28s} {count:6d} notes  mean pitch {mean:5.1f}")
         return

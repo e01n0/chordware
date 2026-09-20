@@ -74,7 +74,7 @@ class LeadSheet:
         return json.dumps(asdict(self), indent=1)
 
     @classmethod
-    def from_json(cls, s: str) -> "LeadSheet":
+    def from_json(cls, s: str) -> LeadSheet:
         d = json.loads(s)
         d["meter"] = tuple(d["meter"])
         d["melody"] = [MelodyNote(**n) for n in d["melody"]]
@@ -85,7 +85,7 @@ class LeadSheet:
         Path(path).write_text(self.to_json())
 
     @classmethod
-    def load(cls, path: Path) -> "LeadSheet":
+    def load(cls, path: Path) -> LeadSheet:
         return cls.from_json(Path(path).read_text())
 
 

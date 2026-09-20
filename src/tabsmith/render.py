@@ -171,7 +171,7 @@ def write_midi(arr: Arrangement, path: Path) -> None:
     events.sort(key=lambda e: (e[0], e[1]))
     last = 0.0
     for t, _, msg in events:
-        msg.time = int(round((t - last) * 480))
+        msg.time = round((t - last) * 480)
         last = t
         tr.append(msg)
     mid.save(str(path))

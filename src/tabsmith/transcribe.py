@@ -20,8 +20,8 @@ def gpu_wait(max_wait_s: int = 1800, poll_s: int = 30, progress=print) -> None:
         try:
             q = requests.get("http://127.0.0.1:8188/queue", timeout=3).json()
             busy = bool(q.get("queue_running") or q.get("queue_pending"))
-        except Exception:
-            busy = False  # ComfyUI down means nobody else is on the GPU
+        except Exception:  # noqa: BLE001 - ComfyUI down or unreachable means nobody else is on the GPU
+            busy = False
         if not busy:
             return
         progress(f"GPU busy (ComfyUI queue), waiting {poll_s}s")
@@ -60,6 +60,7 @@ def beat_grid(audio: Path, progress=print) -> Grid:
     """Beat This! beats and downbeats. The tracked beat list follows tempo drift (live recordings),
     which MuScriptor's own constant-tempo grid refuses. Falls back to 120 bpm 4/4 on failure."""
     import statistics
+
     import torch
     from beat_this.inference import File2Beats
     try:

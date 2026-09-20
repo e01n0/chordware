@@ -1,8 +1,10 @@
-from pathlib import Path
 import shutil
+from pathlib import Path
+
 import pytest
+
 from tabsmith import cli
-from tabsmith.leadsheet import RawNote, Grid, LeadSheet, MelodyNote, Chord
+from tabsmith.leadsheet import Chord, Grid, LeadSheet, MelodyNote, RawNote
 
 
 def fake_transcribe(audio, workdir, **kw):

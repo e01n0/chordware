@@ -1,6 +1,7 @@
 import music21
+
 from tabsmith.ingest import ingest
-from tabsmith.leadsheet import LeadSheet, MelodyNote, Chord, notes_to_leadsheet
+from tabsmith.leadsheet import Chord, LeadSheet, MelodyNote, notes_to_leadsheet
 
 
 def test_audio_path(tmp_path):

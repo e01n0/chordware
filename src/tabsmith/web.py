@@ -78,7 +78,7 @@ def worker_once(block: bool = False) -> None:
         job["files"] = {k: v.name for k, v in out.items()}
         job["title"] = LeadSheet.load(out["leadsheet"]).title
         job["state"] = "done"
-    except Exception as e:  # any failure is the job's failure; the worker must survive
+    except Exception as e:  # noqa: BLE001 - any failure is the job's failure; the worker must survive
         job["state"], job["error"] = "failed", f"{e.__class__.__name__}: {e}"
     _write(job)
 
@@ -204,4 +204,4 @@ def icon(size: int):
 
 def main() -> None:
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=int(os.environ.get("TABSMITH_PORT", 8092)))
+    uvicorn.run(app, host="127.0.0.1", port=int(os.environ.get("TABSMITH_PORT", "8092")))

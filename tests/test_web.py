@@ -1,8 +1,10 @@
 import json
 from pathlib import Path
+
 from fastapi.testclient import TestClient
+
 from tabsmith import web
-from tabsmith.leadsheet import LeadSheet, MelodyNote, Chord
+from tabsmith.leadsheet import Chord, LeadSheet, MelodyNote
 
 
 def fake_pipeline(src, instrument, style, outdir, opts, progress):
