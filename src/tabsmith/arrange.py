@@ -47,7 +47,13 @@ def fit_range(sheet: LeadSheet, lo: int, hi: int) -> LeadSheet:
             shift -= 12
         while bottom + shift < lo and top + shift + 12 <= hi:
             shift += 12
-        out.extend(replace(n, p=n.p + shift) for n in phrase)
+        for n in phrase:
+            p = n.p + shift
+            while p < lo:          # last resort for a phrase wider than the window: move the stray note alone
+                p += 12
+            while p > hi + 8:
+                p -= 12
+            out.append(replace(n, p=p))
 
     for n in sorted(sheet.melody, key=lambda n: n.t):
         if phrase and n.t - (phrase[-1].t + phrase[-1].d) >= 1.0:

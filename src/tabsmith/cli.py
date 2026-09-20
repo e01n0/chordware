@@ -93,8 +93,13 @@ def check(args) -> int:
                        progress=lambda s, m: print(f"[{s}] {m}"))
     got = [c.name for c in LeadSheet.load(res["leadsheet"]).chords]
     print("chords:", got)
-    ok = got[:1] == ["G"] and "C" in got and "D" in got
-    print("CHECK", "OK" if ok else "FAILED (expected G, C, D, G)")
+    want = iter(["G", "C", "D", "G"])
+    nxt = next(want)
+    for name in got:          # G C D G must appear in order; a pickup bar or a passing chord may sit between
+        if name == nxt:
+            nxt = next(want, None)
+    ok = nxt is None
+    print("CHECK", "OK" if ok else "FAILED (expected G, C, D, G in order)")
     return 0 if ok else 1
 
 

@@ -183,8 +183,10 @@ def render_audio(midi: Path, mp3: Path) -> None:
                        capture_output=True, text=True)
     if r.returncode != 0:
         raise RuntimeError(f"fluidsynth failed: {r.stderr[-500:]}")
-    r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(wav), "-codec:a", "libmp3lame",
-                        "-q:a", "4", str(mp3)], capture_output=True, text=True)
+    # fluidsynth pads several seconds of silence after the last note: trim it, keep a 1 s tail
+    trim = "areverse,silenceremove=start_periods=1:start_threshold=-50dB,areverse,apad=pad_dur=1"
+    r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(wav), "-af", trim,
+                        "-codec:a", "libmp3lame", "-q:a", "4", str(mp3)], capture_output=True, text=True)
     wav.unlink(missing_ok=True)
     if r.returncode != 0:
         raise RuntimeError(f"ffmpeg failed: {r.stderr[-500:]}")

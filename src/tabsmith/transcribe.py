@@ -87,10 +87,19 @@ def transcribe(audio: Path, workdir: Path, *, model_size: str = "large", separat
 
     def load():
         progress(f"loading MuScriptor {model_size}")
-        cuda = torch.cuda.is_available()
-        # ponytail: bf16 halves VRAM (ComfyUI keeps ~24 GB resident on this box); fp32 on CPU
-        return TranscriptionModel.load_model(model_size, device="cuda" if cuda else "cpu",
-                                             dtype="bfloat16" if cuda else "float32")
+        if not torch.cuda.is_available():
+            return TranscriptionModel.load_model(model_size, device="cpu")
+        # MuScriptor builds the fp32 model on the target device before casting, which needs
+        # 5.6 GB for large; ComfyUI keeps ~24 GB resident on this box. Build on CPU in bf16
+        # (2.8 GB), then move. Uses the public constructor with the loaded parts.
+        cpu = TranscriptionModel.load_model(model_size, device="cpu", dtype="bfloat16")
+        gpu = torch.device("cuda")
+        lm = cpu._model.to(gpu)
+        lm.device_type = "cuda"  # autocast context
+        for m in lm.modules():   # conditioners cache the device they were built on
+            if "device" in vars(m):
+                m.device = gpu
+        return TranscriptionModel(lm, cpu._tokenizer, gpu)
 
     model = load()
     bg = model.detect_beat_grid_for(str(audio), "best-effort")
@@ -99,7 +108,9 @@ def transcribe(audio: Path, workdir: Path, *, model_size: str = "large", separat
         progress("no usable beat grid found, assuming 120 bpm 4/4 (use --bpm/--meter)")
         grid = Grid(120.0, 4, 0.0, None)
     else:
-        grid = Grid(float(bg.bpm), bg.beats_per_bar, float(bg.first_downbeat),
+        # spike: a 2-beat bar is almost always cut-time folk; write it as 4/4 (--meter overrides)
+        bpb = 4 if bg.beats_per_bar == 2 else bg.beats_per_bar
+        grid = Grid(float(bg.bpm), bpb, float(bg.first_downbeat),
                     [float(b) for b in bg.beats] if bg.beats is not None else None)
         progress(f"beat grid: {grid.bpm:.1f} bpm, {grid.beats_per_bar or '?'} beats per bar")
     notes = _run_model(model, audio, None, progress)

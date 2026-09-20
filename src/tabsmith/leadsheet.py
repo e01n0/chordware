@@ -171,10 +171,11 @@ def choose_capo(key_pc: int, mode: str, instrument: str) -> tuple[int, int]:
     return (key_pc + shift) % 12, -shift
 
 
-def _hist(notes: list[RawNote], start: float, end: float) -> tuple[list[float], int | None]:
-    """Duration-weighted pitch-class histogram of beat-domain notes in [start, end), plus the lowest bass pitch."""
+def _hist(notes: list[RawNote], start: float, end: float) -> tuple[list[float], int | None, int | None]:
+    """Duration-weighted pitch-class histogram of beat-domain notes in [start, end),
+    plus the lowest bass-track pitch and the lowest pitch of any track."""
     h = [0.0] * 12
-    bass_lowest = None
+    bass_lowest = lowest = None
     for n in notes:
         if n.instrument == "drums":
             continue
@@ -182,21 +183,31 @@ def _hist(notes: list[RawNote], start: float, end: float) -> tuple[list[float], 
         if b <= a:
             continue
         h[n.pitch % 12] += b - a
+        if lowest is None or n.pitch < lowest:
+            lowest = n.pitch
         if n.instrument in BASS and (bass_lowest is None or n.pitch < bass_lowest):
             bass_lowest = n.pitch
-    return h, bass_lowest
+    return h, bass_lowest, lowest
 
 
-def _best_chord(h: list[float], bass_pc: int | None, key_pc: int, mode: str) -> tuple[str, float]:
+def _best_chord(h: list[float], bass: int | None, lowest: int | None, key_pc: int, mode: str) -> tuple[str, float]:
     steps = (0, 2, 4, 5, 7, 9, 11) if mode == "major" else (0, 2, 3, 5, 7, 8, 10)
     scale = {(key_pc + i) % 12 for i in steps}
+    total = sum(h)
     best = ("", -1e9)
     for root in range(12):
         for q, tpl in _TEMPLATES.items():
             inside = {(root + i) % 12 for i in tpl}
             score = sum(h[pc] for pc in inside) - 0.5 * sum(h[pc] for pc in range(12) if pc not in inside)
-            # a four-note template covers more of the bar for free: charge it 15% of the bar's weight
-            score += 2.0 * (bass_pc == root) + 0.2 * (root in scale) - 0.15 * sum(h) * (len(tpl) == 4)
+            score += 0.2 * (root in scale)
+            if bass is not None:
+                score += 2.0 * (bass % 12 == root)
+            elif lowest is not None:
+                score += 0.7 * (lowest % 12 == root)
+            # a four-note template covers more of the bar for free: charge it 30% of the bar's weight,
+            # so a seventh only appears when its pitch class carries real weight (folk bias, on purpose)
+            if len(tpl) == 4:
+                score -= 0.3 * total
             if score > best[1]:
                 best = (chord_name(root, q), score)
     return best
@@ -233,19 +244,22 @@ def notes_to_leadsheet(notes: list[RawNote], grid: Grid, *, title: str, source: 
         melody.append(MelodyNote(k * GRID, max(GRID, min(end, nxt) - k * GRID), n.pitch))
     if not melody:
         raise ValueError("melody track has no notes after the first downbeat")
-    last = max(max(n.offset for n in beat_notes), melody[-1].t + melody[-1].d)
-    bars = max(1, math.ceil(last / bpb - 1e-6))
+    if len(melody) >= 8:
+        # spike: a single polyphonic track (fingerstyle guitar, piano) leaks its bass notes into the
+        # skyline wherever the tune rests; drop anything far below the melody's median register
+        med = statistics.median(m.p for m in melody)
+        melody = [m for m in melody if m.p >= med - 9]
+    # the arrangement ends where the melody ends; stray accompaniment tails do not add bars
+    bars = max(1, math.ceil((melody[-1].t + melody[-1].d) / bpb - 1e-6))
     key_pc, mode = detect_key(_hist(beat_notes, 0, bars * bpb)[0])
     chords: list[Chord] = []
     for bar in range(bars):
         s0 = bar * bpb
-        h, bass = _hist(beat_notes, s0, s0 + bpb)
-        whole, whole_score = _best_chord(h, bass % 12 if bass is not None else None, key_pc, mode)
+        whole, whole_score = _best_chord(*_hist(beat_notes, s0, s0 + bpb), key_pc, mode)
         halves = []
         for half in (0, 1):
             a = s0 + half * bpb / 2
-            hh, bb = _hist(beat_notes, a, a + bpb / 2)
-            halves.append(_best_chord(hh, bb % 12 if bb is not None else None, key_pc, mode))
+            halves.append(_best_chord(*_hist(beat_notes, a, a + bpb / 2), key_pc, mode))
         if halves[0][0] != halves[1][0] and all(hc != whole and sc > whole_score / 2 + 0.3 for hc, sc in halves):
             chords.append(Chord(bar, 0.0, halves[0][0]))
             chords.append(Chord(bar, bpb / 2, halves[1][0]))
