@@ -619,12 +619,12 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   #tfDelete{ border-color:var(--red) !important; color:var(--red) !important; }
 
   /* ── ABC import (opens over the tune miner) ───────────────────── */
-  #abcEd{
+  #abcEd, #auEd{
     position:fixed; inset:0; z-index:8500;
     background:var(--overlay); display:none; overflow-y:auto;
     padding:calc(14px + env(safe-area-inset-top, 0px)) 14px calc(20px + env(safe-area-inset-bottom));
   }
-  #abcEd.open{ display:block; }
+  #abcEd.open, #auEd.open{ display:block; }
   #abClose{
     min-width:48px; min-height:48px; flex:0 0 auto;
     background:transparent; color:var(--red); border:1px solid var(--red);
@@ -959,7 +959,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
 
   /* notch clearance when rotated */
   @supports (padding: env(safe-area-inset-left)){
-    header, .controls, main, .pager, #modal, #mapov, #learnov, #mineov, #songEd, #setEd, #tunEd, #abcEd, #tuner, #perf{
+    header, .controls, main, .pager, #modal, #mapov, #learnov, #mineov, #songEd, #setEd, #tunEd, #abcEd, #auEd, #tuner, #perf{
       padding-left:calc(14px + env(safe-area-inset-left));
       padding-right:calc(14px + env(safe-area-inset-right));
     }

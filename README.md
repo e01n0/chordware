@@ -34,7 +34,6 @@ that reaches past it.
 |---|---|
 | `index.html` | The whole app: styles, SVG chord renderer, chord library, PWA manifest (built at runtime) |
 | `sw.js` | Tiny cache-first service worker for offline use (browsers refuse inline service workers — this is the only sidecar) |
-| `render.yaml` | Render blueprint: deploys as a zero-build static site |
 | `tools/generate-voicings.mjs` | Voicing generator: fills any missing root × quality combos per tuning (dry run by default, `--write` to insert) |
 | `tools/validate-chords.mjs` | Library linter: checks every voicing spells its named chord, that its fingering is one a hand could actually make, and every ornament's frets, direction and colour-tone label against chord theory |
 
@@ -114,14 +113,23 @@ note-naming all follow automatically:
 aDFsB: { label:"aDF#B · D-tuning", strings:["a","D","F#","B"], pitches:[9,2,6,11] },
 ```
 
-## Deploy on Render
+## Hosting
 
-Push this repo and create a **Blueprint** instance from `render.yaml`. Its build
-command stamps the git commit SHA over `__BUILD__` in `index.html` and `sw.js` —
-that versions the service-worker cache per deploy (forcing the update cycle and
-purging stale copies) and shows as `BUILD://<sha>` at the bottom of the chord
-grid, so you can always check which version a device is running.
+CHORDWARE lives on the home box behind Tailscale, served by
+[tabsmith](https://github.com/e01n0/tabsmith) (the FastAPI app that also owns the
+transcription API): `https://chordware.tail969b8f.ts.net/` is `svc:chordware` in
+`tailscale serve`, proxied to `127.0.0.1:8092`. tabsmith reads this checkout's
+`index.html` and `sw.js` straight from disk (`CHORDWARE_DIR`, default `~/chordware`)
+and stamps the current git SHA over `__BUILD__` in both, so a `git pull` is a deploy
+and the service worker's update cycle fires on the next open. tabsmith's own job page
+sits under `/tabsmith/`.
 
-Any other static host works too — replicate the one-line sed from `render.yaml`,
-or don't: the app still updates via its network-first shell, just without the
-visible build tag.
+## From audio
+
+On that host the MINE overlay grows an **AUDIO** button beside ABC: hand it a
+recording or a link and tabsmith transcribes it (MuScriptor on the GPU, vocals
+separated when there are any), then the song lands here as a saved song, one chord
+per bar with the melody mined onto the current tuning, and **OPEN AS TAB** takes you
+to LEARN › SONG. The engraved PDF, an mp3 of tabsmith's own arrangement and its chord
+editor are linked from the dialog. The button only appears when the page's origin
+answers `/jobs`, so a plain static copy of `index.html` is unchanged.
