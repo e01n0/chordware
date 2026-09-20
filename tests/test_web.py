@@ -25,6 +25,8 @@ def fake_pipeline(src, instrument, style, outdir, opts, progress):
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr(web, "run_pipeline", fake_pipeline)
     monkeypatch.setattr(web, "JOBS_DIR", tmp_path)
+    while not web._q.empty():  # jobs queued by earlier tests point at other tmp dirs
+        web._q.get()
     return TestClient(web.app)
 
 
@@ -81,3 +83,15 @@ def test_share_target_and_bad_capo(tmp_path, monkeypatch):
     r = c.post("/jobs", data={"url": "https://x/y", "instrument": "banjo", "style": "travis"},
                headers={"accept": "application/json"})
     assert r.status_code == 400
+
+
+def test_rearrange_rejects_bad_chord(tmp_path, monkeypatch):
+    c = client(tmp_path, monkeypatch)
+    jid = c.post("/jobs", data={"url": "https://e/x", "instrument": "banjo", "style": "scruggs"},
+                 headers={"accept": "application/json"}).json()["id"]
+    web.worker_once()
+    sheet = json.loads((tmp_path / jid / "leadsheet.json").read_text())
+    sheet["chords"] = [{"bar": 0, "beat": 0, "name": "Gxyz"}]
+    r = c.post(f"/jobs/{jid}/rearrange", json={"leadsheet": sheet})
+    assert r.status_code == 400 and "Gxyz" in r.json()["detail"]
+    assert not (tmp_path / jid / "job.json.tmp").exists()

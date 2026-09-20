@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-from .fretboard import TUNINGS, FretMapper, Shape, Tuning, shape_for, shape_position
+from .fretboard import MAX_FRET, TUNINGS, FretMapper, Shape, Tuning, shape_for, shape_position
 from .leadsheet import LeadSheet, MelodyNote
 
 STYLES = {"banjo": ("scruggs", "clawhammer"), "guitar": ("travis", "flatpick")}
@@ -33,8 +33,10 @@ class Arrangement:
     notes: list[TabNote]
 
 
-def fit_range(sheet: LeadSheet, lo: int, hi: int) -> LeadSheet:
-    """Octave-shift each phrase (notes separated by a gap >= 1 beat) into [lo, hi]."""
+def fit_range(sheet: LeadSheet, lo: int, hi: int, hard_hi: int | None = None) -> LeadSheet:
+    """Octave-shift each phrase (notes separated by a gap >= 1 beat) into [lo, hi].
+    Stray notes are then clamped alone into [lo, hard_hi] (the instrument's real ceiling)."""
+    hard_hi = hi + 8 if hard_hi is None else hard_hi
     out: list[MelodyNote] = []
     phrase: list[MelodyNote] = []
 
@@ -51,7 +53,7 @@ def fit_range(sheet: LeadSheet, lo: int, hi: int) -> LeadSheet:
             p = n.p + shift
             while p < lo:          # last resort for a phrase wider than the window: move the stray note alone
                 p += 12
-            while p > hi + 8:
+            while p > hard_hi:
                 p -= 12
             out.append(replace(n, p=p))
 
@@ -209,7 +211,9 @@ def arrange(sheet: LeadSheet, instrument: str, style: str,
     if style not in STYLES.get(instrument, ()):
         raise ValueError(f"unknown {instrument} style {style!r}; choose from {STYLES.get(instrument)}")
     tuning = TUNINGS[instrument]
-    sheet = fit_range(sheet, *RANGE[style])
+    top = max(tuning.pitch(s, MAX_FRET) for s in range(1, tuning.n + 1))
+    lo, hi = RANGE[style]
+    sheet = fit_range(sheet, lo, hi, min(hi + 8, top))
     if style in ("scruggs", "clawhammer"):
         sheet = quantise_melody(sheet, 0.5)
     if style == "scruggs":

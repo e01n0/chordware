@@ -127,3 +127,10 @@ def test_banjo_ornaments_from_melody_motion():
     arr = arrange(s, "banjo", "scruggs")
     assert any(n.tech == "h" for n in arr.notes) and "0h" in __import__("tabsmith.render", fromlist=["ascii_tab"]).ascii_tab(arr)
     check_invariants(arr)
+
+
+def test_travis_clamps_to_the_guitar_top():
+    s = sheet_4_4()
+    s.melody = [MelodyNote(0, 1, 60), MelodyNote(1, 1, 84), MelodyNote(2, 1, 83)]   # C4 then C6 B5: beyond fret 17
+    arr = arrange(s, "guitar", "travis")
+    check_invariants(arr)

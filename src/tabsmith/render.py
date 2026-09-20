@@ -119,9 +119,10 @@ def lilypond_source(arr: Arrangement) -> str:
         chords.extend(f"{root}{d}{mod}" for d in _ly_dur(stop - start))
     capo = f" (Capo {sheet.capo})" if sheet.capo else ""
     key, _ = _ly_root(sheet.key)
+    title = sheet.title.replace("\\", "\\\\").replace('"', '\\"')
     banjo = "      tablatureFormat = #fret-number-tablature-format-banjo\n" if arr.instrument == "banjo" else ""
     return f"""\\version "2.24.0"
-\\header {{ title = "{sheet.title}" subtitle = "{arr.instrument} / {arr.style}{capo}" tagline = "tabsmith" }}
+\\header {{ title = "{title}" subtitle = "{arr.instrument} / {arr.style}{capo}" tagline = "tabsmith" }}
 \\score {{
   <<
     \\new ChordNames {{ \\set chordChanges = ##t \\chordmode {{ {' '.join(chords)} }} }}

@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from .arrange import STYLES
 from .cli import Options, run_pipeline
 from .ingest import AUDIO_EXT, SCORE_EXT
-from .leadsheet import LeadSheet
+from .leadsheet import LeadSheet, parse_chord
 
 JOBS_DIR = Path(os.environ.get("TABSMITH_JOBS", Path.home() / "tabsmith/jobs"))
 STATIC = Path(__file__).parent / "static"
@@ -42,8 +42,12 @@ def _read(jid: str) -> dict:
 
 
 def _write(job: dict) -> None:
+    """Atomic: readers (the UI polls every few seconds) never see a truncated file."""
     with _lock:
-        (JOBS_DIR / job["id"] / "job.json").write_text(json.dumps(job))
+        target = JOBS_DIR / job["id"] / "job.json"
+        tmp = target.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(job))
+        os.replace(tmp, target)
 
 
 def _new_job(jid: str, src: str, title: str, instrument: str, style: str, opts: dict) -> str:
@@ -61,7 +65,10 @@ def worker_once(block: bool = False) -> None:
         jid = _q.get(block=block)
     except queue.Empty:
         return
-    job = _read(jid)
+    try:
+        job = _read(jid)
+    except HTTPException:  # job dir removed between queueing and running: nothing to do
+        return
 
     def progress(stage: str, msg: str) -> None:
         job["state"] = {"transcribe": "transcribing", "arrange": "arranging", "refine": "arranging",
@@ -118,8 +125,10 @@ async def create_job(req: Request, file: UploadFile | None = File(None), url: st
     try:
         opts = {"model": model, "separate": separate, "refine": refine == "1", "key": key.strip() or None,
                 "capo": int(capo) if capo else None}
-    except ValueError:
-        raise HTTPException(400, "capo must be a number") from None
+        if opts["key"]:
+            parse_chord(opts["key"])
+    except ValueError as e:
+        raise HTTPException(400, f"bad key or capo: {e}") from None
     jid = uuid.uuid4().hex[:12]
     if file and file.filename:
         ext = Path(file.filename).suffix.lower()
@@ -163,7 +172,14 @@ def get_file(jid: str, name: str):
 @app.post("/jobs/{jid}/rearrange")
 def rearrange(jid: str, body: dict):
     old = _read(jid)
-    sheet = LeadSheet.from_json(json.dumps(body["leadsheet"]))
+    try:
+        sheet = LeadSheet.from_json(json.dumps(body["leadsheet"]))
+        for c in sheet.chords:
+            parse_chord(c.name)
+    except (KeyError, TypeError, ValueError) as e:
+        raise HTTPException(400, f"bad lead sheet: {e}") from None
+    if not sheet.chords or not sheet.melody:
+        raise HTTPException(400, "lead sheet needs at least one chord and one melody note")
     sheet.chords.sort(key=lambda c: (c.bar, c.beat))
     instrument, style = body.get("instrument", old["instrument"]), body.get("style", old["style"])
     new = uuid.uuid4().hex[:12]

@@ -9,17 +9,30 @@ from pathlib import Path
 
 PC_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 _FLATS = {"Db": 1, "Eb": 3, "Gb": 6, "Ab": 8, "Bb": 10}
+# Anything a player might type in the chord editor, folded onto the four qualities we voice.
 QUALITIES = {"": "maj", "m": "min", "7": "dom7", "m7": "min7",
-             "maj": "maj", "min": "min", "dom7": "dom7", "min7": "min7"}
+             "maj": "maj", "min": "min", "dom7": "dom7", "min7": "min7",
+             "maj7": "maj", "M7": "maj", "6": "maj", "add9": "maj", "sus2": "maj", "sus4": "maj", "sus": "maj",
+             "9": "dom7", "11": "dom7", "13": "dom7", "7sus4": "dom7",
+             "m6": "min", "m9": "min7", "dim": "min", "dim7": "min", "m7b5": "min7", "mi": "min", "-": "min"}
 _SUFFIX = {"maj": "", "min": "m", "dom7": "7", "min7": "m7"}
 GRID = 0.25
 
 
 def parse_chord(name: str) -> tuple[int, str]:
-    name = name.strip()
+    """'G' -> (7, 'maj'), 'F#m7' -> (6, 'min7'), 'Bb/D' -> (10, 'maj'). ValueError for anything else."""
+    name = name.strip().split("/")[0]
     root = name[:2] if len(name) > 1 and name[1] in "#b" else name[:1]
-    pc = _FLATS[root] if root in _FLATS else PC_NAMES.index(root)
-    return pc, QUALITIES[name[len(root):]]
+    if root in _FLATS:
+        pc = _FLATS[root]
+    elif root in PC_NAMES:
+        pc = PC_NAMES.index(root)
+    else:
+        raise ValueError(f"unknown chord {name!r}: root must be A-G with optional # or b")
+    suffix = name[len(root):]
+    if suffix not in QUALITIES:
+        raise ValueError(f"unknown chord {name!r}: supported suffixes are {', '.join(repr(s) for s in QUALITIES)}")
+    return pc, QUALITIES[suffix]
 
 
 def chord_name(root_pc: int, quality: str) -> str:
@@ -190,24 +203,29 @@ def _hist(notes: list[RawNote], start: float, end: float) -> tuple[list[float], 
     return h, bass_lowest, lowest
 
 
-def _best_chord(h: list[float], bass: int | None, lowest: int | None, key_pc: int, mode: str) -> tuple[str, float]:
+def _chord_score(h: list[float], bass: int | None, lowest: int | None, key_pc: int, mode: str,
+                 root: int, q: str) -> float:
     steps = (0, 2, 4, 5, 7, 9, 11) if mode == "major" else (0, 2, 3, 5, 7, 8, 10)
-    scale = {(key_pc + i) % 12 for i in steps}
-    total = sum(h)
+    tpl = _TEMPLATES[q]
+    inside = {(root + i) % 12 for i in tpl}
+    score = sum(h[pc] for pc in inside) - 0.5 * sum(h[pc] for pc in range(12) if pc not in inside)
+    score += 0.2 * (root in {(key_pc + i) % 12 for i in steps})
+    if bass is not None:
+        score += 2.0 * (bass % 12 == root)
+    elif lowest is not None:
+        score += 0.7 * (lowest % 12 == root)
+    # a four-note template covers more of the bar for free: charge it 30% of the bar's weight,
+    # so a seventh only appears when its pitch class carries real weight (folk bias, on purpose)
+    if len(tpl) == 4:
+        score -= 0.3 * sum(h)
+    return score
+
+
+def _best_chord(h: list[float], bass: int | None, lowest: int | None, key_pc: int, mode: str) -> tuple[str, float]:
     best = ("", -1e9)
     for root in range(12):
-        for q, tpl in _TEMPLATES.items():
-            inside = {(root + i) % 12 for i in tpl}
-            score = sum(h[pc] for pc in inside) - 0.5 * sum(h[pc] for pc in range(12) if pc not in inside)
-            score += 0.2 * (root in scale)
-            if bass is not None:
-                score += 2.0 * (bass % 12 == root)
-            elif lowest is not None:
-                score += 0.7 * (lowest % 12 == root)
-            # a four-note template covers more of the bar for free: charge it 30% of the bar's weight,
-            # so a seventh only appears when its pitch class carries real weight (folk bias, on purpose)
-            if len(tpl) == 4:
-                score -= 0.3 * total
+        for q in _TEMPLATES:
+            score = _chord_score(h, bass, lowest, key_pc, mode, root, q)
             if score > best[1]:
                 best = (chord_name(root, q), score)
     return best
@@ -257,14 +275,19 @@ def notes_to_leadsheet(notes: list[RawNote], grid: Grid, *, title: str, source: 
     chords: list[Chord] = []
     for bar in range(bars):
         s0 = bar * bpb
-        whole, whole_score = _best_chord(*_hist(beat_notes, s0, s0 + bpb), key_pc, mode)
-        halves = []
+        whole, _ = _best_chord(*_hist(beat_notes, s0, s0 + bpb), key_pc, mode)
+        halves, margins = [], []
         for half in (0, 1):
             a = s0 + half * bpb / 2
-            halves.append(_best_chord(*_hist(beat_notes, a, a + bpb / 2), key_pc, mode))
-        if halves[0][0] != halves[1][0] and all(hc != whole and sc > whole_score / 2 + 0.3 for hc, sc in halves):
-            chords.append(Chord(bar, 0.0, halves[0][0]))
-            chords.append(Chord(bar, bpb / 2, halves[1][0]))
+            hh, bb, ll = _hist(beat_notes, a, a + bpb / 2)
+            name, score = _best_chord(hh, bb, ll, key_pc, mode)
+            halves.append(name)
+            # how much better the half's own chord fits it than the whole-bar chord does
+            margins.append(score - _chord_score(hh, bb, ll, key_pc, mode, *parse_chord(whole)) - 0.25 * sum(hh))
+        # split when the halves disagree and the half that departs from the whole-bar chord clearly earns it
+        if halves[0] != halves[1] and any(name != whole and margin > 0 for name, margin in zip(halves, margins)):
+            chords.append(Chord(bar, 0.0, halves[0]))
+            chords.append(Chord(bar, bpb / 2, halves[1]))
         else:
             chords.append(Chord(bar, 0.0, whole))
     merged = [c for i, c in enumerate(chords) if i == 0 or c.name != chords[i - 1].name]

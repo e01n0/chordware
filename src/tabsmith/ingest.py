@@ -51,7 +51,7 @@ def _score(path: Path) -> Ingested:
     for p in parts:
         inst = "voice" if p is mel else "acoustic_bass" if p is bass else "acoustic_piano"
         for el in p.flatten().notes:
-            for pitch in (el.pitches if el.isChord else [el.pitch]):
+            for pitch in getattr(el, "pitches", ()):  # Unpitched / percussion elements have none
                 notes.append(RawNote(inst, pitch.midi, float(el.offset) * spb,
                                      float(el.offset + el.quarterLength) * spb))
     title = sc.metadata.title if sc.metadata and sc.metadata.title else path.stem

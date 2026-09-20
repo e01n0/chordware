@@ -62,3 +62,10 @@ def test_tech_in_ascii_and_ly():
                       [TabNote(0, 0.5, 1, 0, "M", "h", True), TabNote(0.5, 0.5, 1, 2, "M", "", True)])
     assert "0h" in ascii_tab(arr)
     assert "(" in lilypond_source(arr)
+
+
+def test_title_with_quotes_is_escaped():
+    s = two_bar()
+    s.title = 'Bob - "Don\'t" \\ Twice'
+    src = lilypond_source(arrange(s, "guitar", "flatpick"))
+    assert 'title = "Bob - \\"Don\'t\\" \\\\ Twice"' in src

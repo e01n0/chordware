@@ -101,3 +101,24 @@ def test_pick_melody_track_prefers_voice_then_lead_register():
     notes = [n for n in notes if n.instrument != "voice"] + [RawNote("acoustic_guitar", 72, 0, 1)] * 10
     assert pick_melody_track(notes) == "acoustic_guitar"
     assert pick_melody_track(notes, "acoustic_piano") == "acoustic_piano"
+
+
+def test_parse_chord_is_forgiving_and_loud():
+    import pytest
+    assert parse_chord("Gmaj7") == (7, "maj") and parse_chord("G/B") == (7, "maj")
+    assert parse_chord("Asus4") == (9, "maj") and parse_chord("Bdim") == (11, "min") and parse_chord("D9") == (2, "dom7")
+    for bad in ("", "H", "Gxyz", "G#b"):
+        with pytest.raises(ValueError):
+            parse_chord(bad)
+
+
+def test_half_bar_change_when_one_half_agrees_with_whole():
+    spb = 0.5
+    notes = []
+    # bar 0: G for two beats then C for two beats, with bass roots; bar 1: G throughout
+    for t0, (r, third, fifth) in ((0, (55, 59, 62)), (1.0, (60, 64, 67)), (2.0, (55, 59, 62)), (3.0, (55, 59, 62))):
+        notes += [RawNote("acoustic_piano", p + 12, t0, t0 + 2 * spb) for p in (r, third, fifth)]
+        notes.append(RawNote("acoustic_bass", r - 12, t0, t0 + 2 * spb))
+    notes += [RawNote("voice", p, i * spb, i * spb + 0.4) for i, p in enumerate([67, 71, 72, 76, 67, 71, 74, 71])]
+    s = notes_to_leadsheet(notes, Grid(120.0, 4, 0.0, None), title="S", source="t", instrument="banjo")
+    assert [(c.bar, c.beat, c.name) for c in s.chords] == [(0, 0.0, "G"), (0, 2.0, "C"), (1, 0.0, "G")]

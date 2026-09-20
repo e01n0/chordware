@@ -115,8 +115,11 @@ async function showJob(id) {
 async function tick() {
   clearTimeout(timer);
   const m = location.hash.match(/^#job\/([0-9a-f]{12})$/);
-  let busy = await listJobs();
-  if (m) busy = (await showJob(m[1])) || busy; else $("#job").hidden = true;
+  let busy = true;
+  try {
+    busy = await listJobs();
+    if (m) busy = (await showJob(m[1])) || busy; else $("#job").hidden = true;
+  } catch (e) { console.warn("poll failed, retrying", e); }
   if (busy) timer = setTimeout(tick, 2500);
 }
 window.addEventListener("hashchange", tick); tick();

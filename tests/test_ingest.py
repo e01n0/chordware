@@ -39,3 +39,22 @@ def test_midi_and_musicxml(tmp_path):
         assert grid.bpm == 100 and grid.beats_per_bar == 4
         s = notes_to_leadsheet(notes, grid, title=r.title, source=str(f), instrument="banjo")
         assert [m.p for m in s.melody] == [67, 69, 71, 74] and s.chords[0].name == "G"
+
+
+def test_midi_with_drum_track(tmp_path):
+    sc = music21.stream.Score()
+    mel = music21.stream.Part()
+    mel.partName = "Melody"
+    for p in ["G4", "A4", "B4", "D5"]:
+        mel.append(music21.note.Note(p, quarterLength=1))
+    drums = music21.stream.Part()
+    drums.partName = "Drums"
+    drums.insert(0, music21.instrument.Percussion())
+    for _ in range(4):
+        drums.append(music21.note.Unpitched(quarterLength=1))
+    sc.insert(0, mel)
+    sc.insert(0, drums)
+    f = tmp_path / "d.musicxml"
+    sc.write("musicxml", fp=str(f))
+    notes, grid = ingest(str(f), tmp_path).raw
+    assert [n.pitch for n in notes if n.instrument == "voice"] == [67, 69, 71, 74]
