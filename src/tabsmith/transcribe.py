@@ -12,7 +12,7 @@ import requests
 
 from .leadsheet import Grid, RawNote
 
-CACHE_VERSION = 2  # bump when beat_grid or note extraction changes, so stale caches are ignored
+CACHE_VERSION = 3  # bump when beat_grid or note extraction changes, so stale caches are ignored
 
 
 def gpu_wait(max_wait_s: int = 1800, poll_s: int = 30, progress=print) -> None:
@@ -58,6 +58,23 @@ def separate_vocals(audio: Path, workdir: Path, progress=print) -> Path | None:
     return None
 
 
+def infer_meter(beats: list[float], downbeats: list[float]) -> tuple[int, float]:
+    """(beats per bar, first downbeat time). Downbeat trackers drop phantom downbeats, so instead of
+    counting beats between them we ask, for 3/4 and 4/4, which bar phase agrees with the most
+    detected downbeats; the meter with the better agreement wins, 4/4 on a tie (cut-time folk)."""
+    if not downbeats:
+        return 4, beats[0]
+    idx = [min(range(len(beats)), key=lambda i: abs(beats[i] - d)) for d in downbeats]
+    best = (0.0, 4, 0)
+    for bpb in (4, 3):
+        for phase in range(bpb):
+            agree = sum(1 for i in idx if i % bpb == phase) / len(idx)
+            if agree > best[0] + 1e-9:
+                best = (agree, bpb, phase)
+    _, bpb, phase = best
+    return bpb, beats[phase]
+
+
 def beat_grid(audio: Path, progress=print) -> Grid:
     """Beat This! beats and downbeats. The tracked beat list follows tempo drift (live recordings),
     which MuScriptor's own constant-tempo grid refuses. Falls back to 120 bpm 4/4 on failure."""
@@ -72,11 +89,7 @@ def beat_grid(audio: Path, progress=print) -> Grid:
         if len(beats) < 8:
             raise ValueError("too few beats")
         bpm = 60.0 / statistics.median(b - a for a, b in zip(beats, beats[1:]))
-        counts = [sum(1 for b in beats if a <= b < c) for a, c in zip(downbeats, downbeats[1:])]
-        bpb = statistics.mode(counts) if counts else 4
-        # a 2-beat bar is almost always cut-time folk; write it as 4/4 (--meter overrides)
-        bpb = 4 if bpb == 2 else bpb if bpb in (3, 4) else 4
-        first = downbeats[0] if downbeats else beats[0]
+        bpb, first = infer_meter(beats, downbeats)
         progress(f"beat grid: {bpm:.1f} bpm, {bpb} beats per bar, first downbeat at {first:.2f}s")
         return Grid(bpm, bpb, first, beats)
     except Exception as e:  # noqa: BLE001 - any tracker failure means a constant guess, not a crash
