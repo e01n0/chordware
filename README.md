@@ -133,3 +133,53 @@ per bar with the melody mined onto the current tuning, and **OPEN AS TAB** takes
 to LEARN › SONG. The engraved PDF, an mp3 of tabsmith's own arrangement and its chord
 editor are linked from the dialog. The button only appears when the page's origin
 answers `/jobs`, so a plain static copy of `index.html` is unchanged.
+
+## The engine: tabsmith
+
+`src/tabsmith/` is the Python side of this repo: it hears a recording and turns it into a lead
+sheet, arranges it for banjo or guitar, engraves it, and serves this page. Everything runs on
+the host's GPU; nothing leaves the box.
+
+1. **Transcribe**: MuScriptor (Kyutai/Mirelo, 1.4B) turns the full mix into per-instrument notes. Its built-in Beat This! tracker gives the bar grid. With a vocal present, `audio-separator` (BS-RoFormer) isolates the voice and the melody is re-transcribed from the clean stem.
+2. **Lead sheet**: melody by skyline on the vocal or lead track, chords per bar by pitch-class template matching anchored on the bass, key by Krumhansl, nearest instrument-friendly key with a capo suggestion. Saved as `leadsheet.json`.
+3. **Arrange**: a fret mapper (cheapest string/fret path, banjo fifth string modelled as a thumb drone) plus one pattern engine per style. Chord shapes come from a small library of conventional open shapes, and for everything else a generator finds the lowest playable voicing (root present, span of three frets, banjo fifth string never fretted). Melody notes are placed first, fill notes second. Roll styles quantise the melody to eighths and get 4/4 or 3/4 rolls. Banjo styles add hammer-ons, pull-offs and slides from the melody's own motion on a string. Invariants are checked before rendering: every melody note present, every fret playable, no string collisions, hand span within limits.
+4. **Render**: LilyPond for the PDF/PNG, mido for MIDI, FluidSynth plus ffmpeg for the mp3.
+5. **Refine** (optional, `--refine`): qwen3.6:27b via Ollama labels sections, picks a roll per section and suggests hammer-ons, pull-offs and slides. The engine validates every suggestion against the fretboard and drops the unplayable ones. The LLM never writes tab.
+
+### Install
+
+```bash
+sudo apt install lilypond fluidsynth fluid-soundfont-gm ffmpeg
+cd ~/chordware && uv sync
+```
+
+MuScriptor weights are gated (CC BY-NC 4.0, personal use). Accept the license once on the HuggingFace model pages, then `uvx hf auth login` or export `HF_TOKEN`. Weights download on first use (about 3 GB for `large`).
+
+### CLI
+
+```bash
+uv run tabsmith song.mp3 -i banjo -s scruggs
+uv run tabsmith "https://www.youtube.com/watch?v=..." -i guitar -s travis
+uv run tabsmith tune.musicxml -i banjo -s clawhammer
+uv run tabsmith out/song/leadsheet.json -i guitar -s flatpick     # re-arrange after editing chords by hand
+uv run tabsmith song.mp3 --list-tracks                            # see what MuScriptor heard, pick --melody-track
+uv run tabsmith --check                                           # end-to-end self test on a synthetic tune
+```
+
+Options: `--model small|medium|large`, `--separate auto|on|off`, `--refine`, `--key G`, `--capo 2`, `--melody-track voice`, `--bpm`, `--meter 3|4`, `-o DIR`.
+Output defaults to `out/<slug>/`. Transcription is cached per input file in the output directory, so re-arranging is instant.
+
+### API (what the page talks to)
+
+`POST /jobs` (multipart `file` or `url`, `instrument`, `style`, `model`, `separate`, `refine`, `key`, `capo`) → `{"id"}`;
+`GET /jobs` recent jobs; `GET /jobs/{id}` state + log + files; `GET /jobs/{id}/{file}`;
+`POST /jobs/{id}/rearrange` (`leadsheet`, `instrument`, `style`) → new job from an edited lead sheet, no re-transcription;
+`GET|POST /share` (the PWA share target) → a job from a shared link, landing in the AUDIO dialog.
+
+### Gotchas
+
+- ComfyUI keeps about 24 GB of the 32 GB resident. MuScriptor `large` therefore loads on the CPU in bf16 and is moved over (2.8 GB). Separation and transcription never share the GPU at once.
+- A tune MuScriptor hears in 2/4 is written as 4/4 (cut-time folk). Override with `--meter`.
+- Rubato recordings quantise badly. `--bpm` forces a constant grid.
+- Sevenths are penalised on purpose: a chord only becomes a 7th when the seventh carries real weight in the bar. Folk bias.
+- The refine pass needs Ollama with `qwen3.6:27b` (env `TABSMITH_LLM` to change). With ComfyUI resident the model partly runs on CPU, about 30 to 45 s per call.

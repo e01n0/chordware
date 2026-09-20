@@ -1,0 +1,77 @@
+import music21
+
+from tabsmith.ingest import ingest
+from tabsmith.leadsheet import Chord, LeadSheet, MelodyNote, notes_to_leadsheet
+
+
+def test_audio_path(tmp_path):
+    p = tmp_path / "My Song.mp3"
+    p.write_bytes(b"x")
+    r = ingest(str(p), tmp_path)
+    assert r.audio == p and r.title == "My Song" and r.sheet is None
+
+
+def test_leadsheet_json(tmp_path):
+    s = LeadSheet("T", "t", 100, (4, 4), "G", "major", 0, 1, [MelodyNote(0, 1, 67)], [Chord(0, 0, "G")], [])
+    p = tmp_path / "leadsheet.json"
+    s.save(p)
+    assert ingest(str(p), tmp_path).sheet == s
+
+
+def test_midi_and_musicxml(tmp_path):
+    sc = music21.stream.Score()
+    mel = music21.stream.Part()
+    mel.partName = "Melody"
+    mel.append(music21.meter.TimeSignature("4/4"))
+    mel.append(music21.tempo.MetronomeMark(number=100))
+    for p in ["G4", "A4", "B4", "D5"]:
+        mel.append(music21.note.Note(p, quarterLength=1))
+    acc = music21.stream.Part()
+    acc.partName = "Piano"
+    acc.append(music21.chord.Chord(["G3", "B3", "D4"], quarterLength=4))
+    sc.insert(0, mel)
+    sc.insert(0, acc)
+    for ext in ("mid", "musicxml"):
+        f = tmp_path / f"x.{ext}"
+        sc.write("midi" if ext == "mid" else "musicxml", fp=str(f))
+        r = ingest(str(f), tmp_path)
+        notes, grid = r.raw
+        assert grid.bpm == 100 and grid.beats_per_bar == 4
+        s = notes_to_leadsheet(notes, grid, title=r.title, source=str(f), instrument="banjo")
+        assert [m.p for m in s.melody] == [67, 69, 71, 74] and s.chords[0].name == "G"
+
+
+def test_midi_with_drum_track(tmp_path):
+    sc = music21.stream.Score()
+    mel = music21.stream.Part()
+    mel.partName = "Melody"
+    for p in ["G4", "A4", "B4", "D5"]:
+        mel.append(music21.note.Note(p, quarterLength=1))
+    drums = music21.stream.Part()
+    drums.partName = "Drums"
+    drums.insert(0, music21.instrument.Percussion())
+    for _ in range(4):
+        drums.append(music21.note.Unpitched(quarterLength=1))
+    sc.insert(0, mel)
+    sc.insert(0, drums)
+    f = tmp_path / "d.musicxml"
+    sc.write("musicxml", fp=str(f))
+    notes = ingest(str(f), tmp_path).raw[0]
+    assert [n.pitch for n in notes if n.instrument == "voice"] == [67, 69, 71, 74]
+
+
+def test_compound_meter_uses_quarter_beats(tmp_path):
+    sc = music21.stream.Score()
+    p = music21.stream.Part()
+    p.partName = "Melody"
+    p.append(music21.meter.TimeSignature("6/8"))
+    for _ in range(2):
+        for n in ("G4", "A4", "B4", "C5", "D5", "E5"):
+            p.append(music21.note.Note(n, quarterLength=0.5))
+    sc.insert(0, p)
+    f = tmp_path / "six.musicxml"
+    sc.write("musicxml", fp=str(f))
+    notes, grid = ingest(str(f), tmp_path).raw
+    assert grid.beats_per_bar == 3
+    s = notes_to_leadsheet(notes, grid, title="S", source="t", instrument="banjo")
+    assert s.bars == 2
