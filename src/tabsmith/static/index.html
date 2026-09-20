@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>tabsmith</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="theme-color" content="#121212">
+<style>
+  :root { color-scheme: dark; --bg:#121212; --card:#1c1c1c; --fg:#eee; --mut:#999; --acc:#e0c060; --bad:#e06060; --ok:#70c070; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.4 system-ui, sans-serif; padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); }
+  h1 { font-size:22px; margin:16px 0 8px; } h1 span { color:var(--acc); }
+  .card { background:var(--card); border-radius:10px; padding:14px; margin:12px 0; }
+  label { display:block; font-size:13px; color:var(--mut); margin-top:8px; }
+  input, select, button { font:inherit; color:var(--fg); background:#2a2a2a; border:1px solid #444; border-radius:6px; padding:8px; max-width:100%; }
+  input[type=file] { padding:4px; }
+  .row { display:flex; flex-wrap:wrap; gap:10px; } .row > div { flex:1 1 140px; }
+  button.go { background:var(--acc); color:#111; font-weight:600; border:0; padding:10px 18px; margin-top:12px; cursor:pointer; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:99px; font-size:12px; background:#333; }
+  .pill.done { background:var(--ok); color:#111; } .pill.failed { background:var(--bad); color:#111; } .pill.transcribing, .pill.rendering, .pill.arranging { background:var(--acc); color:#111; }
+  pre { background:#0d0d0d; padding:10px; border-radius:6px; overflow-x:auto; font-size:12px; }
+  a { color:var(--acc); } .jobs a { color:var(--fg); text-decoration:none; } .jobs li { padding:6px 0; border-bottom:1px solid #2a2a2a; list-style:none; } .jobs ul { padding:0; margin:0; }
+  img.tab { max-width:100%; background:#fff; border-radius:6px; }
+  .chords { display:flex; flex-wrap:wrap; gap:6px; } .chords input { width:64px; text-align:center; }
+  .err { color:var(--bad); white-space:pre-wrap; } .mut { color:var(--mut); font-size:13px; }
+</style>
+</head>
+<body>
+<h1><span>tab</span>smith</h1>
+
+<div class="card" id="form">
+  <form id="f">
+    <div class="row">
+      <div><label>Audio, MIDI, MusicXML or leadsheet.json</label><input type="file" name="file" accept="audio/*,.mid,.midi,.musicxml,.xml,.mxl,.json"></div>
+      <div><label>or a URL (YouTube etc.)</label><input name="url" placeholder="https://" style="width:100%"></div>
+    </div>
+    <div class="row">
+      <div><label>Instrument</label><select name="instrument" id="inst"><option>banjo</option><option>guitar</option></select></div>
+      <div><label>Style</label><select name="style" id="style"></select></div>
+      <div><label>Model</label><select name="model"><option>large</option><option>medium</option><option>small</option></select></div>
+      <div><label>Separate vocals</label><select name="separate"><option>auto</option><option>on</option><option>off</option></select></div>
+    </div>
+    <div class="row">
+      <div><label>Key (blank = auto)</label><input name="key" placeholder="G" size="4"></div>
+      <div><label>Capo (blank = auto)</label><input name="capo" type="number" min="0" max="7" size="3"></div>
+      <div><label>LLM refine</label><select name="refine"><option value="0">off</option><option value="1">on (slow)</option></select></div>
+    </div>
+    <button class="go" type="submit">Arrange</button> <span id="ferr" class="err"></span>
+  </form>
+</div>
+
+<div class="card" id="job" hidden></div>
+
+<div class="card jobs"><b>Recent jobs</b><ul id="jobs"></ul></div>
+
+<script>
+const STYLES = {banjo: ["scruggs", "clawhammer"], guitar: ["travis", "flatpick"]};
+const $ = s => document.querySelector(s);
+const inst = $("#inst"), style = $("#style");
+function fillStyles(sel, i, cur) { sel.innerHTML = STYLES[i].map(s => `<option${s === cur ? " selected" : ""}>${s}</option>`).join(""); }
+inst.onchange = () => fillStyles(style, inst.value); fillStyles(style, inst.value);
+
+$("#f").onsubmit = async e => {
+  e.preventDefault(); $("#ferr").textContent = "";
+  const r = await fetch("/jobs", {method: "POST", body: new FormData(e.target), headers: {accept: "application/json"}});
+  if (!r.ok) { $("#ferr").textContent = (await r.json()).detail || r.statusText; return; }
+  location.hash = "#job/" + (await r.json()).id;
+};
+
+let timer = null;
+async function listJobs() {
+  const jobs = await (await fetch("/jobs")).json();
+  $("#jobs").innerHTML = jobs.map(j => `<li><a href="#job/${j.id}">${esc(j.title)}</a> <span class="mut">${j.instrument}/${j.style}</span> <span class="pill ${j.state}">${j.state}</span></li>`).join("") || "<li class=mut>none yet</li>";
+  return jobs.some(j => j.state !== "done" && j.state !== "failed");
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+
+async function showJob(id) {
+  const box = $("#job"); box.hidden = false;
+  const j = await (await fetch("/jobs/" + id)).json();
+  let h = `<b>${esc(j.title)}</b> <span class="mut">${j.instrument}/${j.style}</span> <span class="pill ${j.state}">${j.state}</span>`;
+  if (j.error) h += `<div class="err">${esc(j.error)}</div>`;
+  if (j.state === "done") {
+    const f = n => `/jobs/${id}/${j.files[n]}`;
+    h += `<p><a href="${f("pdf")}" target="_blank"><img class="tab" src="${f("png")}" alt="tab"></a></p>`;
+    h += `<audio controls preload="none" src="${f("mp3")}" style="width:100%"></audio>`;
+    h += `<p class="mut"><a href="${f("pdf")}">PDF</a> · <a href="${f("txt")}">ASCII</a> · <a href="${f("mid")}">MIDI</a> · <a href="${f("ly")}">LilyPond</a> · <a href="${f("leadsheet")}">leadsheet.json</a></p>`;
+    h += `<pre id="txt">loading tab…</pre>`;
+    h += `<div id="editor"><b>Chords</b> <span class="mut">edit and re-arrange (no re-transcription)</span><div class="chords" id="chords"></div>
+      <div class="row"><div><label>Instrument</label><select id="rinst"></select></div><div><label>Style</label><select id="rstyle"></select></div>
+      <div><label>LLM refine</label><select id="rrefine"><option value="0">off</option><option value="1">on</option></select></div></div>
+      <button class="go" id="rearr">Re-arrange</button> <span class="err" id="rerr"></span></div>`;
+  }
+  h += `<details${j.state === "done" ? "" : " open"}><summary class="mut">log</summary><pre>${esc(j.log.join("\n"))}</pre></details>`;
+  box.innerHTML = h;
+  if (j.state === "done") {
+    $("#txt").textContent = await (await fetch(`/jobs/${id}/${j.files.txt}`)).text();
+    const sheet = await (await fetch(`/jobs/${id}/leadsheet.json`)).json();
+    $("#chords").innerHTML = sheet.chords.map((c, i) => `<label>bar ${c.bar + 1}${c.beat ? " +" + c.beat : ""}<input data-i="${i}" value="${esc(c.name)}"></label>`).join("");
+    const ri = $("#rinst"); ri.innerHTML = Object.keys(STYLES).map(i => `<option${i === j.instrument ? " selected" : ""}>${i}</option>`).join("");
+    fillStyles($("#rstyle"), j.instrument, j.style); ri.onchange = () => fillStyles($("#rstyle"), ri.value);
+    $("#rearr").onclick = async () => {
+      document.querySelectorAll("#chords input").forEach(inp => sheet.chords[+inp.dataset.i].name = inp.value.trim());
+      const r = await fetch(`/jobs/${id}/rearrange`, {method: "POST", headers: {"content-type": "application/json"},
+        body: JSON.stringify({leadsheet: sheet, instrument: ri.value, style: $("#rstyle").value, refine: $("#rrefine").value === "1"})});
+      if (!r.ok) { $("#rerr").textContent = (await r.json()).detail || r.statusText; return; }
+      location.hash = "#job/" + (await r.json()).id;
+    };
+  }
+  return j.state !== "done" && j.state !== "failed";
+}
+
+async function tick() {
+  clearTimeout(timer);
+  const m = location.hash.match(/^#job\/([0-9a-f]{12})$/);
+  let busy = await listJobs();
+  if (m) busy = (await showJob(m[1])) || busy; else $("#job").hidden = true;
+  if (busy) timer = setTimeout(tick, 2500);
+}
+window.addEventListener("hashchange", tick); tick();
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
+</script>
+</body>
+</html>

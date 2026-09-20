@@ -67,7 +67,8 @@ def refine(sheet: LeadSheet, tab_txt: str, instrument: str, style: str,
     try:
         r = requests.post(f"{url}/api/generate",
                           json={"model": model, "prompt": build_prompt(sheet, tab_txt, instrument, style),
-                                "format": "json", "stream": False, "options": {"temperature": 0.3}},
+                                "format": "json", "stream": False, "think": False,  # thinking models burn the budget
+                                "options": {"temperature": 0.3, "num_predict": 2000, "num_ctx": 16384}},
                           timeout=600)
         r.raise_for_status()
         ref = parse_reply(r.json().get("response", ""))
