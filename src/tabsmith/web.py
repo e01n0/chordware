@@ -110,9 +110,16 @@ def _wants_html(req: Request) -> bool:
 async def create_job(req: Request, file: UploadFile | None = File(None), url: str = Form(""),
                      instrument: str = Form("banjo"), style: str = Form(""), separate: str = Form("auto"),
                      refine: str = Form("0"), key: str = Form(""), capo: str = Form(""), model: str = Form("large")):
-    style = style or STYLES[instrument][0]
-    opts = {"model": model, "separate": separate, "refine": refine == "1", "key": key or None,
-            "capo": int(capo) if capo else None}
+    style = style or STYLES.get(instrument, ("",))[0]
+    if style not in STYLES.get(instrument, ()):
+        raise HTTPException(400, f"{instrument} styles: {STYLES.get(instrument)}")
+    if model not in ("small", "medium", "large") or separate not in ("auto", "on", "off"):
+        raise HTTPException(400, "bad model or separate value")
+    try:
+        opts = {"model": model, "separate": separate, "refine": refine == "1", "key": key.strip() or None,
+                "capo": int(capo) if capo else None}
+    except ValueError:
+        raise HTTPException(400, "capo must be a number") from None
     jid = uuid.uuid4().hex[:12]
     if file and file.filename:
         ext = Path(file.filename).suffix.lower()

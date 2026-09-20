@@ -98,13 +98,20 @@ def _finger_banjo(string: int, prev: str) -> str:
     return "I" if prev == "T" and string == 3 else "T"
 
 
-# Scruggs rolls: string per 8th note over a 4/4 bar. spike: 3/4 uses the first 6 slots.
+# Scruggs rolls: string per 8th note over a bar. 4/4 rolls have 8 slots, 3/4 rolls 6.
 ROLLS = {
     "forward": (3, 2, 1, 5, 3, 2, 1, 5),
     "backward": (1, 2, 5, 1, 2, 5, 1, 2),
     "forward_backward": (3, 2, 1, 5, 1, 2, 3, 1),
     "alternating": (3, 2, 5, 1, 4, 2, 5, 1),
     "foggy": (2, 1, 5, 1, 5, 3, 2, 1),
+}
+WALTZ_ROLLS = {
+    "forward": (3, 2, 1, 5, 2, 1),
+    "backward": (1, 2, 5, 1, 2, 3),
+    "forward_backward": (3, 2, 1, 5, 1, 2),
+    "alternating": (3, 2, 5, 1, 4, 5),
+    "foggy": (2, 1, 5, 1, 3, 2),
 }
 _ROLL_ROTATION = ("forward", "alternating", "forward_backward", "backward")
 
@@ -113,9 +120,10 @@ def _scruggs(sheet: LeadSheet, tuning: Tuning, patterns: dict[str, str]) -> list
     notes: list[TabNote] = []
     labels = {s["bar"]: s["label"] for s in sheet.sections}
     label = "A"
+    rolls = WALTZ_ROLLS if sheet.bpb == 3 else ROLLS
     for bar in range(sheet.bars):
         label = labels.get(bar, label)
-        roll = ROLLS[patterns.get(label, _ROLL_ROTATION[bar % len(_ROLL_ROTATION)])]
+        roll = rolls[patterns.get(label, _ROLL_ROTATION[bar % len(_ROLL_ROTATION)])]
         prev = ""
         for slot in range(sheet.bpb * 2):
             t = bar * sheet.bpb + slot * 0.5
@@ -125,9 +133,24 @@ def _scruggs(sheet: LeadSheet, tuning: Tuning, patterns: dict[str, str]) -> list
                 s, f = _place_melody(tuning, shape, m.p)
                 notes.append(TabNote(t, 0.5, s, f, _finger_banjo(s, prev), melody=True))
             else:
-                s = roll[slot % 8]
+                s = roll[slot % len(roll)]
                 notes.append(TabNote(t, 0.5, s, max(shape[s - 1], 0), _finger_banjo(s, prev)))
             prev = notes[-1].finger
+    return _ornament_banjo(notes)
+
+
+def _ornament_banjo(notes: list[TabNote]) -> list[TabNote]:
+    """Scruggs vocabulary from the melody's own motion on one string within an 8th:
+    open to fret 1-2 is a hammer-on, fretted up 1-2 is a slide, down 1-2 is a pull-off."""
+    melody = [n for n in notes if n.melody]
+    for a, b in zip(melody, melody[1:]):
+        if a.string != b.string or b.t - a.t > 0.5 + 1e-9 or a.tech:
+            continue
+        diff = b.fret - a.fret
+        if 1 <= diff <= 2:
+            a.tech = "h" if a.fret == 0 else "s"
+        elif -2 <= diff <= -1:
+            a.tech = "p"
     return notes
 
 
@@ -152,7 +175,7 @@ def _clawhammer(sheet: LeadSheet, tuning: Tuning) -> list[TabNote]:
             else:
                 notes.extend(TabNote(t + 0.5, 0.25, s, max(shape[s - 1], 0), "B") for s in (1, 2, 3))
             notes.append(TabNote(t + 0.75, 0.25, 5, 0, "T"))
-    return notes
+    return _ornament_banjo(notes)
 
 
 def _travis(sheet: LeadSheet, tuning: Tuning) -> list[TabNote]:

@@ -244,9 +244,11 @@ def notes_to_leadsheet(notes: list[RawNote], grid: Grid, *, title: str, source: 
         melody.append(MelodyNote(k * GRID, max(GRID, min(end, nxt) - k * GRID), n.pitch))
     if not melody:
         raise ValueError("melody track has no notes after the first downbeat")
-    if len(melody) >= 8:
-        # spike: a single polyphonic track (fingerstyle guitar, piano) leaks its bass notes into the
-        # skyline wherever the tune rests; drop anything far below the melody's median register
+    overlapping = sum(1 for a, b in zip(mel_raw, mel_raw[1:]) if b.onset < a.offset - 1e-6)
+    if len(melody) >= 8 and overlapping > len(mel_raw) // 10:
+        # a polyphonic melody track (fingerstyle guitar, piano) leaks its bass notes into the
+        # skyline wherever the tune rests; drop anything far below the melody's median register.
+        # A monophonic track (a voice) is left alone so low phrases survive.
         med = statistics.median(m.p for m in melody)
         melody = [m for m in melody if m.p >= med - 9]
     # the arrangement ends where the melody ends; stray accompaniment tails do not add bars

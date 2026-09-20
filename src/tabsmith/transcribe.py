@@ -12,6 +12,8 @@ import requests
 
 from .leadsheet import Grid, RawNote
 
+CACHE_VERSION = 2  # bump when beat_grid or note extraction changes, so stale caches are ignored
+
 
 def gpu_wait(max_wait_s: int = 1800, poll_s: int = 30, progress=print) -> None:
     """House rule: never pile onto a running ComfyUI job. Waits while its queue is non-empty."""
@@ -72,7 +74,7 @@ def beat_grid(audio: Path, progress=print) -> Grid:
         bpm = 60.0 / statistics.median(b - a for a, b in zip(beats, beats[1:]))
         counts = [sum(1 for b in beats if a <= b < c) for a, c in zip(downbeats, downbeats[1:])]
         bpb = statistics.mode(counts) if counts else 4
-        # spike: a 2-beat bar is almost always cut-time folk; write it as 4/4 (--meter overrides)
+        # a 2-beat bar is almost always cut-time folk; write it as 4/4 (--meter overrides)
         bpb = 4 if bpb == 2 else bpb if bpb in (3, 4) else 4
         first = downbeats[0] if downbeats else beats[0]
         progress(f"beat grid: {bpm:.1f} bpm, {bpb} beats per bar, first downbeat at {first:.2f}s")
@@ -99,7 +101,7 @@ def _run_model(model, audio: Path, instruments: list[str] | None, progress) -> l
 def transcribe(audio: Path, workdir: Path, *, model_size: str = "large", separate: str = "auto",
                progress=print) -> tuple[list[RawNote], Grid]:
     audio, workdir = Path(audio), Path(workdir)
-    key = hashlib.sha256(audio.read_bytes()).hexdigest()[:16] + f"-{model_size}-{separate}"
+    key = hashlib.sha256(audio.read_bytes()).hexdigest()[:16] + f"-{model_size}-{separate}-v{CACHE_VERSION}"
     cache = workdir / "transcription.json"
     if cache.exists():
         d = json.loads(cache.read_text())

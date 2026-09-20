@@ -145,8 +145,10 @@ def main() -> None:
     try:
         out = run_pipeline(a.input, a.instrument, style, outdir, opts,
                            progress=lambda s, m: print(f"[{s} {time.time() - t0:5.1f}s] {m}", file=sys.stderr))
-    except (ValueError, FileNotFoundError, RuntimeError, AssertionError) as e:
-        sys.exit(f"tabsmith: {e}")
+    except KeyboardInterrupt:
+        sys.exit(130)
+    except Exception as e:  # noqa: BLE001 - one clean line for the user, whatever stage broke
+        sys.exit(f"tabsmith: {e.__class__.__name__}: {str(e).strip().splitlines()[-1] if str(e).strip() else e!r}")
     print(out["txt"].read_text())
     for k in ("pdf", "txt", "mid", "mp3", "leadsheet"):
         print(f"{k:9s} {out[k]}")

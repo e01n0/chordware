@@ -38,3 +38,22 @@ def test_mapper_string_restriction():
     m = FretMapper(GUITAR, strings=(1, 2, 3))
     out = m.assign([64, 67, 71])
     assert all(s in (1, 2, 3) for s, _ in out)
+
+
+def test_generated_shapes_cover_every_chord():
+    from tabsmith.fretboard import _generate_shape, SPAN
+    from tabsmith.leadsheet import PC_NAMES, parse_chord
+    for tuning in (BANJO_G, GUITAR):
+        for root in PC_NAMES:
+            for q in ("", "m", "7", "m7"):
+                name = root + q
+                shape = _generate_shape(tuning.name, name)
+                pc, quality = parse_chord(name)
+                sounding = [(s, f) for s, f in enumerate(shape, 1) if f >= 0]
+                tones = {tuning.pitch(s, f) % 12 for s, f in sounding}
+                assert pc in tones, name
+                fretted = [f for _, f in sounding if f > 0]
+                assert not fretted or max(fretted) - min(fretted) <= SPAN, name
+                if tuning is BANJO_G:
+                    assert shape[4] in (0, -1), "fifth string is never fretted in a shape"
+    assert shape_for(GUITAR, "F#m") == _generate_shape("guitar-standard", "F#m")

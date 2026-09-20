@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
+from itertools import product
 
 from .leadsheet import parse_chord
 
@@ -45,7 +47,7 @@ TUNINGS = {"banjo": BANJO_G, "guitar": GUITAR}
 
 Shape = tuple[int, ...]
 
-# spike: hand-typed open shapes; extend as songs demand
+# The conventional open shapes players expect; anything else comes from _generate_shape.
 SHAPES: dict[str, dict[str, Shape]] = {
     "banjo-open-g": {
         "G": (0, 0, 0, 0, 0), "C": (2, 1, 0, 2, 0), "D": (4, 3, 2, 0, 0), "D7": (4, 1, 2, 0, 0),
@@ -61,26 +63,53 @@ SHAPES: dict[str, dict[str, Shape]] = {
         "Am7": (0, 1, 0, 2, 0, -1), "Em7": (0, 3, 0, 2, 2, 0), "Dm7": (1, 1, 2, 0, -1, -1),
     },
 }
-# movable shapes: (root pitch class of the shape at fret 0, shape) per quality
-_BARRE: dict[str, dict[str, tuple[int, Shape]]] = {
-    "banjo-open-g": {"maj": (7, (0, 0, 0, 0, 0)), "min": (9, (2, 1, 2, 2, 0)),
-                     "dom7": (7, (0, 0, 0, 3, 0)), "min7": (4, (2, 0, 0, 0, 0))},
-    "guitar-standard": {"maj": (4, (0, 0, 1, 2, 2, 0)), "min": (4, (0, 0, 0, 2, 2, 0)),
-                        "dom7": (4, (0, 0, 1, 0, 2, 0)), "min7": (4, (0, 3, 0, 2, 2, 0))},
-}
+_TEMPLATE = {"maj": (0, 4, 7), "min": (0, 3, 7), "dom7": (0, 4, 7, 10), "min7": (0, 3, 7, 10)}
+SPAN = 3  # frets a fretting hand covers comfortably inside one shape
+
+
+@lru_cache(maxsize=None)
+def _generate_shape(tuning_name: str, chord: str) -> Shape:
+    """Lowest playable voicing: every sounding string in the chord, root present, at least three
+    distinct chord tones, hand span <= SPAN. The two lowest guitar strings may be muted; the banjo
+    fifth string is never fretted (it rings open when g fits the chord, else it is muted)."""
+    t = TUNINGS[{"banjo-open-g": "banjo", "guitar-standard": "guitar"}[tuning_name]]
+    root, quality = parse_chord(chord)
+    pcs = {(root + i) % 12 for i in _TEMPLATE[quality]}
+    mutable = {t.n, t.n - 1} if tuning_name == "guitar-standard" else set()
+    drone = t.n if tuning_name == "banjo-open-g" else None
+    for anchor in range(0, MAX_FRET - SPAN):
+        options = []
+        for s in range(1, t.n + 1):
+            if s == drone:
+                options.append([0 if t.pitch(s, 0) % 12 in pcs else -1])
+                continue
+            frets = [f for f in range(anchor, anchor + SPAN + 1) if t.pitch(s, f) % 12 in pcs]
+            if anchor > 0 and t.pitch(s, 0) % 12 in pcs:
+                frets.append(0)  # an open string is always in reach
+            if s in mutable:
+                frets.append(-1)
+            options.append(frets)
+        best = None
+        for combo in product(*options):
+            sounding = [(s, f) for s, f in enumerate(combo, 1) if f >= 0]
+            fretted = [f for _, f in sounding if f > 0]
+            if len(sounding) < 3 or (fretted and max(fretted) - min(fretted) > SPAN):
+                continue
+            tones = {t.pitch(s, f) % 12 for s, f in sounding}
+            if root not in tones or len(tones) < min(3, len(pcs)):
+                continue
+            lowest = min(sounding, key=lambda x: t.pitch(*x))
+            score = (t.pitch(*lowest) % 12 != root, -len(sounding), sum(fretted), len(fretted))
+            if best is None or score < best[0]:
+                best = (score, combo)
+        if best:
+            return tuple(best[1])
+    raise ValueError(f"no playable shape for {chord} on {tuning_name}")
 
 
 def shape_for(tuning: Tuning, chord: str) -> Shape:
     lib = SHAPES[tuning.name]
-    if chord in lib:
-        return lib[chord]
-    root, quality = parse_chord(chord)
-    base_root, shape = _BARRE[tuning.name][quality]
-    up = (root - base_root) % 12
-    moved = tuple(f + up if f >= 0 else -1 for f in shape)
-    if tuning.name == "banjo-open-g":
-        moved = moved[:4] + (0,)  # fifth string stays open
-    return moved
+    return lib[chord] if chord in lib else _generate_shape(tuning.name, chord)
 
 
 def shape_position(shape: Shape) -> int:

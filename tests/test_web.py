@@ -69,3 +69,15 @@ def test_pwa_assets(tmp_path, monkeypatch):
     m = c.get("/manifest.webmanifest").json()
     assert m["id"] == "/tabsmith-mrfantastic" and m["share_target"]["action"] == "/share"
     assert c.get("/sw.js").status_code == 200
+
+
+def test_share_target_and_bad_capo(tmp_path, monkeypatch):
+    c = client(tmp_path, monkeypatch)
+    r = c.get("/share?text=look%20https://youtu.be/abc%20nice", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"].startswith("/#job/")
+    r = c.post("/jobs", data={"url": "https://x/y", "instrument": "banjo", "style": "scruggs", "capo": "two"},
+               headers={"accept": "application/json"})
+    assert r.status_code == 400
+    r = c.post("/jobs", data={"url": "https://x/y", "instrument": "banjo", "style": "travis"},
+               headers={"accept": "application/json"})
+    assert r.status_code == 400

@@ -104,3 +104,26 @@ def test_roll_styles_survive_sixteenth_ornaments():
         arr = arrange(s, "banjo", style)
         check_invariants(arr)
         assert all(abs(m.t * 2 - round(m.t * 2)) < 1e-9 for m in arr.sheet.melody), "melody on the 8th grid"
+
+
+def test_waltz_rolls_have_six_slots():
+    s = sheet_3_4()
+    s.melody = []
+    s.melody = [MelodyNote(0, 1, 62)]        # one note so the sheet is valid
+    arr = arrange(s, "banjo", "scruggs")
+    per_bar = [sum(1 for n in arr.notes if int(n.t // 3) == b) for b in range(s.bars)]
+    assert per_bar == [6, 6]
+
+
+def test_banjo_ornaments_from_melody_motion():
+    from tabsmith.arrange import _ornament_banjo
+    notes = [TabNote(0, 0.5, 3, 0, melody=True), TabNote(0.5, 0.5, 3, 2, melody=True),
+             TabNote(1, 0.5, 3, 4, melody=True), TabNote(1.5, 0.5, 3, 2, melody=True),
+             TabNote(2, 0.5, 2, 0, melody=True), TabNote(3.5, 0.5, 2, 1, melody=True)]
+    techs = [n.tech for n in _ornament_banjo(notes)]
+    assert techs == ["h", "s", "p", "", "", ""], "hammer from open, slide up, pull-off down, string change and gap get nothing"
+    s = sheet_4_4()
+    s.melody = [MelodyNote(0, 0.5, 55), MelodyNote(0.5, 0.5, 57), MelodyNote(3, 1, 62)]
+    arr = arrange(s, "banjo", "scruggs")
+    assert any(n.tech == "h" for n in arr.notes) and "0h" in __import__("tabsmith.render", fromlist=["ascii_tab"]).ascii_tab(arr)
+    check_invariants(arr)
