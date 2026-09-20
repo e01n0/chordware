@@ -90,6 +90,25 @@ for(const [tkey, chords] of Object.entries(LIB)){
         fail(`DRONE  ${ctx}: string ${i} fret ${f} is at or above the drone's nut (fret ${t.drone.nut})`);
     });
 
+    /* A finger can only be in two places at once when it's barred across
+       them — same fret, and that fret the lowest in the shape, with no
+       open string inside the span. Anything else is a fingering no hand
+       can make. And no shape may ask for more than four fingers. */
+    const fretted = ch.frets.filter(f => f > 0);
+    if(fretted.length){
+      const low = Math.min(...fretted);
+      const on = ch.frets.map((f, i) => f === low ? i : -1).filter(i => i >= 0);
+      const open = on.length > 1 && ch.frets.slice(on[0] + 1, on[on.length - 1]).includes(0);
+      const barred = on.length > 1 && !open ? new Set(on) : new Set();
+      const byFinger = {};
+      ch.fingers.forEach((n, i) => { if(n) (byFinger[n] ||= []).push(i); });
+      for(const [n, idxs] of Object.entries(byFinger))
+        if(idxs.length > 1 && !idxs.every(i => barred.has(i)))
+          fail(`HAND   ${ctx}: finger ${n} on strings ${idxs.join(",")} — not one barre`);
+      const needed = fretted.length - (barred.size ? barred.size - 1 : 0);
+      if(needed > 4) fail(`HAND   ${ctx}: needs ${needed} fingers`);
+    }
+
     const pcs = new Set(ch.frets.map((f, i) => f < 0 ? null : (t.pitches[i] + f) % 12).filter(x => x !== null));
     const expected = new Set(QUALITIES[qual].map(iv => (root + iv) % 12));
     const opt = new Set((OPTIONAL[qual] || []).map(iv => (root + iv) % 12));

@@ -32,8 +32,8 @@ const head = js.slice(0, js.lastIndexOf('/*', js.indexOf('APP STATE')));
 // the head includes a few browser-API constants (e.g. REDUCED_MOTION)
 globalThis.matchMedia ??= () => ({ matches: false });
 const ctx = {};
-new Function('x', head + '; x.TUNINGS = TUNINGS; x.LIB = CHORD_LIBRARY; x.fretExists = fretExists;')(ctx);
-const { TUNINGS, LIB, fretExists } = ctx;
+new Function('x', head + '; x.TUNINGS = TUNINGS; x.LIB = CHORD_LIBRARY; x.fretExists = fretExists; x.fingersFor = fingersFor; x.fingersNeeded = fingersNeeded;')(ctx);
+const { TUNINGS, LIB, fretExists, fingersFor, fingersNeeded } = ctx;
 
 const ROOTS = ["C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"]; // index = pitch class
 
@@ -87,7 +87,7 @@ function bestVoicing(tuning, rootPC, q){
         const maxF = Math.max(0, ...fretted);
         const minF = fretted.length ? Math.min(...fretted) : 0;
         const span = fretted.length ? maxF - minF : 0;
-        if(span <= 4 && !(maxF > 5 && frets.some(f => f === 0))){
+        if(span <= 4 && !(maxF > 5 && frets.some(f => f === 0)) && fingersNeeded(frets) <= 4){
           const opens = frets.filter(f => f === 0).length;
           const distinct = new Set(fretted).size;
           const has5th = pcs.includes((rootPC + 7) % 12) || q.iv.length === 3;
@@ -106,10 +106,7 @@ function bestVoicing(tuning, rootPC, q){
     }
   }
   if(!best) return null;
-  const fretted = best.filter(f => f > 0);
-  const minF = fretted.length ? Math.min(...fretted) : 1;
-  const fingers = best.map(f => f <= 0 ? 0 : Math.min(4, f - minF + 1));
-  return { frets: best, fingers };
+  return { frets: best, fingers: fingersFor(best) };
 }
 
 const norm = s => s.toLowerCase().replace(/[()\s]/g, "");
