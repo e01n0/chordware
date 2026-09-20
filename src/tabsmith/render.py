@@ -124,7 +124,7 @@ def lilypond_source(arr: Arrangement) -> str:
 \\header {{ title = "{sheet.title}" subtitle = "{arr.instrument} / {arr.style}{capo}" tagline = "tabsmith" }}
 \\score {{
   <<
-    \\new ChordNames {{ \\chordmode {{ {' '.join(chords)} }} }}
+    \\new ChordNames {{ \\set chordChanges = ##t \\chordmode {{ {' '.join(chords)} }} }}
     \\new TabStaff \\with {{
       stringTunings = #{_LY_TUNING[t.name]}
 {banjo}    }} {{
