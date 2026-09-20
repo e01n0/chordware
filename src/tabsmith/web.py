@@ -12,16 +12,17 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from .arrange import STYLES
 from .cli import Options, run_pipeline
 from .ingest import AUDIO_EXT, SCORE_EXT
 from .leadsheet import LeadSheet, parse_chord
 
-JOBS_DIR = Path(os.environ.get("TABSMITH_JOBS", Path.home() / "tabsmith/jobs"))
-CHORDWARE_DIR = Path(os.environ.get("CHORDWARE_DIR", Path.home() / "chordware"))
-STATIC = Path(__file__).parent / "static"
+CHORDWARE_DIR = Path(os.environ.get("CHORDWARE_DIR", Path(__file__).resolve().parents[2]))  # the repo root
+JOBS_DIR = Path(os.environ.get("TABSMITH_JOBS", CHORDWARE_DIR / "jobs"))
+ROOT_FILES = {"manifest.webmanifest": "application/manifest+json", "icon-192.png": "image/png",
+              "icon-512.png": "image/png"}
 MAX_UPLOAD = 200 * 1024 * 1024
 DEFAULT_OPTS = {"model": "large", "separate": "auto", "refine": False, "key": None, "capo": None}
 app = FastAPI(title="tabsmith")
@@ -149,7 +150,7 @@ async def create_job(req: Request, file: UploadFile | None = File(None), url: st
     else:
         raise HTTPException(400, "upload a file or give a URL")
     _new_job(jid, str(src), title, instrument, style, opts)
-    return RedirectResponse(f"/tabsmith/#job/{jid}", status_code=303) if _wants_html(req) else {"id": jid}
+    return RedirectResponse(f"/#audio/{jid}", status_code=303) if _wants_html(req) else {"id": jid}
 
 
 @app.get("/jobs")
@@ -201,7 +202,7 @@ async def share(req: Request):
     if not m:
         raise HTTPException(400, "share a link")
     jid = _new_job(uuid.uuid4().hex[:12], m.group(0), m.group(0), "banjo", "scruggs", dict(DEFAULT_OPTS))
-    return RedirectResponse(f"/tabsmith/#job/{jid}", status_code=303)
+    return RedirectResponse(f"/#audio/{jid}", status_code=303)
 
 
 NO_STORE = {"Cache-Control": "no-store"}
@@ -221,11 +222,11 @@ def _chordware_build() -> str:
 
 @app.get("/", response_class=HTMLResponse)
 def index():
-    """Chordware is the front door when its checkout is present; else the plain tabsmith UI."""
+    """The page itself, with the checkout's git SHA stamped in so the service worker updates."""
     page = CHORDWARE_DIR / "index.html"
-    if page.exists():
-        return HTMLResponse(page.read_text().replace("__BUILD__", _chordware_build()), headers=NO_STORE)
-    return RedirectResponse("/tabsmith/", status_code=302)
+    if not page.exists():
+        raise HTTPException(500, f"index.html missing from {CHORDWARE_DIR}")
+    return HTMLResponse(page.read_text().replace("__BUILD__", _chordware_build()), headers=NO_STORE)
 
 
 @app.get("/sw.js")
@@ -237,28 +238,12 @@ def chordware_sw():
                         media_type="application/javascript", headers=NO_STORE)
 
 
-@app.get("/tabsmith/", response_class=HTMLResponse)
-def tabsmith_index():
-    return HTMLResponse((STATIC / "index.html").read_text(), headers=NO_STORE)
-
-
-@app.get("/tabsmith/manifest.webmanifest")
-def manifest():
-    return JSONResponse(json.loads((STATIC / "manifest.webmanifest").read_text()),
-                        media_type="application/manifest+json")
-
-
-@app.get("/tabsmith/sw.js")
-def sw():
-    return FileResponse(STATIC / "sw.js", media_type="application/javascript", headers=NO_STORE)
-
-
-@app.get("/tabsmith/icon-{size}.png")
-def icon(size: int):
-    p = STATIC / f"icon-{size}.png"
-    if not p.exists():
+@app.get("/{name}")
+def root_file(name: str):
+    """The PWA's manifest and icons, checked into the repo root next to index.html."""
+    if name not in ROOT_FILES:
         raise HTTPException(404)
-    return FileResponse(p)
+    return FileResponse(CHORDWARE_DIR / name, media_type=ROOT_FILES[name])
 
 
 def main() -> None:

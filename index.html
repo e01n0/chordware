@@ -1226,11 +1226,28 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     <label for="seChords">Chords · fills in from a pasted song — or list them yourself</label>
     <input id="seChords" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
            placeholder="Am F C G">
+    <div id="seArr" hidden>
+      <div class="selabel"><label>Arrangement · engraved from the transcription</label></div>
+      <div class="sehint" id="seArrInfo"></div>
+      <a id="seArrLink" target="_blank"><img id="seArrImg" alt="engraved tab" style="max-width:100%;background:#fff;display:block;margin:6px 0"></a>
+      <audio id="seArrAudio" controls preload="none" style="width:100%"></audio>
+      <div class="sebtns">
+        <select id="seArrStyle" aria-label="Arrangement style">
+          <option value="banjo/scruggs">banjo · Scruggs rolls</option>
+          <option value="banjo/clawhammer">banjo · clawhammer</option>
+          <option value="guitar/travis">guitar · Travis picking</option>
+          <option value="guitar/flatpick">guitar · flatpick melody</option>
+        </select>
+        <button id="seArrGo" title="Send the chord list above (one chord per bar) and the transcribed melody back to tabsmith for a fresh engraving">Re-arrange</button>
+      </div>
+      <div class="sehint" id="seArrStatus" hidden></div>
+    </div>
     <div class="sebtns">
       <button id="seCancel">Cancel</button>
       <button id="seSave">Save Song</button>
     </div>
     <div class="sebtns sesec">
+      <button id="seAudio" hidden title="Transcribe a recording or a link with tabsmith on this server — the song arrives here, one chord per bar">From audio</button>
       <button id="seMelody" title="Tap the song's melody onto chord halos — feeds the MINE drill">Melody</button>
       <button id="sePrint" title="Print this song — diagrams + lyrics, black on white">Print</button>
       <button id="seExport" title="Download every song and set list as a JSON file">Export All</button>
@@ -1295,6 +1312,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
       bar</b>, the melody mined onto the current tuning, ready for any roll in LEARN › SONG. Takes a
       couple of minutes for a full song; the engraved tab and an mp3 of the arrangement come back too.</div>
     <div class="sehint" id="auStatus" hidden></div>
+    <div class="sehint" id="auJobs" hidden></div>
     <div class="sebtns">
       <button id="auCancel">Cancel</button>
       <button id="auOpen" hidden>Open as tab</button>
@@ -4326,6 +4344,7 @@ function openSongEditor(){
   $("#seLyrics").value = cur ? cur.lyrics : "";
   $("#songEd").classList.add("open");
   document.body.style.overflow = "hidden";
+  if(typeof showArrangement === "function") showArrangement(state.song);
 }
 function closeSongEditor(){
   $("#songEd").classList.remove("open");
@@ -4353,8 +4372,10 @@ $("#seSave").addEventListener("click", () => {
      !confirm(`// WARNING: not in the ${state.tuning} chord DB (kept, but no diagram):\n\n${unknown.join(" ")}\n\nSave anyway?`)) return;
   const songs = loadSongs();
   // a melody tapped onto the song survives re-edits; the miner tolerates a changed sequence
-  const melody = songs[name] && typeof songs[name] === "object" ? songs[name].melody : undefined;
-  songs[name] = { chords: toks.join(" "), lyrics, ...(melody ? { melody } : {}) };
+  const prev = songs[name] && typeof songs[name] === "object" ? songs[name] : {};
+  const { melody, leadsheet, tabsmith } = prev;   // a transcription's lead sheet and engraving survive re-edits too
+  songs[name] = { chords: toks.join(" "), lyrics, ...(melody ? { melody } : {}),
+                  ...(leadsheet ? { leadsheet } : {}), ...(tabsmith ? { tabsmith } : {}) };
   storeSongs(songs);
   state.song = name;
   // grid follows the chord list; with lyrics-only songs, the unique tagged chords
@@ -6396,20 +6417,25 @@ $("#abImport").addEventListener("click", () => {
   toast(`MINED “${name.toUpperCase()}”` + (s.dropped ? ` · ${s.dropped} NOTES OUT OF REACH` : ""));
 });
 
-/* ── FROM AUDIO — hand a recording or a link to a tabsmith running on this
-   origin (github.com/e01n0/tabsmith, self-hosted alongside this page). Its
-   lead sheet comes back as a saved song: one chord per bar, so LEARN › SONG's
-   one-bar-per-chord layout is the real song's bar structure, with the melody
-   mined onto the current tuning exactly the way an ABC import is. The button
-   only appears when /jobs answers, so the public deploy is untouched. ── */
+/* ── FROM AUDIO — a recording or a link goes to tabsmith (the Python side of
+   this repo, serving this page). Its lead sheet comes back as a saved song:
+   one chord per bar, so LEARN › SONG's one-bar-per-chord layout is the real
+   song's bar structure, the melody mined onto the current tuning exactly the
+   way an ABC import is. The song keeps the lead sheet and the job id, so the
+   song editor can show the engraving and ask for a fresh one after a chord
+   edit. Everything here hides itself unless /jobs answers on this origin. ── */
 const TABSMITH_JOB = () => state.tuning === "EADGBE" ? ["guitar", "travis"] : ["banjo", "scruggs"];
-let auJob = null;
+let tabsmithHere = false, auJob = null;
 
 (async function tabsmithProbe(){
   try{
     const r = await fetch("/jobs", { cache: "no-store" });
-    if(r.ok && Array.isArray(await r.json())) $("#mnAudio").hidden = false;
-  }catch(e){ /* no tabsmith here (Render, file://) — stay hidden */ }
+    tabsmithHere = r.ok && Array.isArray(await r.json());
+  }catch(e){ tabsmithHere = false; }
+  if(!tabsmithHere) return;
+  $("#mnAudio").hidden = false; $("#seAudio").hidden = false;
+  const m = location.hash.match(/^#audio\/([0-9a-f]{12})$/);      // the share target lands here
+  if(m){ history.replaceState(null, "", location.pathname); openAu(); auFollow(m[1]); }
 })();
 
 /* a tabsmith lead sheet → a chordware song. Melody times are beats from bar 0,
@@ -6446,6 +6472,23 @@ function leadsheetToSong(ls){
   return { chords: chordsField.join(" "), melody: { tuning: state.tuning, steps }, dropped };
 }
 
+/* the reverse: the song editor's chord list (one token per bar) laid over the
+   song's stored lead sheet, for a re-arrangement */
+function songToLeadsheet(song, toks){
+  const ls = JSON.parse(JSON.stringify(song.leadsheet));
+  ls.chords = toks.map((name, bar) => ({ bar, beat: 0, name }));
+  ls.bars = Math.max(toks.length, 1);
+  ls.melody = ls.melody.filter(m => m.t < ls.bars * ls.meter[0]);
+  return ls;
+}
+
+function openAu(){
+  $("#auFile").value = ""; $("#auUrl").value = "";
+  $("#auStatus").hidden = true; $("#auOpen").hidden = true; $("#auGo").disabled = false;
+  $("#auEd").classList.add("open");
+  document.body.style.overflow = "hidden";
+  auRefreshJobs();
+}
 function closeAu(){
   $("#auEd").classList.remove("open");
   document.body.style.overflow = document.querySelector(
@@ -6453,12 +6496,68 @@ function closeAu(){
   ) ? "hidden" : "";
 }
 function auSay(msg){ const el = $("#auStatus"); el.hidden = false; el.textContent = msg; }
-$("#mnAudio").addEventListener("click", () => {
-  $("#auFile").value = ""; $("#auUrl").value = "";
-  $("#auStatus").hidden = true; $("#auOpen").hidden = true; $("#auGo").disabled = false;
-  $("#auEd").classList.add("open");
-  document.body.style.overflow = "hidden";
-});
+const jobFile = (j, n) => `/jobs/${j.id}/${j.files[n]}`;
+
+/* recent transcriptions, so a job survives a reload and a finished one can be
+   pulled in again (or on another tuning) */
+async function auRefreshJobs(){
+  let jobs = [];
+  try{ jobs = await (await fetch("/jobs", { cache: "no-store" })).json(); }catch(e){}
+  const el = $("#auJobs");
+  el.hidden = !jobs.length;
+  if(!jobs.length) return;
+  el.innerHTML = "<b>RECENT</b> " + jobs.slice(0, 8).map(j =>
+    `<a href="#" data-job="${j.id}" title="${escHTML(j.state)}">${escHTML(j.title.slice(0, 48))}</a>`
+    + `<span style="opacity:.6"> · ${escHTML(j.state.replace("_", " "))}</span>`).join("<br>");
+  el.querySelectorAll("a[data-job]").forEach(a => a.addEventListener("click", e => {
+    e.preventDefault(); $("#auGo").disabled = true; auFollow(a.dataset.job);
+  }));
+}
+
+/* follow a job to the end, then import its lead sheet as a song */
+function auFollow(id){
+  auJob = id;
+  $("#auOpen").hidden = true;
+  const poll = async () => {
+    if(auJob !== id) return;                                     // a newer submission took over
+    let j;
+    try{ j = await (await fetch("/jobs/" + id, { cache: "no-store" })).json(); }
+    catch(e){ setTimeout(poll, 4000); return; }
+    const last = j.log.length ? j.log[j.log.length - 1].replace(/^\S+\s/, "") : "";
+    if(j.state === "failed"){ auSay("FAILED: " + (j.error || "unknown")); $("#auGo").disabled = false; return; }
+    if(j.state !== "done"){ auSay(j.state.toUpperCase().replace("_", " ") + " — " + last); setTimeout(poll, 3000); return; }
+    const ls = await (await fetch(`/jobs/${id}/leadsheet.json`, { cache: "no-store" })).json();
+    const s = leadsheetToSong(ls);
+    const name = (ls.title || "transcribed").toLowerCase();
+    const songs = loadSongs();
+    const existing = songs[name] && typeof songs[name] === "object" ? songs[name] : null;
+    if(existing && existing.tabsmith !== id && !confirm(`“${name}” already exists — overwrite it?`)){ $("#auGo").disabled = false; return; }
+    songs[name] = { chords: s.chords, lyrics: existing ? existing.lyrics || "" : "", melody: s.melody, leadsheet: ls, tabsmith: id };
+    storeSongs(songs);
+    refreshSongSel();
+    drawMineList();
+    auRefreshJobs();
+    $("#auStatus").hidden = false;
+    $("#auStatus").innerHTML = `DONE — ${escHTML(ls.key)} ${escHTML(ls.mode)}${ls.capo ? " · CAPO " + ls.capo : ""} · ${ls.bars} BARS · ${Math.round(ls.tempo)} BPM`
+      + (s.dropped ? ` · ${s.dropped} NOTES OUT OF REACH` : "")
+      + ` · <a href="${jobFile(j, "pdf")}" target="_blank">TAB PDF</a> · <a href="${jobFile(j, "mp3")}" target="_blank">MP3</a>`;
+    $("#auOpen").hidden = false;
+    $("#auOpen").onclick = () => {
+      closeAu();
+      closeMine();
+      openLearn();
+      setLnKind("song");
+      const i = lnLessons().findIndex(l => l.name === name);
+      if(i >= 0){ $("#lnLesson").value = String(i); drawLearn(); }
+    };
+    $("#auGo").disabled = false;
+    toast(`SAVED “${name.toUpperCase()}” — ${ls.bars} BARS`);
+  };
+  poll();
+}
+
+$("#mnAudio").addEventListener("click", openAu);
+$("#seAudio").addEventListener("click", () => { closeSongEditor(); openAu(); });
 $("#auClose").addEventListener("click", closeAu);
 $("#auCancel").addEventListener("click", closeAu);
 $("#auEd").addEventListener("click", e => { if(e.target === e.currentTarget) closeAu(); });
@@ -6473,47 +6572,95 @@ $("#auGo").addEventListener("click", async () => {
   fd.append("model", "large"); fd.append("separate", "auto");
   $("#auGo").disabled = true;
   auSay("SUBMITTING…");
-  let id;
   try{
     const r = await fetch("/jobs", { method: "POST", body: fd, headers: { accept: "application/json" } });
     if(!r.ok){ auSay("REFUSED: " + ((await r.json()).detail || r.statusText)); $("#auGo").disabled = false; return; }
-    id = (await r.json()).id;
-  }catch(e){ auSay("COULDN'T REACH TABSMITH"); $("#auGo").disabled = false; return; }
-  auJob = id;
-  const poll = async () => {
-    if(auJob !== id) return;                                     // a newer submission took over
-    let j;
-    try{ j = await (await fetch("/jobs/" + id, { cache: "no-store" })).json(); }
-    catch(e){ setTimeout(poll, 4000); return; }
-    const last = j.log.length ? j.log[j.log.length - 1].replace(/^\S+\s/, "") : "";
-    if(j.state === "failed"){ auSay("FAILED: " + (j.error || "unknown")); $("#auGo").disabled = false; return; }
-    if(j.state !== "done"){ auSay(j.state.toUpperCase().replace("_", " ") + " — " + last); setTimeout(poll, 3000); return; }
-    const ls = await (await fetch(`/jobs/${id}/leadsheet.json`, { cache: "no-store" })).json();
-    const s = leadsheetToSong(ls);
-    const name = (ls.title || "transcribed").toLowerCase();
-    const songs = loadSongs();
-    if(songs[name] !== undefined && !confirm(`“${name}” already exists — overwrite it?`)){ $("#auGo").disabled = false; return; }
-    songs[name] = { chords: s.chords, lyrics: "", melody: s.melody, leadsheet: ls, tabsmith: id };
-    storeSongs(songs);
-    refreshSongSel();
-    drawMineList();
-    const f = n => `/jobs/${id}/${j.files[n]}`;
-    $("#auStatus").innerHTML = `DONE — ${escHTML(ls.key)} ${escHTML(ls.mode)}${ls.capo ? " · CAPO " + ls.capo : ""} · ${ls.bars} BARS · ${Math.round(ls.tempo)} BPM`
-      + (s.dropped ? ` · ${s.dropped} NOTES OUT OF REACH` : "")
-      + ` · <a href="${f("pdf")}" target="_blank">TAB PDF</a> · <a href="${f("mp3")}" target="_blank">MP3</a> · <a href="/tabsmith/#job/${id}" target="_blank">EDIT CHORDS</a>`;
-    $("#auOpen").hidden = false;
-    $("#auOpen").onclick = () => {
-      closeAu();
-      closeMine();
-      openLearn();
-      setLnKind("song");
-      const i = lnLessons().findIndex(l => l.name === name);
-      if(i >= 0){ $("#lnLesson").value = String(i); drawLearn(); }
-    };
-    toast(`SAVED “${name.toUpperCase()}” — ${ls.bars} BARS`);
-  };
-  poll();
+    auFollow((await r.json()).id);
+    auRefreshJobs();
+  }catch(e){ auSay("COULDN'T REACH TABSMITH"); $("#auGo").disabled = false; }
 });
+
+/* ── the song editor's ARRANGEMENT panel: the engraving for a song that came
+   from audio, and RE-ARRANGE, which sends the editor's chord list (one chord
+   per bar) plus the stored melody back for a fresh one. Chordware's own tab
+   follows the same edit, since the melody is re-mined onto the new bars. */
+async function showArrangement(name){
+  const box = $("#seArr");
+  const raw = name ? loadSongs()[name] : null;
+  const id = raw && typeof raw === "object" ? raw.tabsmith : null;
+  if(!tabsmithHere || !id || !raw.leadsheet){ box.hidden = true; return; }
+  let j;
+  try{ j = await (await fetch("/jobs/" + id, { cache: "no-store" })).json(); }catch(e){ box.hidden = true; return; }
+  box.hidden = false;
+  const ls = raw.leadsheet;
+  $("#seArrInfo").textContent = `${j.instrument} · ${j.style} · ${ls.key} ${ls.mode}${ls.capo ? " · capo " + ls.capo : ""} · ${ls.bars} bars · ${Math.round(ls.tempo)} bpm · ${j.state}`;
+  $("#seArrStyle").value = `${j.instrument}/${j.style}`;
+  $("#seArrStatus").hidden = true;
+  const done = j.state === "done";
+  if(done){
+    $("#seArrImg").src = jobFile(j, "png"); $("#seArrLink").href = jobFile(j, "pdf");
+    $("#seArrAudio").src = jobFile(j, "mp3");
+  }
+  $("#seArrImg").hidden = !done; $("#seArrAudio").hidden = !done;
+  $("#seArrGo").onclick = async () => {
+    const toks = $("#seChords").value.trim().split(/\s+/).filter(Boolean);
+    if(!toks.length){ toast("LIST THE CHORDS FIRST — ONE PER BAR"); return; }
+    const [instrument, style] = $("#seArrStyle").value.split("/");
+    const body = { leadsheet: songToLeadsheet(raw, toks), instrument, style, refine: false };
+    $("#seArrGo").disabled = true;
+    const say = m => { $("#seArrStatus").hidden = !m; $("#seArrStatus").textContent = m; };
+    say("ARRANGING…");
+    let nid;
+    try{
+      const r = await fetch(`/jobs/${id}/rearrange`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+      if(!r.ok){ say("REFUSED: " + ((await r.json()).detail || r.statusText)); $("#seArrGo").disabled = false; return; }
+      nid = (await r.json()).id;
+    }catch(e){ say("COULDN'T REACH TABSMITH"); $("#seArrGo").disabled = false; return; }
+    const poll = async () => {
+      let nj;
+      try{ nj = await (await fetch("/jobs/" + nid, { cache: "no-store" })).json(); }catch(e){ setTimeout(poll, 3000); return; }
+      if(nj.state === "failed"){ say("FAILED: " + (nj.error || "unknown")); $("#seArrGo").disabled = false; return; }
+      if(nj.state !== "done"){ say(nj.state.toUpperCase() + "…"); setTimeout(poll, 2000); return; }
+      const nls = await (await fetch(`/jobs/${nid}/leadsheet.json`, { cache: "no-store" })).json();
+      const songs = loadSongs();
+      const cur = songs[name] && typeof songs[name] === "object" ? songs[name] : { chords: "", lyrics: "" };
+      const mined = leadsheetToSong(nls);
+      songs[name] = { ...cur, chords: toks.join(" "), melody: mined.melody, leadsheet: nls, tabsmith: nid };
+      storeSongs(songs);
+      $("#seArrGo").disabled = false;
+      say("");
+      showArrangement(name);
+      toast("RE-ARRANGED · " + instrument.toUpperCase() + " " + style.toUpperCase());
+    };
+    poll();
+  };
+}
+
+/* LEARN › SONG: a strip under the tab pointing at the engraving and the mp3
+   when the song came through tabsmith */
+{
+  const draw0 = drawLearn;
+  drawLearn = function(){
+    draw0();
+    let strip = $("#lnArr");
+    if(!strip){
+      strip = document.createElement("div"); strip.id = "lnArr"; strip.className = "maplegend";
+      $("#lnTab").insertAdjacentElement("afterend", strip);
+    }
+    strip.hidden = true;
+    if(lsnKind !== "song" || !tabsmithHere) return;
+    const raw = loadSongs()[lnSongName()];
+    const id = raw && typeof raw === "object" ? raw.tabsmith : null;
+    if(!id) return;
+    fetch("/jobs/" + id, { cache: "no-store" }).then(r => r.json()).then(j => {
+      if(j.state !== "done") return;
+      strip.hidden = false;
+      strip.innerHTML = `ENGRAVED BY TABSMITH — ${escHTML(j.instrument)} / ${escHTML(j.style)} · `
+        + `<a href="${jobFile(j, "pdf")}" target="_blank">TAB PDF</a> · <a href="${jobFile(j, "mp3")}" target="_blank">MP3</a>`
+        + ` · edit the chords in the song editor and RE-ARRANGE for a fresh one`;
+    }).catch(() => {});
+  };
+}
 
 /* ── performance view — big chord + lyric autoscroll, for playing live.
    [Chord] tags in the lyrics drive the sequence; otherwise the chord
@@ -7155,23 +7302,31 @@ render();
     g.fillText("gCEA", size/2, size*.74);
     return c.toDataURL("image/png");
   }
-  /* splash/chrome colour follows the active skin at install time */
-  const themeBg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
-  const manifest = {
-    name: "CHORDWARE", short_name: "CHORDWARE",
-    description: "Banjolele chord chart terminal — gCEA reentrant",
-    start_url: location.href.split("#")[0],
-    scope: location.href.replace(/[^/]*$/, ""),
-    display: "standalone", orientation: "any",
-    background_color: themeBg, theme_color: themeBg,
-    icons: [
-      { src: icon(192), sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: icon(512), sizes: "512x512", type: "image/png", purpose: "any" },
-    ],
-  };
+  /* Served over http(s) the manifest is the real file next to this page
+     (manifest.webmanifest — it carries the share target, which browsers only
+     honour from a same-origin manifest, so a shared YouTube link lands in the
+     AUDIO dialog). Opened from disk there is no file to point at, so the old
+     runtime-built blob manifest keeps the install working. */
   const link = document.createElement("link");
   link.rel = "manifest";
-  link.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" }));
+  if(/^https?:$/.test(location.protocol)){
+    link.href = "manifest.webmanifest";
+  }else{
+    const themeBg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+    const manifest = {
+      name: "CHORDWARE", short_name: "CHORDWARE",
+      description: "Chord chart terminal for banjolele, ukulele, banjo and guitar",
+      start_url: location.href.split("#")[0],
+      scope: location.href.replace(/[^/]*$/, ""),
+      display: "standalone", orientation: "any",
+      background_color: themeBg, theme_color: themeBg,
+      icons: [
+        { src: icon(192), sizes: "192x192", type: "image/png", purpose: "any" },
+        { src: icon(512), sizes: "512x512", type: "image/png", purpose: "any" },
+      ],
+    };
+    link.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" }));
+  }
   document.head.appendChild(link);
 
   if("serviceWorker" in navigator && (location.protocol === "https:" || ["localhost","127.0.0.1"].includes(location.hostname))){
