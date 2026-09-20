@@ -13,13 +13,15 @@ class Tuning:
     name: str
     open: tuple[int, ...]                      # index 0 = string 1 (highest)
     allowed: tuple[frozenset[int] | None, ...]  # per string; None = 0..MAX_FRET
+    nut: tuple[int, ...]                        # fret where the string's nut sits (banjo 5th = 5)
 
     @property
     def n(self) -> int:
         return len(self.open)
 
     def pitch(self, string: int, fret: int) -> int:
-        return self.open[string - 1] + fret
+        nut = self.nut[string - 1]
+        return self.open[string - 1] + (fret - nut if fret > nut else 0)
 
     def ok(self, string: int, fret: int) -> bool:
         if fret < 0 or fret > MAX_FRET:
@@ -28,12 +30,17 @@ class Tuning:
         return True if a is None else fret in a
 
     def positions(self, pitch: int) -> list[tuple[int, int]]:
-        return [(s, pitch - o) for s, o in enumerate(self.open, 1) if self.ok(s, pitch - o)]
+        out = []
+        for s, o in enumerate(self.open, 1):
+            fret = pitch - o + (self.nut[s - 1] if pitch > o else 0)
+            if self.ok(s, fret):
+                out.append((s, fret))
+        return out
 
 
 BANJO_G = Tuning("banjo-open-g", (62, 59, 55, 50, 67),
-                 (None, None, None, None, frozenset({0, *range(5, MAX_FRET + 1)})))
-GUITAR = Tuning("guitar-standard", (64, 59, 55, 50, 45, 40), (None,) * 6)
+                 (None, None, None, None, frozenset({0, *range(5, MAX_FRET + 1)})), (0, 0, 0, 0, 5))
+GUITAR = Tuning("guitar-standard", (64, 59, 55, 50, 45, 40), (None,) * 6, (0,) * 6)
 TUNINGS = {"banjo": BANJO_G, "guitar": GUITAR}
 
 Shape = tuple[int, ...]
@@ -97,6 +104,8 @@ class FretMapper:
     def _cost(self, prev: tuple[int, int] | None, cur: tuple[int, int], anchor: int) -> float:
         s, f = cur
         c = self.W_HIGH * f + (self.OPEN_BONUS if f == 0 else self.W_ANCHOR * abs(f - anchor))
+        if f > 0 and self.t.nut[s - 1] > 0:
+            c += 3.0  # a fretted short string (banjo 5th) is a thumb drone, not a melody string
         if prev and f > 0 and prev[1] > 0:
             c += self.W_MOVE * abs(f - prev[1])
         if prev and prev[0] != s:

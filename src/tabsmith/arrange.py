@@ -7,7 +7,9 @@ from .fretboard import FretMapper, Shape, Tuning, TUNINGS, shape_for, shape_posi
 from .leadsheet import LeadSheet, MelodyNote
 
 STYLES = {"banjo": ("scruggs", "clawhammer"), "guitar": ("travis", "flatpick")}
-RANGE = {"banjo": (50, 79), "guitar": (40, 76)}
+# ponytail: a low ceiling pushes phrases into open position when an octave down still fits;
+# travis keeps the melody on the top three strings so its floor is G3
+RANGE = {"scruggs": (50, 71), "clawhammer": (50, 71), "travis": (55, 76), "flatpick": (40, 72)}
 GRID = 0.25
 
 
@@ -152,7 +154,7 @@ def _travis(sheet: LeadSheet, tuning: Tuning) -> list[TabNote]:
     for m in sorted(sheet.melody, key=lambda m: m.t):
         shape = shape_for(tuning, sheet.chord_at(m.t))
         s, f = _place_melody(tuning, shape, m.p, strings=(1, 2, 3))
-        notes.append(TabNote(m.t, m.d, s, f, {1: "a", 2: "m", 3: "i"}[s], melody=True))
+        notes.append(TabNote(m.t, m.d, s, f, {1: "a", 2: "m"}.get(s, "i"), melody=True))
     return notes
 
 
@@ -167,7 +169,7 @@ def arrange(sheet: LeadSheet, instrument: str, style: str,
     if style not in STYLES.get(instrument, ()):
         raise ValueError(f"unknown {instrument} style {style!r}; choose from {STYLES.get(instrument)}")
     tuning = TUNINGS[instrument]
-    sheet = fit_range(sheet, *RANGE[instrument])
+    sheet = fit_range(sheet, *RANGE[style])
     if style == "scruggs":
         notes = _scruggs(sheet, tuning, patterns or {})
     elif style == "clawhammer":

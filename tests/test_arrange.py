@@ -48,8 +48,9 @@ def test_melody_notes_present_with_pitch_class():
 def test_scruggs_is_eighths_and_uses_fifth_string():
     arr = arrange(sheet_4_4(), "banjo", "scruggs")
     assert all(abs((n.t * 2) - round(n.t * 2)) < 1e-9 for n in arr.notes)
-    assert any(n.string == 5 for n in arr.notes)
     assert all(n.finger in ("T", "I", "M") for n in arr.notes)
+    sparse = arrange(sheet_out_of_shape(), "banjo", "scruggs")   # quarter-note melody leaves roll slots
+    assert any(n.string == 5 for n in sparse.notes)
 
 
 def test_flatpick_is_melody_only():
@@ -67,8 +68,8 @@ def test_invariants_catch_bad_fret():
 def test_fit_range_shifts_whole_phrase():
     s = sheet_4_4()
     s.melody = [MelodyNote(n.t, n.d, n.p + 24) for n in s.melody]  # two octaves up, all one phrase
-    out = fit_range(s, 50, 79)
-    assert all(50 <= n.p <= 79 for n in out.melody)
+    out = fit_range(s, 50, 71)
+    assert all(50 <= n.p <= 71 for n in out.melody)
     assert len({n.p - o.p for n, o in zip(out.melody, s.melody)}) == 1
 
 

@@ -37,3 +37,59 @@ def test_parse_and_name():
     assert parse_chord("Bb") == (10, "maj")
     assert chord_name(6, "min") == "F#m"
     assert chord_name(0, "dom7") == "C7"
+
+
+from tabsmith.leadsheet import RawNote, Grid, notes_to_leadsheet, detect_key, choose_capo, pick_melody_track
+
+
+def synth_song(bpm=120.0):
+    """4 bars at 120 bpm: chords G C D G as piano block chords, bass roots, melody on voice."""
+    spb = 60 / bpm
+    notes = []
+    for bar, (root, third, fifth) in enumerate([(55, 59, 62), (48, 52, 55), (50, 54, 57), (55, 59, 62)]):
+        t0 = bar * 4 * spb
+        for p in (root + 12, third + 12, fifth + 12):
+            notes.append(RawNote("acoustic_piano", p, t0, t0 + 4 * spb))
+        notes.append(RawNote("acoustic_bass", root - 12, t0, t0 + 2 * spb))
+        notes.append(RawNote("acoustic_bass", fifth - 12, t0 + 2 * spb, t0 + 4 * spb))
+    for i, p in enumerate([67, 69, 71, 72, 74, 76, 74, 72, 71, 69, 67, 66, 67, 71, 74, 79]):
+        notes.append(RawNote("voice", p, i * spb, i * spb + spb * 0.9))
+    return notes, Grid(bpm, 4, 0.0, None)
+
+
+def test_extract_chords_key_melody():
+    notes, grid = synth_song()
+    s = notes_to_leadsheet(notes, grid, title="Synth", source="t", instrument="banjo")
+    assert s.key == "G" and s.mode == "major" and s.capo == 0 and s.bars == 4
+    assert [c.name for c in s.chords] == ["G", "C", "D", "G"]
+    assert len(s.melody) == 16 and s.melody[0].p == 67 and abs(s.melody[1].t - 1.0) < 1e-9
+
+
+def test_pickup_notes_get_their_own_bar():
+    notes, grid = synth_song()
+    grid = Grid(120.0, 4, 0.5, None)   # downbeat one beat late: first note is a pickup
+    s = notes_to_leadsheet(notes, grid, title="S", source="t", instrument="guitar")
+    assert s.melody[0].t >= 0 and s.bars == 5
+
+
+def test_detect_key_minor():
+    hist = [0] * 12
+    for pc, w in [(9, 5), (0, 4), (4, 4), (2, 2), (7, 2), (11, 1), (5, 1)]:  # A minor
+        hist[pc] = w
+    assert detect_key(hist) == (9, "minor")
+
+
+def test_choose_capo():
+    assert choose_capo(7, "major", "banjo") == (7, 0)      # G stays
+    assert choose_capo(9, "major", "banjo") == (7, 2)      # A: G shapes capo 2
+    assert choose_capo(10, "major", "banjo") == (7, 3)     # Bb: capo 3
+    assert choose_capo(4, "minor", "banjo") == (4, 0)      # E minor is relative of G: no capo
+    assert choose_capo(1, "major", "guitar") == (0, 1)     # Db: C shapes capo 1
+
+
+def test_pick_melody_track_prefers_voice_then_lead_register():
+    notes, _ = synth_song()
+    assert pick_melody_track(notes) == "voice"
+    notes = [n for n in notes if n.instrument != "voice"] + [RawNote("acoustic_guitar", 72, 0, 1)] * 10
+    assert pick_melody_track(notes) == "acoustic_guitar"
+    assert pick_melody_track(notes, "acoustic_piano") == "acoustic_piano"
