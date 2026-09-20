@@ -3,14 +3,14 @@
   "name": "tabsmith",
   "short_name": "tabsmith",
   "description": "Song in, banjo or guitar tab out",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "/tabsmith/",
+  "scope": "/tabsmith/",
   "display": "standalone",
   "background_color": "#121212",
   "theme_color": "#121212",
   "icons": [
-    {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
-    {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+    {"src": "/tabsmith/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "/tabsmith/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
   ],
   "share_target": {
     "action": "/share",

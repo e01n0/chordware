@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>tabsmith</title>
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/icon-192.png">
-<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="manifest" href="/tabsmith/manifest.webmanifest">
+<link rel="icon" href="/tabsmith/icon-192.png">
+<link rel="apple-touch-icon" href="/tabsmith/icon-192.png">
 <meta name="theme-color" content="#121212">
 <style>
   :root { color-scheme: dark; --bg:#121212; --card:#1c1c1c; --fg:#eee; --mut:#999; --acc:#e0c060; --bad:#e06060; --ok:#70c070; }
@@ -28,7 +28,7 @@
 </style>
 </head>
 <body>
-<h1><span>tab</span>smith</h1>
+<h1><span>tab</span>smith <a href="/" class="mut" style="font-size:13px;font-weight:400">chordware ↗</a></h1>
 
 <div class="card" id="form">
   <form id="f">
@@ -131,7 +131,7 @@ async function tick() {
   if (busy && me === ticking) timer = setTimeout(tick, 2500);
 }
 window.addEventListener("hashchange", tick); tick();
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/tabsmith/sw.js", {scope: "/tabsmith/"});
 </script>
 </body>
 </html>

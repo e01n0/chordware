@@ -1,4 +1,4 @@
-const SHELL = ["/", "/manifest.webmanifest", "/icon-192.png"];
+const SHELL = ["/tabsmith/", "/tabsmith/manifest.webmanifest", "/tabsmith/icon-192.png"];
 self.addEventListener("install", e => e.waitUntil(caches.open("tabsmith-v1").then(c => c.addAll(SHELL))));
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {

@@ -67,16 +67,32 @@ def test_rejects_bad_upload(tmp_path, monkeypatch):
 
 def test_pwa_assets(tmp_path, monkeypatch):
     c = client(tmp_path, monkeypatch)
-    assert c.get("/").status_code == 200 and "manifest" in c.get("/").text
-    m = c.get("/manifest.webmanifest").json()
+    assert c.get("/tabsmith/").status_code == 200 and "manifest" in c.get("/tabsmith/").text
+    m = c.get("/tabsmith/manifest.webmanifest").json()
     assert m["id"] == "/tabsmith-mrfantastic" and m["share_target"]["action"] == "/share"
-    assert c.get("/sw.js").status_code == 200
+    assert c.get("/tabsmith/sw.js").status_code == 200
+
+
+def test_root_serves_chordware_when_present(tmp_path, monkeypatch):
+    c = client(tmp_path, monkeypatch)
+    monkeypatch.setattr(web, "CHORDWARE_DIR", tmp_path / "nowhere")
+    assert c.get("/", follow_redirects=False).status_code == 302
+    cw = tmp_path / "cw"
+    cw.mkdir()
+    (cw / "index.html").write_text("<title>CHORDWARE</title>BUILD://__BUILD__")
+    (cw / "sw.js").write_text('const CACHE = "chordware-__BUILD__";')
+    monkeypatch.setattr(web, "CHORDWARE_DIR", cw)
+    r = c.get("/")
+    assert r.status_code == 200 and "CHORDWARE" in r.text and "__BUILD__" not in r.text
+    assert r.headers["cache-control"] == "no-store"
+    sw = c.get("/sw.js")
+    assert "__BUILD__" not in sw.text and "javascript" in sw.headers["content-type"]
 
 
 def test_share_target_and_bad_capo(tmp_path, monkeypatch):
     c = client(tmp_path, monkeypatch)
     r = c.get("/share?text=look%20https://youtu.be/abc%20nice", follow_redirects=False)
-    assert r.status_code == 303 and r.headers["location"].startswith("/#job/")
+    assert r.status_code == 303 and r.headers["location"].startswith("/tabsmith/#job/")
     r = c.post("/jobs", data={"url": "https://x/y", "instrument": "banjo", "style": "scruggs", "capo": "two"},
                headers={"accept": "application/json"})
     assert r.status_code == 400
