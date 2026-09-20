@@ -619,6 +619,9 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   #tfDelete{ border-color:var(--red) !important; color:var(--red) !important; }
 
   /* ── ABC import (opens over the tune miner) ───────────────────── */
+  .lnform{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:4px 0 8px; font-size:12px; letter-spacing:.06em; }
+  .lnform .prbtn{ padding:4px 10px; font-size:12px; }
+  .lnform .lnfcapo{ opacity:.75; margin-left:auto; }
   #abcEd, #auEd{
     position:fixed; inset:0; z-index:8500;
     background:var(--overlay); display:none; overflow-y:auto;
@@ -1145,8 +1148,14 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
         <div id="lnBpm">70 BPM</div>
         <button id="lnFast" aria-label="Faster">+</button>
       </div>
+      <div class="prtempo" id="lnTrWrap" hidden title="Transpose the song — chords respelled, the melody re-placed on the neck">
+        <button id="lnTrDn" aria-label="Transpose down">T−</button>
+        <div id="lnTr">T 0</div>
+        <button id="lnTrUp" aria-label="Transpose up">T+</button>
+      </div>
     </div>
     <div class="lnnow" id="lnNow"></div>
+    <div class="lnform" id="lnForm" hidden></div>
     <div class="mapscroll" id="lnTab"></div>
     <div class="maplegend" id="lnHint">
       <span><b style="background:var(--yellow)"></b>T — THUMB</span>
@@ -5241,13 +5250,13 @@ function songPatterns(songName){
 }
 const MELODY_PATTERN = "♪ MELODY";
 
-function buildSongLesson(songName, pattern){
+function buildSongLesson(songName, pattern, tr = 0){
   const tuning = TUNINGS[state.tuning];
-  const built = songName ? buildPerfFor(songName, 0) : null;
+  const built = songName ? buildPerfFor(songName, tr) : null;
   if(!built || !built.seq.length) return null;
 
   if(pattern === MELODY_PATTERN){
-    const mined = mineSong(songName);
+    const mined = mineSongTr(songName, tr);
     if(!mined) return null;
     const BAR = 8, ev = [], marks = [];
     mined.steps.forEach((st, i) => {
@@ -5514,9 +5523,12 @@ function lnSongName(){
 let lnBuilt = { key: null, lesson: null };
 function lnLesson(){
   if(lsnKind !== "song") return lnLessons()[+$("#lnLesson").value];
-  const key = [state.tuning, lnSongName(), $("#lnChord").value].join("|");
-  if(lnBuilt.key !== key)
-    lnBuilt = { key, lesson: buildSongLesson(lnSongName(), $("#lnChord").value) };
+  const key = [state.tuning, lnSongName(), $("#lnChord").value, lnTr,
+               lnPhrase ? lnPhrase.from + ":" + lnPhrase.len : ""].join("|");
+  if(lnBuilt.key !== key){
+    const full = buildSongLesson(lnSongName(), $("#lnChord").value, lnTr);
+    lnBuilt = { key, full, lesson: full && lnPhrase ? sliceLesson(full, lnPhrase.from, lnPhrase.len) : full };
+  }
   return lnBuilt.lesson;
 }
 function lnChord(){
@@ -6642,12 +6654,125 @@ async function showArrangement(name){
   };
 }
 
+/* ── LEARN › SONG extras: transpose, phrases, capo ──────────────────
+   lnTr transposes the whole lesson (chords respelled by buildPerfFor,
+   the melody re-placed on the neck). lnPhrase narrows the lesson to one
+   phrase so the loop drills just that. The form is read off the bars
+   themselves: a bar's signature is its chord plus every note in it, and
+   the longest phrase length (8, 4 or 2 bars) that makes any block repeat
+   wins, so a fiddle tune reads A A B B and a song reads V C V C. ── */
+let lnTr = 0, lnPhrase = null, lnPhraseSong = null;
+
+function sliceLesson(l, from, len){
+  const t0 = from * l.bar, t1 = t0 + len * l.bar;
+  return { ...l, steps: len * l.bar,
+    ev: l.ev.filter(e => e.t >= t0 && e.t < t1).map(e => ({ ...e, t: e.t - t0 })),
+    marks: l.marks.filter(m => m.t >= t0 && m.t < t1).map(m => ({ ...m, t: m.t - t0 })) };
+}
+
+function songForm(l){
+  const nb = Math.round(l.steps / l.bar);
+  const sig = b => {
+    const mark = l.marks.find(m => m.t === b * l.bar);
+    const ev = l.ev.filter(e => e.t >= b * l.bar && e.t < (b + 1) * l.bar)
+      .map(e => `${e.t - b * l.bar}:${e.s}:${e.f}`).join(",");
+    return (mark ? mark.c : "") + "|" + ev;
+  };
+  const sigs = Array.from({ length: nb }, (_, b) => sig(b));
+  const chunk = L => {
+    const labels = new Map(), seq = [];
+    for(let b = 0; b + L <= nb; b += L){
+      const k = sigs.slice(b, b + L).join("/");
+      if(!labels.has(k)) labels.set(k, String.fromCharCode(65 + labels.size));
+      seq.push(labels.get(k));
+    }
+    return { L, seq, tail: nb - seq.length * L, unique: labels.size };
+  };
+  for(const L of [8, 4, 2]){
+    if(nb < 2 * L) continue;
+    const f = chunk(L);
+    if(f.unique < f.seq.length) return f;
+  }
+  return chunk(Math.min(4, Math.max(1, nb)));
+}
+
+/* a tapped-in or transcribed melody, transposed: a lead sheet is re-mined
+   from its shifted pitches; a tapped melody moves every fret by the interval */
+function mineSongTr(name, tr){
+  if(!tr) return mineSong(name);
+  const raw = loadSongs()[name];
+  if(!raw || typeof raw !== "object" || !raw.melody) return null;
+  const tuning = TUNINGS[state.tuning];
+  const built = buildPerfFor(name, tr);
+  if(!built) return null;
+  let stepsIn;
+  if(raw.leadsheet){
+    const ls = raw.leadsheet;
+    stepsIn = leadsheetToSong({ ...ls,
+      melody: ls.melody.map(m => ({ ...m, p: m.p + tr })),
+      chords: ls.chords.map(c => ({ ...c, name: transposeChordName(c.name, tr) })) }).melody.steps;
+  }else{
+    if(raw.melody.tuning !== state.tuning) return null;
+    const ok = (s, f) => f >= 0 && f <= 17 && !(tuning.drone && s === tuning.drone.s && f > 0 && f < tuning.drone.nut);
+    stepsIn = raw.melody.steps.map(arr => arr.map(([s, f, d]) => [s, f + tr, d]).filter(([s, f]) => ok(s, f)));
+  }
+  const steps = [];
+  built.seq.forEach((sq, i) => {
+    const notes = (stepsIn[i] || []).map(([s, f, d]) => ({ s, f, midi: tuning.open[s] + f, dur: d || 2 }));
+    if(notes.length && sq.chord) steps.push({ name: sq.name, chord: sq.chord, notes });
+  });
+  return steps.length ? { steps, dropped: 0 } : null;
+}
+
+function lnSetTr(n){
+  lnTr = Math.max(-11, Math.min(11, n));
+  drawLearn();
+}
+$("#lnTrDn").addEventListener("click", () => lnSetTr(lnTr - 1));
+$("#lnTrUp").addEventListener("click", () => lnSetTr(lnTr + 1));
+
+function lnFormStrip(){
+  const wrap = $("#lnForm"), trw = $("#lnTrWrap");
+  const song = lsnKind === "song" && lnBuilt.full;
+  wrap.hidden = !song; trw.hidden = lsnKind !== "song";
+  $("#lnTr").textContent = "T " + (lnTr > 0 ? "+" : "") + lnTr;
+  if(!song) return;
+  const full = lnBuilt.full, form = songForm(full);
+  const nb = Math.round(full.steps / full.bar);
+  const runs = [];                                        // A A B A → A×2 · B · A, each run keeps its first bar
+  form.seq.forEach((lab, i) => {
+    const last = runs[runs.length - 1];
+    if(last && last.lab === lab) last.n++; else runs.push({ lab, n: 1, from: i * form.L });
+  });
+  const chip = (txt, from, len, title) =>
+    `<button class="prbtn${lnPhrase && lnPhrase.from === from && lnPhrase.len === len ? " on" : ""}" data-from="${from}" data-len="${len}" title="${escHTML(title)}">${txt}</button>`;
+  let html = `<span>FORM//</span>` + chip("WHOLE", 0, nb, `all ${nb} bars`);
+  runs.forEach(r => { html += chip(r.lab + (r.n > 1 ? ` ×${r.n}` : ""), r.from, form.L,
+    `${form.L}-bar phrase ${r.lab}, bars ${r.from + 1}–${r.from + form.L}${r.n > 1 ? `, played ${r.n} times in a row` : ""} — loop just this`); });
+  if(form.tail > 0) html += chip("END", nb - form.tail, form.tail, `the last ${form.tail} bar${form.tail > 1 ? "s" : ""}`);
+  const raw = loadSongs()[lnSongName()], ls = raw && typeof raw === "object" ? raw.leadsheet : null;
+  if(ls){
+    const written = transposeChordName(ls.key, lnTr), sounds = transposeChordName(ls.key, lnTr + (ls.capo || 0));
+    html += `<span class="lnfcapo">${ls.capo ? `CAPO ${ls.capo} · ` : ""}WRITTEN IN ${escHTML(written)}${ls.capo || lnTr ? ` · SOUNDS IN ${escHTML(sounds)}` : ""}${ls.capo ? " (as on the record)" : ""}</span>`;
+  }
+  wrap.innerHTML = html;
+  wrap.querySelectorAll("button[data-from]").forEach(b => b.addEventListener("click", () => {
+    const from = +b.dataset.from, len = +b.dataset.len;
+    lnPhrase = from === 0 && len === nb ? null : { from, len };
+    drawLearn();
+  }));
+}
+
 /* LEARN › SONG: a strip under the tab pointing at the engraving and the mp3
    when the song came through tabsmith */
 {
   const draw0 = drawLearn;
   drawLearn = function(){
+    if(lsnKind === "song" && lnSongName() !== lnPhraseSong){   // a different song: fresh transpose and phrase
+      lnPhraseSong = lnSongName(); lnTr = 0; lnPhrase = null;
+    }
     draw0();
+    lnFormStrip();
     let strip = $("#lnArr");
     if(!strip){
       strip = document.createElement("div"); strip.id = "lnArr"; strip.className = "maplegend";
