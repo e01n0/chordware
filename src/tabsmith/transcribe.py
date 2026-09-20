@@ -84,8 +84,15 @@ def transcribe(audio: Path, workdir: Path, *, model_size: str = "large", separat
     gpu_wait(progress=progress)
     import torch
     from muscriptor import TranscriptionModel
-    progress(f"loading MuScriptor {model_size}")
-    model = TranscriptionModel.load_model(model_size, device="cuda" if torch.cuda.is_available() else "cpu")
+
+    def load():
+        progress(f"loading MuScriptor {model_size}")
+        cuda = torch.cuda.is_available()
+        # ponytail: bf16 halves VRAM (ComfyUI keeps ~24 GB resident on this box); fp32 on CPU
+        return TranscriptionModel.load_model(model_size, device="cuda" if cuda else "cpu",
+                                             dtype="bfloat16" if cuda else "float32")
+
+    model = load()
     bg = model.detect_beat_grid_for(str(audio), "best-effort")
     if bg is None:
         # spike: no rubato detection beyond MuScriptor's own fallback; --bpm/--meter are the escape hatch
@@ -98,12 +105,16 @@ def transcribe(audio: Path, workdir: Path, *, model_size: str = "large", separat
     notes = _run_model(model, audio, None, progress)
     has_voice = sum(n.instrument == "voice" for n in notes) >= 8
     if separate == "on" or (separate == "auto" and has_voice):
+        del model  # separation and transcription never share the GPU at once
+        torch.cuda.empty_cache()
         stem = separate_vocals(audio, workdir, progress)
+        torch.cuda.empty_cache()
         if stem is not None:
+            model = load()
             vocal = _run_model(model, stem, ["voice"], progress)
             if len(vocal) >= 8:
                 notes = [n for n in notes if n.instrument != "voice"] + vocal
-    del model
+            del model
     torch.cuda.empty_cache()
     cache.write_text(json.dumps({"key": key, "grid": grid.__dict__, "notes": [n.__dict__ for n in notes]}))
     return notes, grid
