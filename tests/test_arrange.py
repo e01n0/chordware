@@ -87,3 +87,10 @@ def test_travis_alternates_bass():
     assert len(bass) == 8
     assert bass[0].string != bass[1].string, "bass alternates strings"
     assert all(n.string <= 3 for n in arr.notes if n.melody)
+
+
+def test_span_enforced_by_dropping_fill():
+    from tabsmith.arrange import _enforce_span
+    notes = [TabNote(0, 1, 1, 7, melody=True), TabNote(0, 1, 5, 1, "p"), TabNote(0, 1, 2, 5, "i")]
+    out = _enforce_span(notes, 5)
+    assert [n.fret for n in out] == [7, 5], "the fret-1 bass is dropped, the melody stays"

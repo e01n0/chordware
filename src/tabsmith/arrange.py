@@ -187,8 +187,25 @@ def arrange(sheet: LeadSheet, instrument: str, style: str,
     # a fill note never collides with a melody note on the same string at the same time
     taken = {(round(n.t / GRID), n.string) for n in notes if n.melody}
     notes = [n for n in notes if n.melody or (round(n.t / GRID), n.string) not in taken]
+    notes = _enforce_span(notes, SPAN[instrument])
     notes.sort(key=lambda n: (n.t, n.string))
     return Arrangement(instrument, style, tuning, sheet, notes)
+
+
+SPAN = {"banjo": 4, "guitar": 5}
+
+
+def _enforce_span(notes: list[TabNote], limit: int) -> list[TabNote]:
+    """Melody wins: a fretted fill note struck together with a fretted melody note and more than
+    the hand span away from its fret is dropped (same rule as check_invariants)."""
+    melody = [n for n in notes if n.melody and n.fret > 0]
+    drop = set()
+    for i, n in enumerate(notes):
+        if n.melody or n.fret <= 0:
+            continue
+        if any(abs(m.t - n.t) < 1e-9 and abs(m.fret - n.fret) > limit for m in melody):
+            drop.add(i)
+    return [n for i, n in enumerate(notes) if i not in drop]
 
 
 def check_invariants(arr: Arrangement) -> None:
@@ -206,8 +223,9 @@ def check_invariants(arr: Arrangement) -> None:
         assert hit, f"bar {sheet.bar_of(m.t)}: melody note {m.p} at {m.t} missing"
         assert t.pitch(hit[0].string, hit[0].fret) % 12 == m.p % 12, \
             f"bar {sheet.bar_of(m.t)}: wrong pitch class at {m.t}"
+    # hand span applies to notes struck together; a shift between successive notes is allowed
     fretted = [n for n in arr.notes if n.fret > 0]
     for a in fretted:
-        window = [b.fret for b in fretted if abs(b.t - a.t) < GRID + 1e-9]
+        window = [b.fret for b in fretted if abs(b.t - a.t) < 1e-9]
         assert max(window) - min(window) <= span_limit, \
             f"bar {sheet.bar_of(a.t)}: fret span {min(window)}-{max(window)} at {a.t}"

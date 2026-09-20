@@ -56,6 +56,31 @@ def separate_vocals(audio: Path, workdir: Path, progress=print) -> Path | None:
     return None
 
 
+def beat_grid(audio: Path, progress=print) -> Grid:
+    """Beat This! beats and downbeats. The tracked beat list follows tempo drift (live recordings),
+    which MuScriptor's own constant-tempo grid refuses. Falls back to 120 bpm 4/4 on failure."""
+    import statistics
+    import torch
+    from beat_this.inference import File2Beats
+    try:
+        beats, downbeats = File2Beats(checkpoint_path="final0", device="cuda" if torch.cuda.is_available() else "cpu")(str(audio))
+        beats = [float(b) for b in beats]
+        downbeats = [float(d) for d in downbeats]
+        if len(beats) < 8:
+            raise ValueError("too few beats")
+        bpm = 60.0 / statistics.median(b - a for a, b in zip(beats, beats[1:]))
+        counts = [sum(1 for b in beats if a <= b < c) for a, c in zip(downbeats, downbeats[1:])]
+        bpb = statistics.mode(counts) if counts else 4
+        # spike: a 2-beat bar is almost always cut-time folk; write it as 4/4 (--meter overrides)
+        bpb = 4 if bpb == 2 else bpb if bpb in (3, 4) else 4
+        first = downbeats[0] if downbeats else beats[0]
+        progress(f"beat grid: {bpm:.1f} bpm, {bpb} beats per bar, first downbeat at {first:.2f}s")
+        return Grid(bpm, bpb, first, beats)
+    except Exception as e:  # noqa: BLE001 - any tracker failure means a constant guess, not a crash
+        progress(f"beat tracking failed ({e.__class__.__name__}: {e}), assuming 120 bpm 4/4 (use --bpm/--meter)")
+        return Grid(120.0, 4, 0.0, None)
+
+
 def _run_model(model, audio: Path, instruments: list[str] | None, progress) -> list[RawNote]:
     from muscriptor import NoteEndEvent
     notes: list[RawNote] = []
@@ -101,18 +126,8 @@ def transcribe(audio: Path, workdir: Path, *, model_size: str = "large", separat
                 m.device = gpu
         return TranscriptionModel(lm, cpu._tokenizer, gpu)
 
+    grid = beat_grid(audio, progress)
     model = load()
-    bg = model.detect_beat_grid_for(str(audio), "best-effort")
-    if bg is None:
-        # spike: no rubato detection beyond MuScriptor's own fallback; --bpm/--meter are the escape hatch
-        progress("no usable beat grid found, assuming 120 bpm 4/4 (use --bpm/--meter)")
-        grid = Grid(120.0, 4, 0.0, None)
-    else:
-        # spike: a 2-beat bar is almost always cut-time folk; write it as 4/4 (--meter overrides)
-        bpb = 4 if bg.beats_per_bar == 2 else bg.beats_per_bar
-        grid = Grid(float(bg.bpm), bpb, float(bg.first_downbeat),
-                    [float(b) for b in bg.beats] if bg.beats is not None else None)
-        progress(f"beat grid: {grid.bpm:.1f} bpm, {grid.beats_per_bar or '?'} beats per bar")
     notes = _run_model(model, audio, None, progress)
     has_voice = sum(n.instrument == "voice" for n in notes) >= 8
     if separate == "on" or (separate == "auto" and has_voice):
