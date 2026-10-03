@@ -31,5 +31,23 @@ for(const [name, s] of Object.entries(skins)){
     if(r < MIN){ console.error(`${name}: --${t} ${s[t]} on --${g} ${s[g]} = ${r.toFixed(2)}:1 (< ${MIN})`); bad++; }
   }
 }
-console.log(bad ? `${bad} contrast failure(s)` : `contrast: ${Object.keys(skins).length} skins clean`);
+if(!bad) console.log(`contrast: ${Object.keys(skins).length} skins clean`);
+
+/* 2. routing: every ROUTES key names a hub, every go()/hubCard() target is
+      a hub or a route, and every hub has its section and nav link */
+const js = html.slice(html.lastIndexOf("<script>"), html.lastIndexOf("</script>"));
+const hubs = JSON.parse(js.match(/const HUBS = (\[[^\]]*\])/)[1]);
+const rblock = js.slice(js.indexOf("const ROUTES = {"), js.indexOf("\n};", js.indexOf("const ROUTES = {")));
+const routes = [...rblock.matchAll(/^\s*"([a-z]+\/[a-z]+)":/gm)].map(m => m[1]);
+const used = [...js.matchAll(/(?:\bgo|hubCard)\("([a-z/]+)"/g)].map(m => m[1]);
+const nbad = bad;
+for(const r of routes) if(!hubs.includes(r.split("/")[0])){ console.error(`route ${r}: unknown hub`); bad++; }
+for(const u of used) if(!hubs.includes(u) && !routes.includes(u)){ console.error(`go("${u}"): no such route`); bad++; }
+for(const h of hubs){
+  if(!html.includes(`id="hub-${h}"`)){ console.error(`hub ${h}: no <section id="hub-${h}">`); bad++; }
+  if(!html.includes(`data-hub="${h}"`)){ console.error(`hub ${h}: no nav link`); bad++; }
+}
+if(bad === nbad) console.log(`routes: ${routes.length} routes over ${hubs.length} hubs clean`);
+
+console.log(bad ? `${bad} failure(s)` : "ui checks clean");
 process.exit(bad ? 1 : 0);
