@@ -4456,9 +4456,9 @@ function closeSongEditor(){
   document.body.style.overflow = "";
 }
 
-$("#saveSong").addEventListener("click", () => state.setlist ? openSetEditor(state.setlist) : openSongEditor());
-$("#seClose").addEventListener("click", closeSongEditor);
-$("#seCancel").addEventListener("click", closeSongEditor);
+$("#saveSong").addEventListener("click", () => state.setlist ? openSetEditor(state.setlist) : go("songs/edit"));
+$("#seClose").addEventListener("click", navBack);
+$("#seCancel").addEventListener("click", navBack);
 
 $("#seSave").addEventListener("click", () => {
   const name = $("#seName").value.trim();
@@ -4559,18 +4559,18 @@ $("#nextBtn").addEventListener("click", () => { state.page++; render(); });
 grid.addEventListener("click", e => {
   const card = e.target.closest(".card"); if(!card) return;
   const chord = chordList().find(c => c.name === card.dataset.chord);
-  if(chord) openModal(chord);
+  if(chord) go("chords/chord", () => openModal(chord));
 });
 grid.addEventListener("keydown", e => {
   if(e.key !== "Enter" && e.key !== " ") return;
   const card = e.target.closest(".card"); if(!card) return;
   e.preventDefault();
   const chord = chordList().find(c => c.name === card.dataset.chord);
-  if(chord) openModal(chord);
+  if(chord) go("chords/chord", () => openModal(chord));
 });
 
-$("#mclose").addEventListener("click", closeModal);
-$("#modal").addEventListener("click", e => { if(e.target === e.currentTarget) closeModal(); });
+$("#mclose").addEventListener("click", navBack);
+$("#modal").addEventListener("click", e => { if(e.target === e.currentTarget) navBack(); });
 $("#vprev").addEventListener("click", () => stepVoicing(-1));
 $("#vnext").addEventListener("click", () => stepVoicing(1));
 
@@ -4647,8 +4647,8 @@ function closeMap(){
   document.body.style.overflow = "";
 }
 mapKeySel.addEventListener("change", drawMap);
-$("#mapclose").addEventListener("click", closeMap);
-$("#mapov").addEventListener("click", e => { if(e.target === e.currentTarget) closeMap(); });
+$("#mapclose").addEventListener("click", navBack);
+$("#mapov").addEventListener("click", e => { if(e.target === e.currentTarget) navBack(); });
 $("#mapdiag").addEventListener("click", e => {          // tap a note to hear it — or answer the quiz
   const g = e.target.closest("[data-midi]");
   if(!g) return;
@@ -4929,8 +4929,8 @@ function closeStyles(){
 }
 $("#styGenre").addEventListener("change", drawStyles);
 $("#styKey").addEventListener("change", drawStyles);
-$("#styclose").addEventListener("click", closeStyles);
-$("#styleov").addEventListener("click", e => { if(e.target === e.currentTarget) closeStyles(); });
+$("#styclose").addEventListener("click", navBack);
+$("#styleov").addEventListener("click", e => { if(e.target === e.currentTarget) navBack(); });
 $("#stymap").addEventListener("click", e => {
   const g = e.target.closest("[data-midi]");
   if(g) pluck(+g.dataset.midi, 0, .32);
@@ -4946,7 +4946,7 @@ $("#styprogs").addEventListener("click", e => {
   closeStyles();
   refreshSongSel();
   render();
-  if(b.dataset.play) openPerf();
+  if(b.dataset.play) go("songs/perform");
 });
 
 /* ═══════════════════════════════════════════════════════════════
@@ -5875,8 +5875,8 @@ function setLsnBpm(v){
 }
 $("#lnSlow").addEventListener("click", () => setLsnBpm(lsnBpm - 10));
 $("#lnFast").addEventListener("click", () => setLsnBpm(lsnBpm + 10));
-$("#lnclose").addEventListener("click", closeLearn);
-$("#learnov").addEventListener("click", e => { if(e.target === e.currentTarget) closeLearn(); });
+$("#lnclose").addEventListener("click", navBack);
+$("#learnov").addEventListener("click", e => { if(e.target === e.currentTarget) navBack(); });
 
 /* ═══════════════════════════════════════════════════════════════
    TUNE MINER — pluck melodies out of chord shapes, one lit note at
@@ -6267,8 +6267,8 @@ function setMineBpm(v){
 $("#mnSlow").addEventListener("click", () => setMineBpm(mineBpm - 10));
 $("#mnFast").addEventListener("click", () => setMineBpm(mineBpm + 10));
 $("#mnTune").addEventListener("change", mineLoad);
-$("#mnclose").addEventListener("click", closeMine);
-$("#mineov").addEventListener("click", e => { if(e.target === e.currentTarget) closeMine(); });
+$("#mnclose").addEventListener("click", () => mine && mine.kind === "edit" ? closeMine() : navBack());
+$("#mineov").addEventListener("click", e => { if(e.target === e.currentTarget) (mine && mine.kind === "edit" ? closeMine() : navBack()); });
 
 /* ── MELODY EDIT — tap the tune onto a saved song's halos ──────── */
 function openMineEdit(songName){
@@ -6719,14 +6719,12 @@ function auFollow(id){
       + (s.dropped ? ` · ${s.dropped} NOTES OUT OF REACH` : "")
       + ` · <a href="${jobFile(j, "pdf")}" target="_blank">TAB PDF</a> · <a href="${jobFile(j, "mp3")}" target="_blank">MP3</a>`;
     $("#auOpen").hidden = false;
-    $("#auOpen").onclick = () => {
-      closeAu();
-      closeMine();
-      openLearn();
+    $("#auOpen").onclick = () => go("learn/song", () => {   // applyRoute closes the audio dialog and the miner first
       setLnKind("song");
+      openLearn();
       const i = lnLessons().findIndex(l => l.name === name);
       if(i >= 0){ $("#lnLesson").value = String(i); drawLearn(); }
-    };
+    });
     $("#auGo").disabled = false;
     toast(`SAVED “${name.toUpperCase()}” — ${ls.bars} BARS`);
   };
@@ -7163,8 +7161,8 @@ async function syncWakeLock(){
 }
 document.addEventListener("visibilitychange", syncWakeLock);
 
-$("#perfBtn").addEventListener("click", openPerf);
-$("#pclose").addEventListener("click", closePerf);
+$("#perfBtn").addEventListener("click", () => go("songs/perform"));
+$("#pclose").addEventListener("click", navBack);
 $("#pprev").addEventListener("click", () => perfStep(-1));
 $("#pnextBtn").addEventListener("click", () => perfStep(1));
 $("#pchord").addEventListener("click", () => perfStep(1));
@@ -7440,9 +7438,9 @@ function detectPitch(buf, sr){
   const f = sr / T;
   return (f > 40 && f < 2000) ? f : -1;
 }
-$("#tclose").addEventListener("click", closeTuner);
+$("#tclose").addEventListener("click", navBack);
 $("#tstart").addEventListener("click", startTunerMic);
-$("#tuner").addEventListener("click", e => { if(e.target === e.currentTarget) closeTuner(); });
+$("#tuner").addEventListener("click", e => { if(e.target === e.currentTarget) navBack(); });
 
 /* ── keep-screen-on setting ───────────────────────────────────── */
 $("#awakeBtn").classList.toggle("on", AWAKE);
@@ -7521,19 +7519,94 @@ $("#themeBtn").addEventListener("click", () => {
 });
 applyTheme(document.documentElement.dataset.theme || "", false);
 
+/* ── navigation: five hubs + a hash router ───────────────────────
+   The hash says what is on screen. go() pushes a route and applies it;
+   the hashchange handler (browser back, nav taps, pasted links) applies
+   whatever the hash now says. Applying a route closes every open dialog
+   first, so the back gesture always dismisses the thing on top. Sub-dialogs
+   (forge, ABC, from-audio, set list editor, melody editor) are not routed:
+   they open over whatever is up and close with their own ✕; a back gesture
+   while one is open dismisses everything down to the previous route. */
+const HUBS = ["chords", "songs", "practice", "learn", "tools"];
+const noop = () => {};
+const ROUTES = {
+  "chords/map":        openMap,
+  "chords/chord":      noop,                           // fullscreen chord: opened by a tap, never from a cold link
+  "songs/edit":        openSongEditor,
+  "songs/perform":     openPerf,
+  "practice/follow":   () => { openMap(); pracToggle("follow", startFollow); },
+  "practice/hear":     () => { openMap(); pracToggle("hear", startHear); },
+  "practice/find":     () => { openMap(); pracToggle("find", startFind); },
+  "practice/halo":     () => { const c = filtered()[0] || chordList()[0]; if(!c) return; openModal(c); mFindStart(); },
+  "practice/tap":      () => { openMine(); setMineMode("tap"); },
+  "practice/hearme":   () => { openMine(); setMineMode("hear"); },
+  "practice/listen":   () => { openMine(); setMineMode("listen"); },
+  "learn/rolls":       () => { setLnKind("roll"); openLearn(); },
+  "learn/licks":       () => { setLnKind("lick"); openLearn(); },
+  "learn/song":        () => { setLnKind("song"); openLearn(); },
+  "learn/styles":      openStyles,
+  "tools/tuner":       openTuner,
+  "tools/forge":       openTuningForge,
+};
+const currentHub = () => { const h = location.hash.slice(1).split("/")[0]; return HUBS.includes(h) ? h : "chords"; };
+function closeOverlays(){                                // innermost first; close* functions are untouched
+  if($("#abcEd").classList.contains("open")) closeAbc();
+  if($("#auEd").classList.contains("open")) closeAu();
+  if($("#tunEd").classList.contains("open")) closeTuningForge();
+  if($("#setEd").classList.contains("open")) closeSetEditor();
+  if($("#perf").classList.contains("open")) closePerf();
+  if($("#mineov").classList.contains("open")) closeMine();
+  if($("#songEd").classList.contains("open")) closeSongEditor();
+  if($("#tuner").classList.contains("open")) closeTuner();
+  if($("#styleov").classList.contains("open")) closeStyles();
+  if($("#learnov").classList.contains("open")) closeLearn();
+  if($("#mapov").classList.contains("open")) closeMap();
+  if($("#modal").classList.contains("open")) closeModal();
+}
+function showHub(h){
+  HUBS.forEach(x => { $("#hub-" + x).hidden = x !== h; });
+  document.querySelectorAll("#nav a").forEach(a => {
+    if(a.dataset.hub === h) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+  });
+  if(h === "songs") drawSongsHub();
+  if(h === "practice") drawPracticeHub();
+  if(h === "learn") drawLearnHub();
+  if(h === "tools") drawToolsHub();
+}
+let pendingOpen = null;                                  // a one-shot opener carried by go() (a tapped chord, a chosen set list)
+function applyRoute(){
+  const r = location.hash.slice(1) || "chords";
+  closeOverlays();
+  showHub(currentHub());
+  const open = pendingOpen || ROUTES[r] || noop;
+  pendingOpen = null;
+  open();
+}
+function go(route, open){
+  pendingOpen = open || null;
+  if(location.hash.slice(1) !== route) history.pushState({ ov: route.includes("/") }, "", "#" + route);
+  applyRoute();
+}
+function navBack(){                                      // what every ✕, backdrop tap and Escape calls
+  if(!document.querySelector('[role="dialog"].open')) return;
+  if(history.state && history.state.ov) history.back();   // we pushed this entry: pop it, hashchange applies the hub
+  else location.replace("#" + currentHub());               // cold deep link: nothing to pop, just show the hub
+}
+function drawSongsHub(){}
+function drawPracticeHub(){}
+function drawLearnHub(){}
+function drawToolsHub(){}
+addEventListener("hashchange", applyRoute);
+applyRoute();
+
 document.addEventListener("keydown", e => {
   if(e.key === "Escape"){
-    if($("#perf").classList.contains("open")) return closePerf();
-    if($("#tunEd").classList.contains("open")) return closeTuningForge();
     if($("#abcEd").classList.contains("open")) return closeAbc();
-    if($("#tuner").classList.contains("open")) return closeTuner();
-    if($("#mineov").classList.contains("open")) return closeMine();
+    if($("#auEd").classList.contains("open")) return closeAu();
+    if($("#tunEd").classList.contains("open")) return closeTuningForge();
     if($("#setEd").classList.contains("open")) return closeSetEditor();
-    if($("#songEd").classList.contains("open")) return closeSongEditor();
-    if($("#styleov").classList.contains("open")) return closeStyles();
-    if($("#learnov").classList.contains("open")) return closeLearn();
-    if($("#mapov").classList.contains("open")) return closeMap();
-    return closeModal();
+    if(mine && mine.kind === "edit") return closeMine();
+    return navBack();
   }
   const el = document.activeElement;
   if(el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
