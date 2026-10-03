@@ -82,7 +82,6 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     color:var(--text);
     font-family:var(--font-m);
     overflow-x:hidden;
-    padding-bottom:env(safe-area-inset-bottom);
   }
 
   /* ── scanline / noise overlay ─────────────────────────────── */
@@ -294,7 +293,63 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   }
   .pager button:disabled{ opacity:.25; cursor:default; }
   .pager button:not(:disabled):active{ background:var(--yellow); color:var(--ink); }
-  #pageInfo{
+
+  /* ── hubs + nav: bottom tab bar on phones/tablets, left rail on desktop ── */
+  .hub[hidden]{ display:none; }
+  .hubwrap{ max-width:var(--content-w); margin:0 auto; padding:14px 14px 96px; }
+  .hubtitle{
+    font-family:var(--font-h); font-weight:700; font-size:clamp(24px, 6vw, 34px);
+    letter-spacing:.14em; color:var(--yellow); margin-bottom:12px;
+  }
+  .hubacts{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .hublist{ display:grid; gap:10px; grid-template-columns:1fr; }
+  @media (min-width:700px){ .hublist{ grid-template-columns:repeat(2, 1fr); } }
+  @media (min-width:1280px){ .hublist{ grid-template-columns:repeat(3, 1fr); } }
+  .hubcard{
+    display:block; width:100%; text-align:left; min-height:72px; padding:12px 14px;
+    background:var(--panel); color:var(--text); border:1px solid var(--line);
+    font-family:var(--font-m); cursor:pointer; position:relative;
+  }
+  .hubcard:hover, .hubcard:active{ border-color:var(--cyan); }
+  .hubcard b{ display:block; font-family:var(--font-h); font-weight:700; font-size:var(--fs-l); letter-spacing:.1em; color:var(--cyan); text-transform:uppercase; }
+  .hubcard small{ display:block; font-size:var(--fs-s); color:var(--dim); line-height:1.5; margin-top:4px; }
+  .hubcard .best{ position:absolute; top:12px; right:14px; font-size:var(--fs-s); color:var(--yellow); letter-spacing:.1em; }
+  .hubcard.on b{ color:var(--yellow); }
+  .hubcard[disabled]{ opacity:.45; cursor:default; }
+  .hubsec{ grid-column:1/-1; font-size:var(--fs-s); letter-spacing:.14em; color:var(--dim); margin-top:6px; }
+  .songrow{ padding-right:150px; }
+  .rowacts{ position:absolute; top:12px; right:12px; display:flex; gap:6px; }
+  .rowacts button{
+    min-height:44px; min-width:44px; padding:0 12px;
+    background:transparent; color:var(--cyan); border:1px solid var(--cyan);
+    font-family:var(--font-h); font-weight:600; font-size:var(--fs-s); letter-spacing:.1em;
+    text-transform:uppercase; cursor:pointer;
+  }
+  .rowacts button:active{ background:var(--cyan); color:var(--ink); }
+  .pager{ bottom:calc(56px + env(safe-area-inset-bottom, 0px)); }   /* the pager sits on top of the nav bar */
+  #nav{
+    position:fixed; left:0; right:0; bottom:0; z-index:7900;   /* under every dialog (8000+), over the grid */
+    display:flex; background:var(--bg2); border-top:1px solid var(--line2);
+    padding-bottom:env(safe-area-inset-bottom, 0px);
+  }
+  #nav a{
+    flex:1; min-height:56px; display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-h); font-weight:700; font-size:var(--fs-s); letter-spacing:.1em;
+    text-transform:uppercase; color:var(--dim); text-decoration:none; border-top:3px solid transparent;
+  }
+  #nav a[aria-current="page"]{ color:var(--yellow); border-top-color:var(--yellow); }
+  @media (max-width:400px){ #nav a{ letter-spacing:.02em; padding:0 2px; } }
+  body{ padding-bottom:calc(56px + env(safe-area-inset-bottom, 0px)); }
+  @media (min-width:1100px){
+    #nav{ top:0; bottom:0; right:auto; width:120px; flex-direction:column; justify-content:flex-start;
+          border-top:0; border-right:1px solid var(--line2); padding-top:calc(90px + env(safe-area-inset-top, 0px)); }
+    #nav a{ flex:0 0 auto; min-height:56px; border-top:0; border-left:3px solid transparent; }
+    #nav a[aria-current="page"]{ border-left-color:var(--yellow); }
+    body{ padding-bottom:0; padding-left:120px; }
+    header{ padding-left:calc(120px + 14px); }   /* the rail covers the title's left edge otherwise */
+    .pager{ bottom:0; left:calc(50% + 60px); }   /* re-centre on the content column, which the rail shifted right */
+  }
+  #pageInfo{ white-space:nowrap;
     color:var(--cyan); font-size:var(--fs-m); letter-spacing:.2em; text-align:center;
     text-shadow:0 0 8px color-mix(in srgb, var(--cyan) 60%, transparent);
   }
@@ -969,7 +1024,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
 
   /* notch clearance when rotated */
   @supports (padding: env(safe-area-inset-left)){
-    header, .controls, main, .pager, #modal, #mapov, #learnov, #mineov, #songEd, #setEd, #tunEd, #abcEd, #auEd, #tuner, #perf{
+    header, .controls, main, .pager, #nav, .hub, #modal, #mapov, #learnov, #mineov, #songEd, #setEd, #tunEd, #abcEd, #auEd, #tuner, #perf{
       padding-left:calc(14px + env(safe-area-inset-left));
       padding-right:calc(14px + env(safe-area-inset-right));
     }
@@ -992,6 +1047,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   </div>
 </header>
 
+<section class="hub" id="hub-chords">
 <div class="controls">
   <div class="row1">
     <input id="search" type="search" placeholder="&gt; QUERY CHORD DB… (Am · or: Am F C G)"
@@ -1020,6 +1076,39 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   <div id="pageInfo">PAGE 1/1</div>
   <button id="nextBtn">Next ►</button>
 </div>
+</section>
+<section class="hub" id="hub-songs" hidden>
+  <div class="hubwrap">
+    <h2 class="hubtitle">SONGS://</h2>
+    <div class="hubacts" id="songActs"></div>
+    <div class="hublist" id="songList"></div>
+  </div>
+</section>
+<section class="hub" id="hub-practice" hidden>
+  <div class="hubwrap">
+    <h2 class="hubtitle">PRACTICE://</h2>
+    <div class="hublist" id="pracList"></div>
+  </div>
+</section>
+<section class="hub" id="hub-learn" hidden>
+  <div class="hubwrap">
+    <h2 class="hubtitle">LEARN://</h2>
+    <div class="hublist" id="learnList"></div>
+  </div>
+</section>
+<section class="hub" id="hub-tools" hidden>
+  <div class="hubwrap">
+    <h2 class="hubtitle">TOOLS://</h2>
+    <div class="hublist" id="toolList"></div>
+  </div>
+</section>
+<nav id="nav" aria-label="Sections">
+  <a href="#chords"   data-hub="chords">Chords</a>
+  <a href="#songs"    data-hub="songs">Songs</a>
+  <a href="#practice" data-hub="practice">Practice</a>
+  <a href="#learn"    data-hub="learn">Learn</a>
+  <a href="#tools"    data-hub="tools">Tools</a>
+</nav>
 
 <div id="modal" role="dialog" aria-modal="true">
   <div class="mwrap">
