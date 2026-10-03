@@ -12,6 +12,8 @@
 <script>/* restore saved colour scheme before first paint — field mode is the default skin */
 try{ var _t = localStorage.getItem("chordware.theme"); }catch(e){}
 if(_t == null) _t = "paper";
+var _q = new URLSearchParams(location.search).get("skin");   // ?skin=amber (or ?skin= for Night City) for this load only: shareable, screenshot-able
+if(_q != null) _t = _q;
 if(_t) document.documentElement.dataset.theme = _t;</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -5506,9 +5508,11 @@ function renderLessonTab(lesson, chord, tuning){
   // fits, else beat pairs), the way printed tab breaks lines.
   const X0 = 58, TOP = 34, STEP = 48, SG = 40, R = 10, F = 16;
   const fit = Math.max(2, Math.floor((cw - X0 - 14) / STEP));          // slots that fit at 1:1
+  let part = BAR;                                                       // a bar too wide for the panel splits into equal parts (8 → 4+4, 12 → 6+6)
+  while(part > fit && part > 2) part = [...Array(part).keys()].reverse().find(d => d >= 2 && BAR % d === 0 && d < part) || 2;
   const perRow = lesson.steps <= fit ? lesson.steps
                : fit >= BAR ? Math.floor(fit / BAR) * BAR
-               : Math.max(2, Math.floor(fit / 2) * 2);
+               : part;
   const rows = Math.ceil(lesson.steps / perRow);
   const rowH = TOP + (NSTR - 1) * SG + 40;
   const W = X0 + perRow * STEP + 14;

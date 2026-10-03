@@ -36,6 +36,8 @@ that reaches past it.
 | `sw.js` | Tiny cache-first service worker for offline use (browsers refuse inline service workers — this is the only sidecar) |
 | `tools/generate-voicings.mjs` | Voicing generator: fills any missing root × quality combos per tuning (dry run by default, `--write` to insert) |
 | `tools/validate-chords.mjs` | Library linter: checks every voicing spells its named chord, that its fingering is one a hand could actually make, and every ornament's frets, direction and colour-tone label against chord theory |
+| `tools/check-ui.mjs` | UI linter: every text token in every skin reads at 4.5:1 or better against every background, and every hash route points at a hub that exists |
+| `tools/shoot-ui.mjs` | Screenshots of the live page at phone, Fold, tablet and desktop sizes on two skins, through headless Chrome's DevTools protocol (`node tools/shoot-ui.mjs [outdir]`) |
 
 ## Getting around
 
