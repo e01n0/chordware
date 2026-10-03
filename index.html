@@ -75,6 +75,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     --scan:rgba(60,50,20,.05); --vig:rgba(60,50,20,.10);
   }
   *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  :focus-visible{ outline:2px solid var(--yellow); outline-offset:2px; }
   html,body{ height:100%; }
   body{
     background:var(--bg);
@@ -139,6 +140,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
                   96%{transform:translate(2px,1px);opacity:.9} 98%{transform:translate(-1px,0);opacity:.7} 99%,100%{transform:none;opacity:0} }
   @keyframes gl2{ 0%,89%{transform:none;opacity:0} 90%{transform:translate(3px,1px);opacity:.9}
                   93%{transform:translate(-2px,-1px);opacity:.8} 95%,100%{transform:none;opacity:0} }
+  @media (prefers-reduced-motion: reduce){ h1.glitch::before, h1.glitch::after{ animation:none; opacity:0; } }
   .sub{
     display:flex; align-items:center; gap:8px; margin-left:auto;
     flex-wrap:wrap; justify-content:flex-end;
@@ -148,7 +150,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     background:var(--bg2); color:var(--cyan);
     border:1px solid var(--line2); border-radius:0;
     font-family:var(--font-m); font-size:var(--fs-s);
-    padding:6px 8px; min-height:32px;
+    padding:0 8px; min-height:44px;
   }
 
   /* ── controls ─────────────────────────────────────────────── */
@@ -159,7 +161,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     background:var(--bg2); color:var(--yellow);
     border:1px solid var(--line2);
     font-family:var(--font-m); font-size:15px; letter-spacing:.08em;
-    padding:0 12px; outline:none;
+    padding:0 12px;
   }
   #search::placeholder{ color:var(--dim); }
   #search:focus{ border-color:var(--cyan); box-shadow:0 0 8px color-mix(in srgb, var(--cyan) 35%, transparent); }
@@ -581,7 +583,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   /* halo toggle + find-it quiz in the chord modal */
   .halorow{ display:flex; align-items:center; justify-content:center; gap:10px; margin-top:8px; flex-wrap:wrap; }
   #haloBtn, #mFindBtn{
-    min-height:40px; padding:0 14px;
+    min-height:44px; padding:0 14px;
     background:transparent; color:var(--cyan); border:1px solid var(--cyan);
     font-family:var(--font-h); font-weight:600; font-size:var(--fs-s); letter-spacing:.12em;
     text-transform:uppercase; cursor:pointer;
@@ -725,13 +727,13 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   .sewrap input, .sewrap textarea{
     width:100%; background:var(--bg2); color:var(--yellow);
     border:1px solid var(--line2); border-radius:0;
-    font-family:var(--font-m); font-size:14px; padding:10px 12px; outline:none;
+    font-family:var(--font-m); font-size:14px; padding:10px 12px;
   }
   .sewrap input:focus, .sewrap textarea:focus{ border-color:var(--cyan); }
   .selabel{ display:flex; align-items:flex-end; justify-content:space-between; gap:10px; margin-top:14px; }
   .selabel label{ margin:0 0 5px; flex:1; }
   #sePaste{
-    flex:0 0 auto; min-height:38px; padding:0 14px; margin-bottom:2px;
+    flex:0 0 auto; min-height:44px; padding:0 14px; margin-bottom:2px;
     background:transparent; border:1px solid var(--cyan); color:var(--cyan);
     font-family:var(--font-h); font-weight:600; font-size:var(--fs-s); letter-spacing:.14em;
     text-transform:uppercase; cursor:pointer;
@@ -832,7 +834,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   .pctl{ display:flex; flex-direction:column; gap:5px; align-items:center; }
   .pcrow{ display:flex; gap:5px; align-items:center; }
   .pcrow button{
-    min-width:34px; min-height:30px; padding:0 7px;
+    min-width:34px; min-height:44px; padding:0 7px;
     background:var(--bg2); color:var(--cyan); border:1px solid var(--line2);
     font-family:var(--font-m); font-size:var(--fs-s); letter-spacing:.06em; cursor:pointer;
   }
@@ -883,7 +885,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   }
   .stlist .strow{ display:flex; gap:4px; }
   .stlist button{
-    min-height:40px; text-align:left; padding:0 10px; flex:1;
+    min-height:44px; text-align:left; padding:0 10px; flex:1;
     background:var(--bg2); color:var(--text); border:1px solid var(--line2);
     font-family:var(--font-m); font-size:var(--fs-m); cursor:pointer;
   }
