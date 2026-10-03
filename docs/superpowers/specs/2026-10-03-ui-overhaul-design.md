@@ -59,10 +59,13 @@ sequence lines, chord names); Rajdhani for labels and buttons, never below
 weight 600 at 14–16px.
 
 Contrast: `--dim` retuned per skin to ≥4.5:1 against both `--bg` and
-`--panel`. `--line2` is never used as a text fill. `tools/check-contrast.mjs`
-parses the five `:root` skin blocks from `index.html` and exits non-zero if
+`--panel`. `--line2` is never used as a text fill. The paper skin's
+`--yellow` (4.26:1 today) is darkened to pass too. `tools/check-ui.mjs`
+parses the five skin blocks from `index.html` and exits non-zero if
 `--text`, `--dim`, `--yellow`, `--cyan` or `--red` fall under 4.5:1 against
-`--bg` or `--panel`. Runs alongside `validate-chords.mjs`.
+`--bg`, `--bg2` or `--panel`; it also checks that every route in the hash
+router's table names an element that exists in the markup. Runs alongside
+`validate-chords.mjs`.
 
 Targets: every button, chip, select and pager control has a 44px minimum hit
 box. `:focus-visible` outline 2px in `--yellow`. `prefers-reduced-motion`
@@ -86,8 +89,9 @@ light/dark (SKIN already covers it).
   step of 48 CSS px (`perRow = max(BAR, floor((cw - X0) / 48 / BAR) * BAR)`,
   capped at the lesson length). The SVG renders 1:1 (`width` set from the
   computed `W`, no `width:100%` downscale); rows wrap instead. A 16-slot roll
-  on a 390px phone becomes two rows of 8. Horizontal scroll only if a single
-  bar cannot fit at 48px/step.
+  on a 390px phone wraps. When a whole bar does not fit at 48px/step the row
+  breaks at beat pairs instead (an 8-slot bar on a 390px phone is two rows
+  of 4). The tab never scrolls sideways.
 
 ### Chord diagrams (grid cards and modal)
 
@@ -101,6 +105,22 @@ light/dark (SKIN already covers it).
 
 - Dot labels 10.5–11 → 13 bold; radii +1.
 - Legends use `--fs-s`.
+
+## 4. Galaxy Z Fold layouts
+
+Two postures, no user toggle, both driven by viewport size:
+
+- Cover screen (~370 CSS px wide, tall): bottom nav with five labels fits
+  at 14px Rajdhani caps; the grid stays two across; learn tab wraps rolls
+  (section 3) instead of shrinking.
+- Unfolded inner screen (~820 × 710 CSS px, near-square): `gridLayout()`
+  treats a near-square viewport (`w / h` between 0.85 and 1.25) with
+  `w >= 760` as 3 columns × 3 rows instead of the landscape 3 × 2; the nav is
+  the bottom bar (below the 1100px rail breakpoint). The left rail is not
+  used on the inner screen.
+
+The half-folded tabletop split (Device Posture / Viewport Segments) is out of
+scope for this pass.
 
 ## Verification
 
