@@ -3,7 +3,7 @@
 Cyberpunk-terminal chord chart reference for **banjolele / ukulele / banjo / guitar**.
 Single-file PWA — the entire app lives in `index.html` (no build step, no framework).
 
-Six tunings ship with full chord libraries — a hand-curated core (with
+Seven tunings ship with full chord libraries — a hand-curated core (with
 hammer-on/pull-off ornament data) plus machine-searched voicings covering all
 12 roots × major, minor, 7, m7, maj7, 6, m6, sus2, sus4, add9, dim7 and aug:
 
@@ -12,6 +12,7 @@ hammer-on/pull-off ornament data) plus machine-searched voicings covering all
 - **DGBD** — open G (banjo); the open strings are a G chord and any straight barre is a major chord
 - **DGB♭D** — open Gm / cross-note; the open strings are a G minor chord, any straight barre is a minor chord, and one finger on the B♭ string turns the whole thing major
 - **gDGBD** — the 5-string banjo in open G: the four-string open G with the short drone bolted on. The drone's own nut sits at the 5th fret, so it sounds open or from the 6th fret up and nowhere in between — the app knows that everywhere (see *Short strings* below), and the curated core marks it × on the chords where its G would clash (D, A, F, E…) and leaves it open where the G belongs (G, C, Em, Am7, C7…)
+- **gDGB♭D** — the 5-string banjo in open G minor: the cross-note four-string with the drone bolted on. The open strings are a G minor chord, every straight barre is another minor chord with the g ringing through it, and one finger on the B♭ string turns the whole thing major. Its chord library is machine-searched with the same drone rules as open G; it inherits the cross-note slide licks one string across, plus the Drone Roll-Off
 - **EADGBE** — standard 6-string guitar: the classic open shapes hand-curated (C, D, E, F-barre, G, A, the minors and 7ths, sus and add9), the rest machine-searched with guitar rules — bass strings may be muted (shown as ×) and the root is preferred in the bass
 
 Everything is string-count-agnostic: diagrams, the fretboard map, key filtering,
