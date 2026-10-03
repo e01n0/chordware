@@ -6582,8 +6582,8 @@ function libPush(){
   }, 800);
 }
 const storeSongs0 = storeSongs, storeSets0 = storeSets;
-storeSongs = function(s){ libMarkChanges("songs", loadSongs(), s); storeSongs0(s); libPush(); };
-storeSets = function(s){ libMarkChanges("setlists", loadSets(), s); storeSets0(s); libPush(); };
+storeSongs = function(s){ libMarkChanges("songs", loadSongs(), s); storeSongs0(s); libPush(); if(!$("#hub-songs").hidden) drawSongsHub(); };
+storeSets = function(s){ libMarkChanges("setlists", loadSets(), s); storeSets0(s); libPush(); if(!$("#hub-songs").hidden) drawSongsHub(); };
 async function libPull(){
   let srv;
   try{ srv = await (await fetch("/songs", { cache: "no-store" })).json(); }catch(e){ return; }
@@ -7460,7 +7460,7 @@ $("#awakeBtn").addEventListener("click", () => {
    it's meaningless anywhere else, so it doesn't take up room there */
 function syncD5Btn(){
   const has = !!TUNINGS[state.tuning].drone;
-  $("#d5Btn").style.display = has ? "" : "none";
+  $("#d5Btn").style.display = has ? "" : "none"; $("#d5Btn").dataset.has = has ? "1" : "";
   $("#d5Btn").classList.toggle("on", has && !HIDE5);
   $("#d5Btn").setAttribute("aria-pressed", String(has && !HIDE5));
 }
@@ -7592,10 +7592,108 @@ function navBack(){                                      // what every ✕, back
   if(history.state && history.state.ov) history.back();   // we pushed this entry: pop it, hashchange applies the hub
   else location.replace("#" + currentHub());               // cold deep link: nothing to pop, just show the hub
 }
-function drawSongsHub(){}
-function drawPracticeHub(){}
-function drawLearnHub(){}
-function drawToolsHub(){}
+/* ── hub screens: every feature as a named card with a one-line blurb ── */
+const hubCard = (route, title, blurb, extra = "", attrs = "") =>
+  `<button class="hubcard" data-go="${route}" ${attrs}><b>${title}</b><small>${blurb}</small>${extra}</button>`;
+const storedBest = (store, key) => { try{ return (JSON.parse(localStorage.getItem(store)) || {})[key]; }catch(e){ return undefined; } };
+const bestTag = v => v === undefined ? "" : `<span class="best">BEST ${v}</span>`;
+
+function drawPracticeHub(){
+  const pb = storedBest(PRAC_STORE, pracKey()) || {};            // the map's current key × scale × box
+  const tune = TUNE_LIBRARY.length ? TUNE_LIBRARY[0].name : "";
+  const mb = m => { const v = storedBest(MINE_STORE, [state.tuning, tune, m].join("|")); return bestTag(v === undefined ? undefined : fmtSecs(v)); };
+  $("#pracList").innerHTML =
+    `<div class="hubsec">ON THE MAP · ${mapKeySel.value.toUpperCase()} · ${SCALES[mapScaleSel.value].label.toUpperCase()}</div>` +
+    hubCard("practice/follow", "Follow", "Watch and hear the scale walked at tempo, up from the lowest root and back down.") +
+    hubCard("practice/hear", "Hear Me", "Play the scale into the mic; the target only moves when you play the note. Clean passes are timed.", bestTag(pb.hearMs === undefined ? undefined : fmtSecs(pb.hearMs))) +
+    hubCard("practice/find", "Find It", "The map goes dark except the roots. Tap the asked degree. Ten prompts a round.", bestTag(pb.find === undefined ? undefined : pb.find + "/" + FIND_ROUND)) +
+    `<div class="hubsec">ON A CHORD</div>` +
+    hubCard("practice/halo", "Find It on the halo", "The notes in reach around the shape you are holding, quizzed by degree. Opens on the first chord in the grid.") +
+    `<div class="hubsec">TUNE MINER · ${tune.toUpperCase()}</div>` +
+    hubCard("practice/tap", "Tap It", "Pluck a melody out of chord shapes one lit note at a time.", mb("tap")) +
+    hubCard("practice/hearme", "Hear Me", "Same tune, but the mic has to hear you play each note.", mb("hear")) +
+    hubCard("practice/listen", "Listen", "Hear the whole tune mined out of the shapes, looping at tempo.");
+}
+
+function drawLearnHub(){
+  const has = k => lessonsFor(state.tuning).some(l => l.kind === k);
+  const songs = Object.keys(loadSongs()).length;
+  $("#learnList").innerHTML =
+    hubCard("learn/rolls", "Rolls", "Two dozen right-hand patterns as animated tab: bluegrass rolls, Travis, clawhammer, waltz and more. Pick any chord to roll over.") +
+    hubCard("learn/licks", "Slide licks", "Blues slide phrases written for this tuning, plus three progression lessons that stitch them into changes.", "", has("lick") ? "" : "disabled") +
+    hubCard("learn/song", "Song as tab", "Any saved song laid out bar by bar with a roll carried through its changes, or its own tapped-in melody.", "", songs ? "" : "disabled") +
+    hubCard("learn/styles", "Styles", "Blues, country and folk primers: the genre's scale on the neck and its standard progressions in any key.");
+}
+
+function drawToolsHub(){
+  const t = THEMES.find(t => t.id === (document.documentElement.dataset.theme || "")) || THEMES[0];
+  const on = id => $(id).classList.contains("on");
+  const proxy = (id, title, blurb) => `<button class="hubcard${on(id) ? " on" : ""}" data-proxy="${id}"><b>${title}</b><small>${blurb}</small></button>`;
+  $("#toolList").innerHTML =
+    hubCard("tools/tuner", "Tuner", "Mic pitch detection for every string of the current tuning.") +
+    hubCard("tools/forge", "Tuning forge", "Name a custom tuning, pick its open strings, and forge a full chord library for it.") +
+    proxy("#themeBtn", `Skin · ${t.label}`, "Cycle the colour scheme: Night City, Amber Term, Phosphor, Synthwave, Field Mode.") +
+    proxy("#lhBtn", `Left-handed · ${on("#lhBtn") ? "ON" : "OFF"}`, "Mirror every diagram and map.") +
+    ($("#d5Btn").dataset.has
+      ? proxy("#d5Btn", `5th string · ${on("#d5Btn") ? "SHOWN" : "HIDDEN"}`, "Printed banjo charts leave the drone out. Show or hide it in chord diagrams.")
+      : "") +
+    proxy("#awakeBtn", `Keep awake · ${on("#awakeBtn") ? "ON" : "OFF"}`, "Hold the screen on while CHORDWARE is open.") +
+    `<div class="hubcard" style="cursor:default"><b>Library sync</b><small>${tabsmithHere
+      ? "Songs and set lists are kept on this server. Every device on the tailnet sees the same library."
+      : "Offline: songs and set lists live in this browser only."}</small></div>`;
+}
+
+function drawSongsHub(){
+  const songs = loadSongs(), sets = loadSets();
+  const esc = n => n.replace(/"/g, "&quot;");
+  $("#songActs").innerHTML =
+    `<button class="prbtn" data-act="new">+ Song</button>` +
+    `<button class="prbtn" data-act="newset">+ Set list</button>` +
+    `<button class="prbtn" data-act="abc">ABC import</button>` +
+    (tabsmithHere ? `<button class="prbtn" data-act="audio">From audio</button>` : "") +
+    `<button class="prbtn" data-act="export">Export all</button>` +
+    `<button class="prbtn" data-act="import">Import</button>`;
+  const row = (kind, n, meta) =>
+    `<div class="hubcard songrow" role="button" tabindex="0" data-kind="${kind}" data-name="${esc(n)}">` +
+      `<b>${kind === "set" ? "≡" : "♪"} ${escHTML(n)}</b><small>${meta}</small>` +
+      `<span class="rowacts"><button data-act="chords" title="Show its chords in the grid">Chords</button>` +
+      `<button data-act="perform" title="Performance mode">▶</button></span></div>`;
+  const names = Object.keys(songs).sort(), setNames = Object.keys(sets).sort();
+  $("#songList").innerHTML =
+    (names.length ? names.map(n => {
+        const d = songData(songs[n]), cs = d.chords.trim().split(/\s+/).filter(Boolean);
+        return row("song", n, `${cs.length} chords${songs[n].melody ? " · melody" : ""}${d.lyrics.trim() ? " · lyrics" : ""}`);
+      }).join("")
+      : `<div class="hubcard" style="cursor:default"><small>No songs yet. + SONG pastes one straight from a tab site.</small></div>`) +
+    setNames.map(n => row("set", n, `${(sets[n] || []).length} songs`)).join("");
+}
+
+/* hub cards: a route, a proxy for one of the hidden header toggles, or a song row */
+document.addEventListener("click", e => {
+  const b = e.target.closest(".hubcard"); if(!b) return;
+  if(b.dataset.go){ go(b.dataset.go); return; }
+  if(b.dataset.proxy){ $(b.dataset.proxy).click(); drawToolsHub(); }
+});
+$("#hub-songs").addEventListener("click", e => {
+  const a = e.target.closest("[data-act]"), r = e.target.closest(".songrow");
+  const act = a ? a.dataset.act : "";
+  if(act === "new"){ state.song = ""; state.setlist = ""; state.query = ""; $("#search").value = ""; refreshSongSel(); go("songs/edit"); return; }
+  if(act === "newset"){ openSetEditor(""); return; }
+  if(act === "abc"){ $("#mnAbc").click(); return; }
+  if(act === "audio"){ openAu(); return; }
+  if(act === "export"){ $("#seExport").click(); return; }
+  if(act === "import"){ $("#seImport").click(); return; }
+  if(!r) return;
+  const kind = r.dataset.kind, name = r.dataset.name;
+  $("#songSel").value = (kind === "set" ? "set:" : "song:") + name;   // exactly what picking it in the grid's SONG:// dropdown does
+  $("#songSel").dispatchEvent(new Event("change"));
+  if(act === "perform"){ go("songs/perform"); return; }
+  if(act === "chords"){ go("chords"); return; }
+  if(kind === "set") openSetEditor(name); else go("songs/edit");
+});
+$("#hub-songs").addEventListener("keydown", e => {
+  if((e.key === "Enter" || e.key === " ") && e.target.classList.contains("songrow")){ e.preventDefault(); e.target.click(); }
+});
 addEventListener("hashchange", applyRoute);
 applyRoute();
 
