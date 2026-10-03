@@ -164,7 +164,9 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   }
   #search::placeholder{ color:var(--dim); }
   #search:focus{ border-color:var(--cyan); box-shadow:0 0 8px color-mix(in srgb, var(--cyan) 35%, transparent); }
-  #ornToggle, #dotToggle{
+  @media (max-width:699px){ .row1{ flex-wrap:wrap; } #search{ flex:1 1 100%; } }   /* three buttons + search do not share a phone row */
+  #mapBtn{ color:var(--yellow); border-color:var(--yellow); }
+  #ornToggle, #dotToggle, #mapBtn{
     min-height:44px; padding:0 14px;
     background:var(--bg2); color:var(--red);
     border:1px solid var(--red);
@@ -470,6 +472,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
   }
   #mapclose:active{ background:var(--red); color:var(--ink); }
   .maprow{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .maprow > select{ min-width:150px; }   /* wraps before it squeezes to nothing on a phone */
   #mapKey, #mapScale, #styGenre, #styKey, #mnTune, .ovtun{
     flex:1; min-width:0; min-height:44px; max-width:280px;
     background:var(--bg2); color:var(--yellow);
@@ -1039,10 +1042,11 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     <div class="sub">
       <span>TUNING://</span>
       <select id="tuning" aria-label="Tuning"></select>
-      <button id="themeBtn" aria-label="Cycle colour scheme">SKIN</button>
-      <button id="lhBtn" aria-label="Toggle left-handed diagrams" title="Left-handed mode — mirror all diagrams">LH</button>
-      <button id="d5Btn" style="display:none" aria-pressed="false" aria-label="Show or hide the 5th string in chord diagrams" title="The 5th string in chord diagrams — printed banjo charts leave it out, since it's open on nearly every chord">5TH</button>
-      <button id="awakeBtn" aria-label="Keep the screen on" title="Keep the screen awake while CHORDWARE is open">AWAKE</button>
+      <!-- these four live under TOOLS now; they stay in the DOM so the Tools cards can proxy a click to them -->
+      <button id="themeBtn" hidden aria-label="Cycle colour scheme">SKIN</button>
+      <button id="lhBtn" hidden aria-label="Toggle left-handed diagrams" title="Left-handed mode — mirror all diagrams">LH</button>
+      <button id="d5Btn" hidden aria-pressed="false" aria-label="Show or hide the 5th string in chord diagrams" title="The 5th string in chord diagrams — printed banjo charts leave it out, since it's open on nearly every chord">5TH</button>
+      <button id="awakeBtn" hidden aria-label="Keep the screen on" title="Keep the screen awake while CHORDWARE is open">AWAKE</button>
     </div>
   </div>
 </header>
@@ -1054,6 +1058,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     <button id="ornToggle" aria-pressed="false">Show Ornaments</button>
     <button id="dotToggle" aria-pressed="false" title="What the dots say — which finger, which note, or which degree of the chord">Dots: Fingers</button>
+    <button id="mapBtn" title="The whole neck: every in-key note, coloured by degree">Map</button>
   </div>
   <div class="chips" id="chips"></div>
   <div class="row2">
@@ -1360,6 +1365,7 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
       <button id="sePro" title="Download this song as a ChordPro file">.pro ↓</button>
       <input id="seFile" type="file" accept=".json,.pro,.chopro,.cho,.crd,.txt,application/json,text/plain" style="display:none">
     </div>
+    <div class="sehint">MELODY: tap the tune onto each chord's halo. It then shows up under PRACTICE as a tune-miner drill and under LEARN › SONG AS TAB.</div>
   </div>
 </div>
 
@@ -4305,19 +4311,9 @@ $("#tfCancel").addEventListener("click", closeTuningForge);
 $("#tunEd").addEventListener("click", e => { if(e.target === e.currentTarget) closeTuningForge(); });
 
 $("#chips").innerHTML = CATS.map(c =>
-  `<button class="chip${c.id === state.cat ? " on" : ""}" data-cat="${c.id}">${c.label}</button>`).join("") +
-  `<button class="chip act" id="styChip" title="Blues / country / folk — standard progressions + genre scale maps">Styles</button>` +
-  `<button class="chip act" id="mapChip" title="Fretboard map — every in-key note on the neck">Map</button>` +
-  `<button class="chip act" id="lrnChip" title="Learn — banjo rolls + slide licks as animated tab">Learn</button>` +
-  `<button class="chip act" id="mineChip" title="Tune miner — pluck melodies out of the chord shapes, one lit note at a time">Mine</button>` +
-  `<button class="chip act" id="tunChip" title="Tune up — mic pitch detection">Tuner</button>`;
+  `<button class="chip${c.id === state.cat ? " on" : ""}" data-cat="${c.id}">${c.label}</button>`).join("");
 $("#chips").addEventListener("click", e => {
   const b = e.target.closest(".chip"); if(!b) return;
-  if(b.id === "styChip"){ openStyles(); return; }
-  if(b.id === "mapChip"){ openMap(); return; }
-  if(b.id === "lrnChip"){ openLearn(); return; }
-  if(b.id === "mineChip"){ openMine(); return; }
-  if(b.id === "tunChip"){ openTuner(); return; }
   state.cat = b.dataset.cat; state.page = 0;
   document.querySelectorAll(".chip[data-cat]").forEach(x => x.classList.toggle("on", x === b));
   render();
@@ -4545,6 +4541,7 @@ function syncDotBtn(){
   l.innerHTML = DOT_LEGENDS[state.dots];
   l.style.display = state.dots ? "" : "none";
 }
+$("#mapBtn").addEventListener("click", () => go("chords/map"));
 $("#dotToggle").addEventListener("click", () => {
   state.dots = (state.dots + 1) % 3;
   try{ localStorage.setItem("chordware.dots", String(state.dots)); }catch(e){/* private mode */}
