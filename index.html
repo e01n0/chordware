@@ -523,21 +523,21 @@ if(_t) document.documentElement.dataset.theme = _t;</script>
     border:1px solid var(--line2); border-radius:0;
     font-family:var(--font-m); font-size:var(--fs-m); padding:0 8px;
   }
-  #lnTab svg{ display:block; min-width:640px; width:100%; height:auto; }
-  .lev circle{ fill:var(--bg2); stroke:var(--cyan); stroke-width:1.6; }
-  .lev text.fr{ fill:var(--cyan); }
+  #lnTab svg{ display:block; min-width:0; width:auto; height:auto; }   /* 1:1, never scaled down */
+  .lev rect{ fill:var(--panel); }
+  .lev text.fr{ fill:var(--text); }
   .lev text.slf{ fill:var(--dim); }
   /* picking hand at a glance: the thumb is the anchor every pattern is
-     built around, so it gets the accent colour and bold weight — the
-     letter still carries the meaning where a theme flattens the hues */
+     built around, so it gets the accent colour; the letter still carries
+     the meaning where a theme flattens the hues */
   .lev text.fin{ fill:var(--red); }
-  .lev text.fin[data-fin="T"]{ fill:var(--yellow); font-weight:bold; }
+  .lev text.fin[data-fin="T"]{ fill:var(--yellow); }
   .lev text.fin[data-fin="I"]{ fill:var(--cyan); }
   .lev text.fin[data-fin="R"]{ fill:var(--dim); }
-  #lnTab .brush{ fill:none; stroke:var(--red); stroke-width:1.4; opacity:.8; }
+  #lnTab .brush{ fill:none; stroke:var(--red); stroke-width:1.6; opacity:.8; }
   .lev text.mute{ fill:var(--dim); }
   .lev .sl{ stroke:var(--red); stroke-width:2; fill:none; }
-  .lev.lit circle{ fill:var(--yellow); stroke:var(--yellow); filter:drop-shadow(0 0 7px var(--yellow)); }
+  .lev.lit rect{ fill:var(--yellow); filter:drop-shadow(0 0 7px var(--yellow)); }
   .lev.lit text.fr{ fill:var(--ink); }
   #lnPlayhead{ stroke:var(--yellow); stroke-width:2; opacity:0; }
   #lnPlayhead.run{ opacity:.9; }
@@ -5415,19 +5415,22 @@ function renderLessonTab(lesson, chord, tuning){
   const NSTR = tuning.strings.length;
   const BAR = lesson.bar || (lesson.steps > 12 ? 8 : lesson.steps);   // songs and progressions run many bars
   const cw = $("#lnTab").clientWidth || 700;
-  const perRow = lesson.steps <= 16 ? lesson.steps      // short lessons: one row
-               : BAR * (cw >= 880 ? 4 : 2);             // wide panels take 4 bars a row, narrow 2
+  // Fixed, readable metrics: the tab never scales down to fit. A lesson
+  // that is wider than the panel wraps into rows (whole bars when a bar
+  // fits, else beat pairs), the way printed tab breaks lines.
+  const X0 = 58, TOP = 34, STEP = 48, SG = 40, R = 10, F = 16;
+  const fit = Math.max(2, Math.floor((cw - X0 - 14) / STEP));          // slots that fit at 1:1
+  const perRow = lesson.steps <= fit ? lesson.steps
+               : fit >= BAR ? Math.floor(fit / BAR) * BAR
+               : Math.max(2, Math.floor(fit / 2) * 2);
   const rows = Math.ceil(lesson.steps / perRow);
-  const [STEP, SG, R, F] =                              // metrics shrink as rows hold more bars
-    perRow > 16 ? [40, 36, 11, 12] : perRow > 8 ? [44, 36, 9, 10] : [64, 42, 11, 11];
-  const X0 = 58, TOP = 30;
   const rowH = TOP + (NSTR - 1) * SG + 40;
   const W = X0 + perRow * STEP + 14;
   const H = rowH * rows;
   lnGeo = { X0, STEP, TOP, SG, rowH, perRow, rows, NSTR, BAR };
   const sy = (r, s) => r * rowH + TOP + (NSTR - 1 - s) * SG;   // s0 (lowest position) at the bottom
   const ex = t => X0 + (t % perRow + .5) * STEP;
-  const P = [`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'Share Tech Mono',monospace">`];
+  const P = [`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'Share Tech Mono',monospace">`];
   // behind everything: the bar the playhead is in, so your eye re-finds
   // its place the instant the line wraps to the next row
   P.push(`<rect id="lnBarHi" x="0" y="0" width="0" height="0" opacity="0"/>`);
@@ -5436,20 +5439,20 @@ function renderLessonTab(lesson, chord, tuning){
     const slots = Math.min(perRow, lesson.steps - r * perRow);
     for(let s = 0; s < NSTR; s++){
       P.push(`<line x1="${X0 - 18}" y1="${sy(r, s)}" x2="${X0 + slots * STEP + 6}" y2="${sy(r, s)}" stroke="var(--line2)" stroke-width="1"/>`);
-      P.push(`<text x="${X0 - 34}" y="${sy(r, s) + 4}" fill="var(--cyan)" font-size="${F + 2}">${tuning.strings[s]}</text>`);
+      P.push(`<text x="${X0 - 34}" y="${sy(r, s) + 5}" fill="var(--cyan)" font-size="${F}" font-weight="bold">${tuning.strings[s]}</text>`);
     }
     for(let t = 0; t <= slots; t++){                    // beat grid — heavier on the quarters, heaviest at bar lines
       const ta = r * perRow + t, x = X0 + t * STEP, bl = ta % BAR === 0;
       P.push(`<line x1="${x}" y1="${r * rowH + TOP - 8}" x2="${x}" y2="${sy(r, 0) + 8}" stroke="var(--line${!bl && ta % 2 ? "2" : ""})" stroke-width="${bl ? 1.6 : ta % 2 ? .5 : 1}"/>`);
       if(t < slots){                                  // count the bar out loud: 1 & 2 & 3 & 4 &
         const lab = countLabel(ta % BAR, BAR, lesson);
-        if(lab) P.push(`<text x="${ex(ta)}" y="${sy(r, 0) + 26}" fill="var(--${/\d/.test(lab) ? "text" : "dim"})" font-size="${/\d/.test(lab) ? F : F - 1}" text-anchor="middle">${lab}</text>`);
+        if(lab) P.push(`<text x="${ex(ta)}" y="${sy(r, 0) + 26}" fill="var(--${/\d/.test(lab) ? "text" : "dim"})" font-size="${/\d/.test(lab) ? F - 2 : F - 3}" text-anchor="middle">${lab}</text>`);
       }
     }
   }
   (lesson.marks || []).forEach(m => {                   // chord names ride the grid, naming each change as it arrives
     const r = Math.floor(m.t / perRow);
-    P.push(`<text x="${X0 + (m.t % perRow) * STEP + 5}" y="${r * rowH + 14}" fill="var(--yellow)" font-size="${F}" letter-spacing=".1em">${m.c}</text>`);
+    P.push(`<text x="${X0 + (m.t % perRow) * STEP + 5}" y="${r * rowH + 14}" fill="var(--yellow)" font-size="${F - 1}" font-weight="bold" letter-spacing=".1em">${m.c}</text>`);
   });
   // a brush is one motion across several strings — notate it as the
   // simultaneous notes convention wants, but bracket them so the hand
@@ -5469,28 +5472,30 @@ function renderLessonTab(lesson, chord, tuning){
     const si = rollString(e.s, chord, tuning);
     const r = Math.floor(e.t / perRow);
     const x = ex(e.t), y = sy(r, si), k = STEP / 64;
+    // a note is a digit on the string line with a panel-coloured knockout
+    // behind it, as printed tab does it: no ring to compete with the glyph
+    const note = (cx, f) => {
+      const w = String(f).length > 1 ? 2 * R + 8 : 2 * R;
+      P.push(`<rect x="${cx - w / 2}" y="${y - R + 1}" width="${w}" height="${2 * R - 2}" rx="3"/>`);
+      P.push(`<text class="fr" x="${cx}" y="${y + 5.5}" font-size="${F}" font-weight="bold" text-anchor="middle">${f}</text>`);
+    };
     P.push(`<g class="lev" data-t="${e.t}">`);
     if(e.sl !== undefined){                             // slide: small from-fret gliding up the connector into the target
       const x2 = x + 32 * k;
-      P.push(`<text class="slf" x="${x - 4 * k}" y="${y + 3.5}" font-size="${F - 2}" text-anchor="middle">${e.sl}</text>`);
+      P.push(`<text class="slf" x="${x - 4 * k}" y="${y + 4}" font-size="${F - 3}" text-anchor="middle">${e.sl}</text>`);
       P.push(`<line class="sl" x1="${x + 4 * k}" y1="${y + 4}" x2="${x2 - R - 2}" y2="${y - 4}"/>`);
-      P.push(`<circle cx="${x2}" cy="${y}" r="${R}"/>`);
-      P.push(`<text class="fr" x="${x2}" y="${y + 3.6}" font-size="${F}" text-anchor="middle">${e.to}</text>`);
+      note(x2, e.to);
     }else{
       const f = rollFret(e, si, chord, tuning);
-      if(f < 0){
-        P.push(`<text class="mute" x="${x}" y="${y + 4.5}" font-size="${F + 3}" text-anchor="middle">×</text>`);
-      }else{
-        P.push(`<circle cx="${x}" cy="${y}" r="${R}"/>`);
-        P.push(`<text class="fr" x="${x}" y="${y + 3.6}" font-size="${F}" text-anchor="middle">${f}</text>`);
-      }
+      if(f < 0) P.push(`<text class="mute" x="${x}" y="${y + 5}" font-size="${F - 1}" font-weight="bold" text-anchor="middle">×</text>`);
+      else note(x, f);
     }
     // clawhammer tab assumes the thumb on the 5th string and marks only a
     // DROP to any other string — so the drops are the only T's on the page,
     // which is the whole lesson. Rolls keep their full T/I/M fingering.
     const droneThumb = lesson.claw && e.fin === "T" && tuning.drone && si === tuning.drone.s;
     if(e.fin && !droneThumb)
-      P.push(`<text class="fin" data-fin="${e.fin}" x="${x}" y="${y - R - 4}" font-size="${F - 1}" text-anchor="middle">${e.fin}</text>`);
+      P.push(`<text class="fin" data-fin="${e.fin}" x="${x}" y="${y - R - 5}" font-size="${F - 3}" font-weight="bold" text-anchor="middle">${e.fin}</text>`);
     P.push(`</g>`);
   });
 
@@ -5596,7 +5601,7 @@ function lnFrame(){
       const b = Math.floor(u / G.BAR) * G.BAR;
       hi.setAttribute("x", G.X0 + (b % G.perRow) * G.STEP);
       hi.setAttribute("y", row * G.rowH + G.TOP - 14);
-      hi.setAttribute("width", G.BAR * G.STEP);
+      hi.setAttribute("width", Math.min(G.BAR, G.perRow) * G.STEP);
       hi.setAttribute("height", (G.NSTR - 1) * G.SG + 28);
       hi.setAttribute("opacity", "1");
     }
