@@ -3846,13 +3846,13 @@ const grid = $("#grid"), pageInfo = $("#pageInfo");
    classic 2×3 / 3×2. JS owns the column count (inline style) so
    PAGE_SIZE always matches exactly what the grid shows. */
 function gridLayout(){
-  const w = innerWidth, h = innerHeight;
+  const w = innerWidth, h = innerHeight, square = w >= 760 && w / h >= .85 && w / h <= 1.25;
   let cols = 2;                          // phone portrait
   if(w >= 1800) cols = 6;
   else if(w >= 1440) cols = 5;
   else if(w >= 1080) cols = 4;           // iPad landscape / laptop
-  else if(w >= 820 || w > h) cols = 3;   // iPad portrait / phone landscape
-  const rows = cols === 2 ? 3 : (h >= 1000 ? 3 : 2);
+  else if(w >= 820 || w > h) cols = 3;   // iPad portrait / phone landscape / unfolded Fold
+  const rows = cols === 2 ? 3 : (h >= 1000 || square ? 3 : 2);   // a near-square screen (Z Fold open) has the height for 3
   return { cols, rows };
 }
 function applyGridLayout(){
